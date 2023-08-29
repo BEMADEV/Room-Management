@@ -1,0 +1,303 @@
+{{'https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900'| AddLinkTagToHead:'rel','stylesheet' }}
+{{'https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css'| AddLinkTagToHead:'rel','stylesheet' }}
+{{'https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.min.css'| AddLinkTagToHead:'rel','stylesheet' }}
+<script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
+
+{% comment %}Build the Javascript Object of Reservations{% endcomment %}
+{% capture events %}
+[
+{% for reservationDate in ReservationDates %}
+    {% for reservationSummary in reservationDate.Reservations %}
+        {% assign adminContact = reservationSummary.AdminContactPersonAlias.Person %}
+            {
+                approvalState:"{{reservationSummary.ApprovalState }}",
+                eventContact:'{{eventContact.FullName}}',
+                eventContactId:{{eventContact.Id}},
+                reservationStart:"{{reservationSummary.ReservationStartDateTime | Date:'M/d h:mm'}}",
+                reservationEnd:"{{reservationSummary.ReservationEndDateTime | Date:'M/d h:mm'}}",
+                eventStart:"{{reservationSummary.EventStartDateTime | Date:'M/d h:mm'}}",
+                eventEnd:"{{reservationSummary.EventEndDateTime | Date:'M/d h:mm'}}",
+                locations:"{{reservationSummary.Locations | Select:'Location' | Select:'Name' | Join:', ' | Replace:'"','\"'}}",
+                resources:"{{reservationSummary.Resources | Select:'Location' | Select:'Name' | Join:', ' | Replace:'"','\"'}}",
+                id:{{reservationSummary.Id}},
+                name:"{{reservationSummary.ReservationName | Replace:'"','\"' }}",
+                color:"{% case reservationSummary.ApprovalStateInt %}{% when 2 %}#16c98d{% when 3 %}#d4442e{% when 4 %}#ee7624{% when 1 or 5 or 6 %}#ffc870{% else %}#009ce3{% endcase %}",
+                start:"{{reservationSummary.ReservationStartDateTime | Date:'yyyy-MM-ddThh:mm:ss'}}",
+                end:"{{reservationSummary.ReservationEndDateTime | Date:'yyyy-MM-ddThh:mm:ss'}}",
+                timed: true
+            },
+    {% endfor %}
+{% endfor %}
+]
+{% endcapture %}
+{% assign eventsJson = events | ReplaceLast:',','' | FromJSON | ToJSON  %}
+{% comment %}End of Building the PTO Request Event Array{% endcomment %}
+
+<div id="app">
+    <v-app id="inspire" >
+        <v-row class="fill-height">
+            <v-col>
+                <v-sheet height="64">
+                    <v-toolbar flat :bottom="true">
+                        <v-btn outlined class="mr-4" color="grey darken-2" @click="setToday"> Today </v-btn>
+                        <v-btn fab text small color="grey darken-2" @click="prev">
+                            <v-icon small>mdi-chevron-left</v-icon>
+                        </v-btn>
+                        <v-btn fab text small color="grey darken-2" @click="next">
+                            <v-icon small>mdi-chevron-right</v-icon>
+                        </v-btn>
+                        <v-toolbar-title v-if="$refs.calendar"> {$ $refs.calendar.title $} </v-toolbar-title>
+                        <v-toolbar-title v-else> {$ calendar $} </v-toolbar-title>
+                        <v-spacer></v-spacer>
+
+
+                        <v-menu bottom right> <template v-slot:activator="{ on, attrs }">
+                                <v-btn outlined color="grey darken-2" v-bind="attrs" v-on="on" class="mr-4"> <span>{$
+                                        typeToLabel[type] $}</span>
+                                    <v-icon right>mdi-menu-down</v-icon>
+                                </v-btn>
+                            </template>
+                            <v-list>
+                                <v-list-item v-for="(type, i) of calendartypes" @click="updateType(type.value)" :key="i">
+                                    <v-list-item-title>{$ type.text$}</v-list-item-title>
+                                </v-list-item>
+                            </v-list>
+                        </v-menu>
+                        <v-menu bottom right> <template v-slot:activator="{ on, attrs }">
+                                <v-btn outlined color="grey darken-2" v-bind="attrs" v-on="on"> <span>{$ selectedOption
+                                        $}</span>
+                                    <v-icon right>mdi-menu-down</v-icon>
+                                </v-btn>
+                            </template>
+                            <v-list>
+                                <v-list-item v-for="(daylist, i) in weekdays" :key="i"
+                                    @click="saveWeekday(daylist.value)">
+                                    <v-list-item-title>{$ daylist.text$}</v-list-item-title>
+                                </v-list-item>
+                            </v-list>
+                        </v-menu>
+                    </v-toolbar>
+                </v-sheet>                
+                <v-sheet height="600">
+                    <v-calendar
+                        ref="calendar"
+                        v-model="focus"
+                        :events="events"
+                        :event-color="getEventColor"
+                        :weekdays="weekday"
+                        :type="type"
+                        :show-month-on-first="true"
+                        :short-weekdays="false"
+                        first-time="08:00"
+                        interval-count="10"
+                        color="secondary"
+
+                        now="{{'Now' | Date:'yyyy-MM-dd HH:mm:ss'}}"
+                        @click:event="showEvent"
+                        @click:more="viewDay"
+                        @click:date="viewDay"
+                        @change="updateRange">
+                        </v-calendar>
+                    <v-menu v-model="selectedOpen" class="mr-4" :close-on-content-click="false"
+                        :activator="selectedElement" offset-y>
+                        <v-card color="grey lighten-4" min-width="350px" flat>
+                            <v-toolbar :color="selectedEvent.color" dark>
+                                <v-toolbar-title>{$ selectedEvent.name $}</v-toolbar-title>
+
+
+
+                                <v-spacer></v-spacer>
+                                <v-toolbar-title>({$ selectedEvent.approvalState $})</v-toolbar-title>
+
+                                <v-btn icon>
+                                    <v-icon @click="selectedOpen = false">mdi-close</v-icon>
+                                </v-btn>
+                            </v-toolbar>
+                            <v-card-text>
+                                <p><strong>Status: </strong><span v-html="selectedEvent.approvalState"></span></p>
+                                <p><strong>Event Contact: </strong><span v-html="selectedEvent.eventContact"></span></p>
+                                <p><strong>Reservation Time: </strong><span v-html="selectedEvent.reservationStart"></span> - <span v-html="selectedEvent.reservationEnd"></span></p>
+                                <p><strong>Event Time: </strong><span v-html="selectedEvent.eventStart"></span> - <span v-html="selectedEvent.eventEnd"></span></p>
+                                <p><strong>Locations: </strong><span v-html="selectedEvent.locations"></span></p>
+                                <p><strong>Resources: </strong><span v-html="selectedEvent.resources"></span></p>
+
+                            </v-card-text>
+                            <v-card-actions>
+                                <v-btn text :color="selectedEvent.color" @click.native="editRockEvent(selectedEvent)"> View Reservation </v-btn>
+                                <v-btn text :color="selectedEvent.color" @click="selectedOpen = false"> Close Window </v-btn>
+                            </v-card-actions>
+                        </v-card>
+                    </v-menu>
+                </v-sheet>
+            </v-col>
+        </v-row>
+    </v-app>
+</div>
+
+<script>
+//Saves the events object built above to a javascript variable used in the data object in the vue app.  The FromJSON ToJSON removes any extra line breaks which is not completely necessary but was helpful in development.
+var events = {{eventsJson}};
+//Gets the brand color css variable on the Rock Internal site and sets it as the calendar's primary color.
+let primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--brand-color')
+//Uses the color function below to lighten the color for hover state.
+let secondaryColor = LightenColor(primaryColor,10);
+
+
+new Vue({
+    el: '#app',
+    delimiters: ['{$', '$}'],
+    vuetify: new Vuetify({
+  theme: {
+    options: {
+      customProperties: true
+    },
+  // Sets the them colors to the variable above.
+    themes: {
+      light: {
+        primary: primaryColor, // #E53935
+        secondary:secondaryColor, // #FFCDD2
+      },
+    },
+  },
+}),
+//There are extra unused properties here from the copy from Vuetify
+    data: () => ({
+        focus: '',
+        type: 'month',
+        typeToLabel: {
+            month: 'Month',
+            week: 'Week',
+            day: 'Day',
+        },
+        startMenu: false,
+        calendar: '{{'Now' | Date:'MMMM yyyy' }}',
+        selectedEvent: {},
+        selectedElement: null,
+        selectedOpen: false,
+        events: events,
+        start:'',
+        // The list of calendar types that are available to choose from.  Removing items from this list will remove them from the list on the calendar
+        calendartypes:[
+            {text:'Month',value:'month'},
+            {text:'Week',value:'week'},
+            {text:'Day',value:'day'},
+            ],
+        //The default weekday option(shows Monday through Friday) this is overwritten by the what is in local storage.
+        weekday: [1, 2, 3, 4, 5],
+        //This list of weekday options to show in the select on the calendar.  Removing/Adding items will change that dropdown.  Make sure the default value above is in the list.
+        weekdays: [
+            {
+            text: 'Sun - Sat',
+            value: [0, 1, 2, 3, 4, 5, 6]
+            },
+            {
+            text: 'Mon - Sun',
+            value: [1, 2, 3, 4, 5, 6, 0]
+            },
+            {
+            text: 'Mon - Fri',
+            value: [1, 2, 3, 4, 5]
+            },
+            {
+            text: 'Fri, Sat, Sun',
+            value: [5, 6, 0]
+            }],
+    }),
+    created() {
+
+      let weekday = localStorage.getItem('calendarWeekPreference');
+      let type = localStorage.getItem('calendarTypePreference');
+
+      if(weekday){
+          this.weekday = JSON.parse(weekday)
+      }
+      if(type){
+          this.type = JSON.parse(type)
+      }
+    },
+    mounted() {
+        this.$refs.calendar.checkChange()
+    },
+
+    computed: {
+        //Used to change the calendar view for the number of days selected
+        selectedOption() {
+
+            let value = this.weekday.toString();
+            let found = this.weekdays.find(e => e.value.toString() === value);
+            return found.text
+        }
+    },
+    methods: {
+        //Sets the calendar type and saves it to local storage to persist value when the refreshes.
+        updateType(type) {
+          this.type = type
+          parent.$('body').trigger('resizeIframe');
+          localStorage.setItem("calendarTypePreference",JSON.stringify(type))
+        },
+        //Sets the calendar weekday option and saves it to local storage to persist value when the refreshes.
+        saveWeekday(e) {
+            this.weekday = e
+            localStorage.setItem("calendarWeekPreference",JSON.stringify(e))
+        },
+        //Used by the event card to direct people to the view request workflow.  This uses the variable in the sql above to go to the correct workflow.
+        editRockEvent(event) {
+
+            window.top.location.href = '{{'Global' | Attribute:'InternalApplicationRoot'}}/ReservationDetail?ReservationId=' + event.id
+        },
+
+        viewDay({date}) {
+            this.focus = date;
+            this.type = 'day';
+        },
+        getEventColor(event) {
+            return event.color
+        },
+        setToday() {
+            this.focus = ''
+        },
+        prev() {
+            this.$refs.calendar.prev()
+        },
+        next() {
+            this.$refs.calendar.next()
+        },
+        showEvent({
+            nativeEvent,
+            event
+        }) {
+            const open = () => {
+                this.selectedEvent = event;
+                this.selectedElement = nativeEvent.target;
+                setTimeout(() => this.selectedOpen = true, 10);
+            }
+            if (this.selectedOpen) {
+                this.selectedOpen = false
+                setTimeout(open, 10);
+            } else {
+                open()
+            }
+            nativeEvent.stopPropagation()
+        },
+        updateRange({
+            start,
+            end
+        }) {},
+        rnd(a, b) {
+            return Math.floor((b - a + 1) * Math.random()) + a
+        },
+    },
+})
+
+function LightenColor(color, percent) {
+        var num = parseInt(color.replace("#",""),16),
+        amt = Math.round(2.55 * percent),
+        R = (num >> 16) + amt,
+        B = (num >> 8 & 0x00FF) + amt,
+        G = (num & 0x0000FF) + amt;
+
+        return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (B<255?B<1?0:B:255)*0x100 + (G<255?G<1?0:G:255)).toString(16).slice(1);
+};
+
+</script>

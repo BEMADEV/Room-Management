@@ -548,7 +548,8 @@ Notes: {{ reservation.Note }}<br/>
             Sql( @"
                     Delete From [dbo].[_com_bemaservices_RoomManagement_ReservationWorkflowTrigger] Where [Guid] in ('5339e1c4-ac09-4bd5-9416-628dba200ba5','68f6de62-cdbb-4ec0-8440-8b1740c21e65')
                     DECLARE @WorkflowId int = (Select Top 1 Id From WorkflowType Where Guid = '83907883-4803-4AFB-8A20-49FDC0BE4788')
-                    INSERT [dbo].[_com_bemaservices_RoomManagement_ReservationWorkflowTrigger] ([WorkflowTypeId],[ReservationTypeId], [TriggerType], [QualifierValue], [CreatedDateTime], [ModifiedDateTime], [CreatedByPersonAliasId], [ModifiedByPersonAliasId], [Guid], [ForeignKey], [ForeignGuid], [ForeignId]) VALUES (@WorkflowId,1, 2, N'|||', CAST(N'2020-10-23 14:02:11.953' AS DateTime), CAST(N'2020-10-23 14:02:11.953' AS DateTime), NULL, NULL, N'68F6DE62-CDBB-4EC0-8440-8B1740C21E65', NULL, NULL, NULL)
+                    Declare @ReservationTypeId int = ( Select Top 1 Id From [_com_bemaservices_RoomManagement_ReservationType])
+                    INSERT [dbo].[_com_bemaservices_RoomManagement_ReservationWorkflowTrigger] ([WorkflowTypeId],[ReservationTypeId], [TriggerType], [QualifierValue], [CreatedDateTime], [ModifiedDateTime], [CreatedByPersonAliasId], [ModifiedByPersonAliasId], [Guid], [ForeignKey], [ForeignGuid], [ForeignId]) VALUES (@WorkflowId,@ReservationTypeId, 2, N'|||', CAST(N'2020-10-23 14:02:11.953' AS DateTime), CAST(N'2020-10-23 14:02:11.953' AS DateTime), NULL, NULL, N'68F6DE62-CDBB-4EC0-8440-8B1740C21E65', NULL, NULL, NULL)
             " );
 
             Sql( @"

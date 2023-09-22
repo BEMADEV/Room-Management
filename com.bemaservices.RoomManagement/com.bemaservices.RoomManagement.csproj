@@ -214,6 +214,10 @@
     <Compile Include="Workflow\Action\Reservations\SetReservationApprovalState.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="$(SolutionDir)Rock.Enums\Rock.Enums.csproj">
+      <Project>{61dece2b-0434-435e-8d65-49a4fdf98365}</Project>
+      <Name>Rock.Enums</Name>
+    </ProjectReference>
     <ProjectReference Include="..\com.centralaz.RoomManagement\com.centralaz.RoomManagement.csproj">
       <Project>{7034b83c-c331-436c-aa16-e87ad280b0e9}</Project>
       <Name>com.centralaz.RoomManagement</Name>

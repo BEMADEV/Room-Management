@@ -21,6 +21,7 @@ using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 
 using Rock.Data;
+using Rock.Lava;
 using Rock.Model;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -78,7 +79,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the resource.
         /// </summary>
         /// <value>The resource.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Resource Resource { get; set; }
 
         #endregion

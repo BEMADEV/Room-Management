@@ -26,6 +26,7 @@ using System.Text;
 using System.Web;
 using Rock;
 using Rock.Data;
+using Rock.Lava;
 using Rock.Model;
 using Rock.Security;
 
@@ -256,49 +257,49 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the schedule.
         /// </summary>
         /// <value>The schedule.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Schedule Schedule { get; set; }
 
         /// <summary>
         /// Gets or sets the campus.
         /// </summary>
         /// <value>The campus.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Campus Campus { get; set; }
 
         /// <summary>
         /// Gets or sets the event item occurrence.
         /// </summary>
         /// <value>The event item occurrence.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual EventItemOccurrence EventItemOccurrence { get; set; }
 
         /// <summary>
         /// Gets or sets the reservation ministry.
         /// </summary>
         /// <value>The reservation ministry.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ReservationMinistry ReservationMinistry { get; set; }
 
         /// <summary>
         /// Gets or sets the requester alias.
         /// </summary>
         /// <value>The requester alias.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual PersonAlias RequesterAlias { get; set; }
 
         /// <summary>
         /// Gets or sets the approver alias.
         /// </summary>
         /// <value>The approver alias.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual PersonAlias ApproverAlias { get; set; }
 
         /// <summary>
         /// Gets or sets the reservation workflows.
         /// </summary>
         /// <value>The reservation workflows.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationWorkflow> ReservationWorkflows
         {
             get { return _reservationWorkflows; }
@@ -313,7 +314,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation resources.
         /// </summary>
         /// <value>The reservation resources.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationResource> ReservationResources
         {
             get { return _reservationResources ?? ( _reservationResources = new Collection<ReservationResource>() ); }
@@ -328,7 +329,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation linkages.
         /// </summary>
         /// <value>The reservation resources.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationLinkage> ReservationLinkages
         {
             get { return _reservationLinkages ?? ( _reservationLinkages = new Collection<ReservationLinkage>() ); }
@@ -343,7 +344,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation locations.
         /// </summary>
         /// <value>The reservation locations.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationLocation> ReservationLocations
         {
             get { return _reservationLocations ?? ( _reservationLocations = new Collection<ReservationLocation>() ); }
@@ -358,7 +359,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets the setup photo URL.
         /// </summary>
         /// <value>The setup photo URL.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         [NotMapped]
         public virtual string SetupPhotoUrl
         {
@@ -416,7 +417,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets the friendly reservation time.
         /// </summary>
         /// <value>The friendly reservation time.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         [NotMapped]
         public virtual string FriendlyReservationTime
         {
@@ -434,7 +435,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets the reservation modified date time.
         /// </summary>
         /// <value>The reservation modified date time.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         [NotMapped]
         public virtual DateTime? ReservationModifiedDateTime
         {

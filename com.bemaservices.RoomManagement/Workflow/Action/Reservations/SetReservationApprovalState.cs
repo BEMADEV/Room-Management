@@ -61,7 +61,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
             // Get the reservation
             Reservation reservation = null;
-            Guid reservationGuid = action.GetWorklowAttributeValue( GetAttributeValue( action, "ReservationAttribute" ).AsGuid() ).AsGuid();
+            Guid reservationGuid = action.GetWorkflowAttributeValue( GetAttributeValue( action, "ReservationAttribute" ).AsGuid() ).AsGuid();
             reservation = new ReservationService( rockContext ).Get( reservationGuid );
             if ( reservation == null )
             {
@@ -74,7 +74,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             Guid? approvalStateAttributeGuid = GetAttributeValue( action, "ApprovalStateAttribute" ).AsGuidOrNull();
             if ( approvalStateAttributeGuid.HasValue )
             {
-                approvalState = action.GetWorklowAttributeValue( approvalStateAttributeGuid.Value ).ConvertToEnumOrNull<ReservationApprovalState>();
+                approvalState = action.GetWorkflowAttributeValue( approvalStateAttributeGuid.Value ).ConvertToEnumOrNull<ReservationApprovalState>();
             }
 
             if ( approvalState == null )

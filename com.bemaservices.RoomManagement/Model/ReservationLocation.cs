@@ -22,6 +22,7 @@ using Rock.Model;
 using Rock.Data;
 using System;
 using Rock;
+using Rock.Lava;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -77,14 +78,14 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the location.
         /// </summary>
         /// <value>The location.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Location Location { get; set; }
 
         /// <summary>
         /// Gets or sets the location layout.
         /// </summary>
         /// <value>The location layout.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual LocationLayout LocationLayout { get; set; }
 
         #endregion

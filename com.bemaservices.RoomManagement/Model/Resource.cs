@@ -21,6 +21,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Web;
 using Rock.Data;
+using Rock.Lava;
 using Rock.Model;
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -127,14 +128,14 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the approval group.
         /// </summary>
         /// <value>The approval group.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Group ApprovalGroup { get; set; }
 
         /// <summary>
         /// Gets the photo URL.
         /// </summary>
         /// <value>The photo URL.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         [NotMapped]
         public virtual string PhotoUrl
         {

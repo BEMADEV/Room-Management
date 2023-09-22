@@ -26,6 +26,7 @@ using System.Text;
 using System.Web;
 using Rock;
 using Rock.Data;
+using Rock.Lava;
 using Rock.Model;
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -219,7 +220,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the final approval group.
         /// </summary>
         /// <value>The final approval group.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Group FinalApprovalGroup
         {
             get
@@ -232,7 +233,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the initial approval group.
         /// </summary>
         /// <value>The initial approval group.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Group InitialApprovalGroup
         {
             get
@@ -245,7 +246,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the super admin group.
         /// </summary>
         /// <value>The super admin group.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual Group OverrideApprovalGroup
         {
             get
@@ -258,7 +259,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservations.
         /// </summary>
         /// <value>The reservations.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<Reservation> Reservations
         {
             get { return _reservations ?? ( _reservations = new Collection<Reservation>() ); }
@@ -274,7 +275,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservations.
         /// </summary>
         /// <value>The reservations.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationApprovalGroup> ReservationApprovalGroups
         {
             get { return _reservationApprovalGroups ?? ( _reservationApprovalGroups = new Collection<ReservationApprovalGroup>() ); }
@@ -290,7 +291,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation ministries.
         /// </summary>
         /// <value>The reservation ministries.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationMinistry> ReservationMinistries
         {
             get { return _reservationMinistries ?? ( _reservationMinistries = new Collection<ReservationMinistry>() ); }
@@ -306,7 +307,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation workflow triggers.
         /// </summary>
         /// <value>The reservation workflow triggers.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationWorkflowTrigger> ReservationWorkflowTriggers
         {
             get { return _reservationWorkflowTriggers ?? ( _reservationWorkflowTriggers = new Collection<ReservationWorkflowTrigger>() ); }
@@ -323,7 +324,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation location types.
         /// </summary>
         /// <value>The reservation location types.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         public virtual ICollection<ReservationLocationType> ReservationLocationTypes
         {
             get { return _reservationLocationTypes ?? ( _reservationLocationTypes = new Collection<ReservationLocationType>() ); }

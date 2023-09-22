@@ -23,6 +23,7 @@ using Rock.Data;
 using System.ComponentModel.DataAnnotations;
 using System.Web;
 using System.Text;
+using Rock.Lava;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -93,7 +94,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets the layout photo URL.
         /// </summary>
         /// <value>The layout photo URL.</value>
-        [LavaInclude]
+        [LavaVisibleAttribute]
         [NotMapped]
         public virtual string LayoutPhotoUrl
         {

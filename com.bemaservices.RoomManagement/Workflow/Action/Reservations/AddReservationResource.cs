@@ -64,7 +64,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
             // Get the reservation
             Reservation reservation = null;
-            Guid reservationGuid = action.GetWorklowAttributeValue( GetAttributeValue( action, "ReservationAttribute" ).AsGuid() ).AsGuid();
+            Guid reservationGuid = action.GetWorkflowAttributeValue( GetAttributeValue( action, "ReservationAttribute" ).AsGuid() ).AsGuid();
             reservation = reservationService.Get( reservationGuid );
             if ( reservation == null )
             {
@@ -74,7 +74,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
             // Get the resource
             Resource resource = null;
-            Guid resourceGuid = action.GetWorklowAttributeValue( GetAttributeValue( action, "ResourceAttribute" ).AsGuid() ).AsGuid();
+            Guid resourceGuid = action.GetWorkflowAttributeValue( GetAttributeValue( action, "ResourceAttribute" ).AsGuid() ).AsGuid();
             resource = new ResourceService( rockContext ).Get( resourceGuid );
             if ( resource == null )
             {

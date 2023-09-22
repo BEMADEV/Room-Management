@@ -198,13 +198,13 @@ namespace com.bemaservices.RoomManagement.Migrations
                     RoomManagementMigrationHelper.AddActionTypeAttributeValue( "44D1AF13-D6D6-4ACF-8325-4EC63499A8FD", "972F19B9-598B-474B-97A4-50E56E7B59D2", "1D0D3794-C210-48A8-8C68-3FBEC08A6BA5", "Lava Template", "LavaTemplate", "By default this action will set the attribute value equal to the guid (or id) of the entity that was passed in for processing. If you include a lava template here, the action will instead set the attribute value to the output of this template. The mergefield to use for the entity is 'Entity.' For example, use {{ Entity.Name }} if the entity has a Name property. <span class='tip tip-lava'></span>", 4, @"", @"{{ Entity.ReservationType.FinalApprovalGroup.Guid }}" );
                 }
 
-                RockMigrationHelper.AddEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.DefaultReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "D4B18C56-9D42-4B4D-A0AA-CD8A9D5D3C77" );
+                RockMigrationHelper.AddOrUpdateEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.DefaultReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "D4B18C56-9D42-4B4D-A0AA-CD8A9D5D3C77", "Active" );
                 RockMigrationHelper.AddAttributeValue( "D4B18C56-9D42-4B4D-A0AA-CD8A9D5D3C77", 0, "True", "9C14AD2E-596C-4768-BF60-F652F2A008B0" );
 
-                RockMigrationHelper.AddEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.LavaReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "E6827740-78CA-46C0-A3DD-9C2F4E547D26" );
+                RockMigrationHelper.AddOrUpdateEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.LavaReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "E6827740-78CA-46C0-A3DD-9C2F4E547D26", "Active" );
                 RockMigrationHelper.AddAttributeValue( "E6827740-78CA-46C0-A3DD-9C2F4E547D26", 0, "True", "C255EDF9-6284-4F5C-B680-1C16C123A481" );
 
-                RockMigrationHelper.AddEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.AdvancedReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "BE8E7F70-4CC3-432A-B13E-226057478843" );
+                RockMigrationHelper.AddOrUpdateEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.AdvancedReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "BE8E7F70-4CC3-432A-B13E-226057478843", "Active" );
                 RockMigrationHelper.AddAttributeValue( "BE8E7F70-4CC3-432A-B13E-226057478843", 0, "True", "317A6D16-42F1-42C4-8C19-2168C8B0BFB5" );
 
                 // Page: Room Management

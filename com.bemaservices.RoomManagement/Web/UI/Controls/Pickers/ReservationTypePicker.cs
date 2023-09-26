@@ -44,6 +44,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             Label = "Reservation Type";
         }
 
+        /// <summary>
+        /// Handles the <see cref="E:System.Web.UI.Control.Load" /> event.
+        /// </summary>
+        /// <param name="e">An <see cref="T:System.EventArgs" /> object that contains event data.</param>
         protected override void OnLoad( EventArgs e )
         {
             base.OnLoad( e );
@@ -52,6 +56,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
                 LoadItems( null );
             }
         }
+        /// <summary>
+        /// Gets or sets the reservation type ids.
+        /// </summary>
+        /// <value>The reservation type ids.</value>
         private List<int> ReservationTypeIds
         {
             get
@@ -64,6 +72,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
                 ViewState["ReservationTypeIds"] = value;
             }
         }
+        /// <summary>
+        /// Gets or sets a value indicating whether [include inactive].
+        /// </summary>
+        /// <value><c>true</c> if [include inactive]; otherwise, <c>false</c>.</value>
         public bool IncludeInactive
         {
             get
@@ -124,6 +136,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             }
         }
 
+        /// <summary>
+        /// Checks the item.
+        /// </summary>
+        /// <param name="value">The value.</param>
         public void CheckItem( int? value )
         {
             if ( value.HasValue && value.Value > 0 &&
@@ -134,6 +150,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             }
         }
 
+        /// <summary>
+        /// Loads the items.
+        /// </summary>
+        /// <param name="selectedValue">The selected value.</param>
         private void LoadItems( int? selectedValue )
         {
             // Get all the campi

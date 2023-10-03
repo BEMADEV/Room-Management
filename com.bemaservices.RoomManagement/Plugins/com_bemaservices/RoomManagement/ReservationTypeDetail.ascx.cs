@@ -407,6 +407,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationType.DefaultReservationDuration = nbDefaultEndDate.Text.AsInteger();
                 reservationType.MaximumReservationDuration = nbMaxEndDate.Text.AsIntegerOrNull();
 
+                reservationType.LocationRequirement = rblLocationRequirements.SelectedValueAsEnum<ReservationTypeRequirement>( ReservationTypeRequirement.Allow );
+                reservationType.ResourceRequirement = rblResourceRequirements.SelectedValueAsEnum<ReservationTypeRequirement>( ReservationTypeRequirement.Allow );
+
                 foreach ( var reservationApprovalGroupState in ReservationApprovalGroupsState )
                 {
                     ReservationApprovalGroup reservationApprovalGroup = reservationType.ReservationApprovalGroups.Where( a => a.Guid == reservationApprovalGroupState.Guid ).FirstOrDefault();
@@ -1376,6 +1379,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             var phoneTypeCache = DefinedTypeCache.Get( Rock.SystemGuid.DefinedType.PERSON_PHONE_TYPE );
             dvpPhoneNumberTypes.DefinedTypeId = phoneTypeCache.Id;
+
+            rblLocationRequirements.BindToEnum<ReservationTypeRequirement>();
+            var selectedLocationRequirement = reservationType.LocationRequirement != null ? reservationType.LocationRequirement.ConvertToInt() : ReservationTypeRequirement.Allow.ConvertToInt();
+            rblLocationRequirements.SetValue( selectedLocationRequirement );
+
+            rblResourceRequirements.BindToEnum<ReservationTypeRequirement>();
+            var selectedResourceRequirement = reservationType.ResourceRequirement != null ? reservationType.ResourceRequirement.ConvertToInt() : ReservationTypeRequirement.Allow.ConvertToInt();
+            rblResourceRequirements.SetValue( selectedResourceRequirement );
 
             if ( reservationType.Id != 0 )
             {

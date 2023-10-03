@@ -85,47 +85,51 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <h4>Locations</h4>
-                            <div class="grid">
-                                <Rock:Grid ID="gViewLocations" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Location" OnRowDataBound="gViewLocations_RowDataBound" ShowWorkflowOrCustomActionButtons="false">
-                                    <Columns>
-                                        <Rock:RockBoundField DataField="Location.Name" HeaderText="Location" />
-                                        <Rock:RockBoundField DataField="LocationLayout.Name" HeaderText="Layout" />
-                                        <Rock:RockBoundField DataField="LocationLayout.Description" HeaderText="Description" />
-                                        <Rock:RockTemplateField HeaderText="Photo">
-                                            <ItemTemplate>
-                                                <asp:Literal ID="lLayoutPhoto" runat="server" />
-                                            </ItemTemplate>
-                                        </Rock:RockTemplateField>
-                                        <Rock:RockTemplateField HeaderText="Status">
-                                            <ItemTemplate>
-                                                <Rock:HighlightLabel ID="hlApprovalStatus" runat="server" />
-                                            </ItemTemplate>
-                                        </Rock:RockTemplateField>
-                                        <Rock:LinkButtonField CssClass="btn btn-success btn-sm" OnClick="gViewLocations_ApproveClick" ToolTip="Approve" Text="<i class='fa fa-check'></i>" Visible="true" />
-                                        <Rock:LinkButtonField CssClass="btn btn-danger btn-sm" OnClick="gViewLocations_DenyClick" ToolTip="Deny" Text="<i class='fa fa-ban'></i>" Visible="true" />
-                                    </Columns>
-                                </Rock:Grid>
+                            <div id="divViewLocations" runat="server">
+                                <h4>Locations</h4>
+                                <div class="grid">
+                                    <Rock:Grid ID="gViewLocations" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Location" OnRowDataBound="gViewLocations_RowDataBound" ShowWorkflowOrCustomActionButtons="false">
+                                        <Columns>
+                                            <Rock:RockBoundField DataField="Location.Name" HeaderText="Location" />
+                                            <Rock:RockBoundField DataField="LocationLayout.Name" HeaderText="Layout" />
+                                            <Rock:RockBoundField DataField="LocationLayout.Description" HeaderText="Description" />
+                                            <Rock:RockTemplateField HeaderText="Photo">
+                                                <ItemTemplate>
+                                                    <asp:Literal ID="lLayoutPhoto" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
+                                            <Rock:RockTemplateField HeaderText="Status">
+                                                <ItemTemplate>
+                                                    <Rock:HighlightLabel ID="hlApprovalStatus" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
+                                            <Rock:LinkButtonField CssClass="btn btn-success btn-sm" OnClick="gViewLocations_ApproveClick" ToolTip="Approve" Text="<i class='fa fa-check'></i>" Visible="true" />
+                                            <Rock:LinkButtonField CssClass="btn btn-danger btn-sm" OnClick="gViewLocations_DenyClick" ToolTip="Deny" Text="<i class='fa fa-ban'></i>" Visible="true" />
+                                        </Columns>
+                                    </Rock:Grid>
+                                </div>
                             </div>
-
-                            <h4>Resources</h4>
-                            <div class="grid">
-                                <Rock:Grid ID="gViewResources" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Resource" OnRowDataBound="gViewResources_RowDataBound" ShowWorkflowOrCustomActionButtons="false">
-                                    <Columns>
-                                        <Rock:RockBoundField DataField="Resource.Name" HeaderText="Resource" />
-                                        <Rock:RockTemplateField>
-                                            <ItemTemplate><em class="text-muted"><%# Convert.ToString( Eval( "Resource.Location.Name") ) == string.Empty ? "" : "(attached to " +  Eval("Resource.Location.Name") + ")" %></em></ItemTemplate>
-                                        </Rock:RockTemplateField>
-                                        <Rock:RockBoundField DataField="Quantity" HeaderText="Qty" />
-                                        <Rock:RockTemplateField HeaderText="Status">
-                                            <ItemTemplate>
-                                                <Rock:HighlightLabel ID="hlApprovalStatus" runat="server" />
-                                            </ItemTemplate>
-                                        </Rock:RockTemplateField>
-                                        <Rock:LinkButtonField CssClass="btn btn-sm btn-success" OnClick="gViewResources_ApproveClick" ToolTip="Approve" Text="<i class='fa fa-check'></i>" Visible="true" />
-                                        <Rock:LinkButtonField CssClass="btn btn-sm btn-danger" OnClick="gViewResources_DenyClick" ToolTip="Deny" Text="<i class='fa fa-ban'></i>" Visible="true" />
-                                    </Columns>
-                                </Rock:Grid>
+                            
+                            <div id="divViewResources" runat="server">
+                                <h4>Resources</h4>
+                                <div class="grid">
+                                    <Rock:Grid ID="gViewResources" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Resource" OnRowDataBound="gViewResources_RowDataBound" ShowWorkflowOrCustomActionButtons="false">
+                                        <Columns>
+                                            <Rock:RockBoundField DataField="Resource.Name" HeaderText="Resource" />
+                                            <Rock:RockTemplateField>
+                                                <ItemTemplate><em class="text-muted"><%# Convert.ToString( Eval( "Resource.Location.Name") ) == string.Empty ? "" : "(attached to " +  Eval("Resource.Location.Name") + ")" %></em></ItemTemplate>
+                                            </Rock:RockTemplateField>
+                                            <Rock:RockBoundField DataField="Quantity" HeaderText="Qty" />
+                                            <Rock:RockTemplateField HeaderText="Status">
+                                                <ItemTemplate>
+                                                    <Rock:HighlightLabel ID="hlApprovalStatus" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
+                                            <Rock:LinkButtonField CssClass="btn btn-sm btn-success" OnClick="gViewResources_ApproveClick" ToolTip="Approve" Text="<i class='fa fa-check'></i>" Visible="true" />
+                                            <Rock:LinkButtonField CssClass="btn btn-sm btn-danger" OnClick="gViewResources_DenyClick" ToolTip="Deny" Text="<i class='fa fa-ban'></i>" Visible="true" />
+                                        </Columns>
+                                    </Rock:Grid>
+                                </div>
                             </div>
 
                             <h4>Additional Info</h4>

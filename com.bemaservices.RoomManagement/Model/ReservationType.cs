@@ -146,6 +146,12 @@ namespace com.bemaservices.RoomManagement.Model
         [DataMember]
         public int DefaultReservationDuration { get; set; }
 
+        [DataMember]
+        public ReservationTypeRequirement? LocationRequirement { get; set; }
+
+        [DataMember]
+        public ReservationTypeRequirement? ResourceRequirement { get; set; }
+
         #endregion
 
         #region Virtual Properties
@@ -452,6 +458,17 @@ namespace com.bemaservices.RoomManagement.Model
             // IMPORTANT!!
             this.HasEntitySetName( "ReservationType" );
         }
+    }
+
+    #endregion
+
+    #region Enumerations
+
+    public enum ReservationTypeRequirement
+    {
+        Hide = 0,
+        Allow = 1,
+        Require = 2       
     }
 
     #endregion

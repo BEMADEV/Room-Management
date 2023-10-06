@@ -185,6 +185,29 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                         break;
                     }
+                case "Campus":
+                    {
+                        var campusIdList = e.Value.Split( ',' ).AsIntegerList();
+                        if ( campusIdList.Any()  )
+                        {
+                            var service = new CampusService( new RockContext() );
+                            var campuses = service.GetByIds( campusIdList );
+                            if ( campuses != null && campuses.Any() )
+                            {
+                                e.Value = campuses.Select( a => a.Name ).ToList().AsDelimited( "," );
+                            }
+                            else
+                            {
+                                e.Value = string.Empty;
+                            }
+                        }
+                        else
+                        {
+                            e.Value = string.Empty;
+                        }
+
+                        break;
+                    }
             }
         }
 
@@ -201,6 +224,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gfSettings.SaveUserPreference( "Resource Category", cpResource.SelectedValue.ToString() );
             gfSettings.SaveUserPreference( "Parent Location", lipLocation.SelectedValue.ToString() );
             gfSettings.SaveUserPreference( "Expected Occupants", nbMaxOccupants.Text );
+            gfSettings.SaveUserPreference( "Campus", cpCampus.SelectedValuesAsInt.AsDelimited( "," ) );
             BindGrid();
         }
 
@@ -263,6 +287,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 nbMaxOccupants.Text = gfSettings.GetUserPreference( "Expected Occupants" );
             }
+
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Campus" ) ) )
+            {
+                cpCampus.SetValues( gfSettings.GetUserPreference( "Campus" ).SplitDelimitedValues().AsIntegerList() );
+            }
         }
 
         /// <summary>
@@ -301,35 +330,51 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
-            var qry = reservationService.Queryable().AsNoTracking().Where( r => r.ApprovalState != ReservationApprovalState.Denied && r.ApprovalState != ReservationApprovalState.Draft && r.ApprovalState != ReservationApprovalState.Cancelled );
+            var reservationQry = reservationService.Queryable().AsNoTracking().Where( r => r.ApprovalState != ReservationApprovalState.Denied && r.ApprovalState != ReservationApprovalState.Draft && r.ApprovalState != ReservationApprovalState.Cancelled );
             var locationService = new LocationService( rockContext );
 
-            List<int> locationIdList = new List<int>();
-            List<Location> locationList = new List<Location>();
+            var locationQry = locationService.Queryable().AsNoTracking();
             if ( lipLocation.SelectedValueAsInt().HasValue )
             {
-                locationIdList = locationService.GetAllDescendents( lipLocation.SelectedValueAsInt().Value ).Select( l => l.Id ).ToList();
+                var locationIdList = locationService.GetAllDescendents( lipLocation.SelectedValueAsInt().Value ).Select( l => l.Id ).ToList();
                 locationIdList.Add( lipLocation.SelectedValueAsInt().Value );
-                locationList = locationService.Queryable().AsNoTracking().Where( l => locationIdList.Contains( l.Id ) ).ToList();
-
-                if ( locationIdList.Any() )
-                {
-                    qry = qry.Where( r => r.ReservationLocations.Any( rr => rr.ApprovalState != ReservationLocationApprovalState.Denied && locationIdList.Contains( rr.LocationId ) ) );
-                }
+                locationQry = locationQry.Where( l => locationIdList.Contains( l.Id ) );                
             }
             else
             {
-                locationList = locationService.Queryable().AsNoTracking().Where( l => l.Name != null && l.Name != string.Empty ).ToList();
+                locationQry = locationQry.Where( l => l.Name != null && l.Name != string.Empty );
             }
-
-            locationList = locationList.Where( l => l.IsActive ).ToList();
 
             if ( nbMaxOccupants.Text.AsInteger() > 0 )
             {
-                locationList = locationList.Where( l => l.FirmRoomThreshold >= nbMaxOccupants.Text.AsInteger() ).ToList();
+                locationQry = locationQry.Where( l => l.FirmRoomThreshold >= nbMaxOccupants.Text.AsInteger() );
             }
 
+            if ( cpCampus.SelectedValuesAsInt.Any() )
+            {
+                var locationIdList = new List<int>();
+                foreach(var campusId in cpCampus.SelectedValuesAsInt )
+                {
+                    var campusCache = CampusCache.Get( campusId );
+                    if ( campusCache.LocationId != null )
+                    {
+                        locationIdList.AddRange( locationService.GetAllDescendents( campusCache.LocationId.Value ).Select( l => l.Id ) );
+                        locationIdList.Add( campusCache.LocationId.Value );
+                    }
+                }
+
+                locationQry = locationQry.Where( l => locationIdList.Contains( l.Id ) );
+            }
+
+            locationQry = locationQry.Where( l => l.IsActive );
+
+            var locationList = locationQry.ToList();
             var locationIds = locationList.Select( l => l.Id ).ToList();
+            if ( locationIds.Any() )
+            {
+                reservationQry = reservationQry.Where( r => r.ReservationLocations.Any( rr => rr.ApprovalState != ReservationLocationApprovalState.Denied && locationIds.Contains( rr.LocationId ) ) );
+            }
+
             var locationResourceList = new ResourceService( rockContext ).Queryable().Where( r => r.LocationId.HasValue && locationIds.Contains( r.LocationId.Value ) ).ToList();
 
 
@@ -337,7 +382,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var today = RockDateTime.Today;
             var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? today;
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? today.AddMonths( 1 );
-            var reservationSummaryList = reservationService.GetReservationSummaries( qry, filterStartDateTime, filterEndDateTime, false );
+            var reservationSummaryList = reservationService.GetReservationSummaries( reservationQry, filterStartDateTime, filterEndDateTime, false );
 
             // Bind to Grid
             gLocations.DataSource = locationList.Select( l => new
@@ -363,30 +408,32 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var resourceService = new ResourceService( rockContext );
-            var qry = reservationService.Queryable().AsNoTracking().Where( r => r.ApprovalState != ReservationApprovalState.Denied && r.ApprovalState != ReservationApprovalState.Draft && r.ApprovalState != ReservationApprovalState.Cancelled );
+            var reservationQry = reservationService.Queryable().AsNoTracking().Where( r => r.ApprovalState != ReservationApprovalState.Denied && r.ApprovalState != ReservationApprovalState.Draft && r.ApprovalState != ReservationApprovalState.Cancelled );
 
-            List<Resource> resourceList = new List<Resource>();
+            var resourceQry = resourceService.Queryable().AsNoTracking();
             if ( cpResource.SelectedValueAsInt().HasValue )
             {
                 int categoryId = cpResource.SelectedValueAsInt().Value;
-                resourceList = resourceService.Queryable().AsNoTracking().Where( r => r.CategoryId == categoryId ).ToList();
-                var resourceIdList = resourceList.Select( r => r.Id ).ToList();
-
-                if ( resourceIdList.Any() )
-                {
-                    qry = qry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && resourceIdList.Contains( rr.ResourceId ) ) );
-                }
+                resourceQry = resourceQry.Where( r => r.CategoryId == categoryId );                
             }
-            else
+
+            if ( cpCampus.SelectedValuesAsInt.Any() )
             {
-                resourceList = resourceService.Queryable().AsNoTracking().ToList();
+                resourceQry = resourceQry.Where( r => r.CampusId != null && cpCampus.SelectedValuesAsInt.Contains( r.CampusId.Value ) );
+            }
+
+            var resourceList = resourceQry.ToList();
+            var resourceIdList = resourceList.Select( r => r.Id ).ToList();
+            if ( resourceIdList.Any() )
+            {
+                reservationQry = reservationQry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && resourceIdList.Contains( rr.ResourceId ) ) );
             }
 
             // Filter by Time
             var today = RockDateTime.Today;
             var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? today;
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? today.AddMonths( 1 );
-            var reservationSummaryList = reservationService.GetReservationSummaries( qry, filterStartDateTime, filterEndDateTime, false );
+            var reservationSummaryList = reservationService.GetReservationSummaries( reservationQry, filterStartDateTime, filterEndDateTime, false );
 
             // Bind to Grid
             gResources.DataSource = resourceList.Select( resource =>
@@ -399,10 +446,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     Id = resource.Id,
                     Name = resource.Name,
-                    PhotoUrl = Resource.GetPhotoUrl(resource, 200,200),
+                    PhotoUrl = Resource.GetPhotoUrl( resource, 200, 200 ),
+                    Campus = resource.Campus,
                     LocationName = ( resource.Location == null ) ? "" : resource.Location.Name,
-                    IsAvailable = !resource.Quantity.HasValue ? true : (resource.Quantity - reservedResources > 0),
-                    Availability = ( !resource.Quantity.HasValue || resource.Quantity - reservedResources > 0) ? String.Format( "{0} Available", resource.Quantity - reservedResources ) : reservationSummaryList.Where( reservation => reservation.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resource.Id ) ).Select( reservation => reservation.ReservationName + "</br>" + reservation.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" )
+                    IsAvailable = !resource.Quantity.HasValue ? true : ( resource.Quantity - reservedResources > 0 ),
+                    Availability = ( !resource.Quantity.HasValue || resource.Quantity - reservedResources > 0 ) ? String.Format( "{0} Available", resource.Quantity - reservedResources ) : reservationSummaryList.Where( reservation => reservation.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resource.Id ) ).Select( reservation => reservation.ReservationName + "</br>" + reservation.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" )
                 };
             } ).OrderBy( l => l.Name ).ToList();
             gResources.EntityTypeId = EntityTypeCache.Get<Resource>().Id;

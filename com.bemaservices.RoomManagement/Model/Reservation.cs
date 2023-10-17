@@ -476,6 +476,8 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets the next start date time.
         /// </summary>
         /// <value>The next start date time.</value>
+        [LavaVisibleAttribute]
+        [NotMapped]
         public virtual DateTime? NextStartDateTime
         {
             get

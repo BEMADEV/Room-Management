@@ -44,6 +44,45 @@ namespace com.bemaservices.RoomManagement.Model
 
         #region Reservation Methods
 
+        public IQueryable<Reservation> FilterByMyApprovals( IQueryable<Reservation> qry, int personId )
+        {
+            // NICK TODO: GetLocationsByApprovalGroupMembership is not returning the locations correctly, I'll probably will need to re-write it
+            var myLocationsToApproveIds = GetLocationIdsByApprovalGroupMembership( personId );
+
+            var myResourcesToApproveIds = GetResourceIdsByApprovalGroupMembership( personId );
+
+            qry = qry.Where( r => r.ReservationLocations.Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
+                                r.ReservationResources.Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) ) ||
+                                (
+                                    r.ApprovalState == ReservationApprovalState.PendingInitialApproval &&
+                                    r.ReservationType.ReservationApprovalGroups
+                                        .Where( ag =>
+                                            ag.ApprovalGroupType == ApprovalGroupType.InitialApprovalGroup &&
+                                            ( ag.CampusId == null || ag.CampusId == r.CampusId )
+                                            )
+                                        .SelectMany( ag => ag.ApprovalGroup.Members )
+                                        .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                ) ||
+                                (
+                                    r.ApprovalState == ReservationApprovalState.PendingFinalApproval &&
+                                    r.ReservationType.ReservationApprovalGroups
+                                        .Where( ag =>
+                                            ag.ApprovalGroupType == ApprovalGroupType.FinalApprovalGroup &&
+                                            ( ag.CampusId == null || ag.CampusId == r.CampusId )
+                                            )
+                                        .SelectMany( ag => ag.ApprovalGroup.Members )
+                                        .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                )
+                            );
+            return qry;
+        }
+
+        public IQueryable<Reservation> FilterByMyReservations( IQueryable<Reservation> qry, int personId )
+        {
+            qry = qry.Where( r => r.AdministrativeContactPersonAlias.PersonId == personId || r.EventContactPersonAlias.PersonId == personId );
+            return qry;
+        }
+
         /// <summary>
         /// Gets the reservation summaries.
         /// </summary>
@@ -885,23 +924,22 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <param name="personId">The person identifier.</param>
         /// <returns>IEnumerable&lt;Location&gt;.</returns>
-        public IEnumerable<Location> GetLocationsByApprovalGroupMembership( int personId )
+        public IEnumerable<int> GetLocationIdsByApprovalGroupMembership( int personId )
         {
             // select location where location.approvalgroup in (select group where group.groupmember contains person ) 
             var rockContext = new RockContext();
-            var results = rockContext.Database.SqlQuery<Location>(
+            var results = rockContext.Database.SqlQuery<int>(
                 $@"
-                SELECT l.* FROM [Location] l
+                SELECT distinct l.Id FROM [Location] l
                 INNER JOIN [AttributeValue] av ON av.[EntityId] = l.[Id]
-                INNER JOIN [Attribute] a ON a.[Id] = av.[AttributeId] AND a.[Key] = 'ApprovalGroup' 
-                WHERE av.[Value] IN
-                (
-                    SELECT CONVERT(nvarchar(40), g.[Guid]) FROM [Group] g
-                    INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id]
-                    WHERE
-                    gm.[PersonId] = {personId}
-                )
-                " ).ToList<Location>();
+                INNER JOIN [Attribute] a ON a.[Id] = av.[AttributeId] AND a.[Guid] = '96C07909-E34A-4379-854F-C05E79F772E4'
+                INNER JOIN [Group] g on CONVERT(nvarchar(max), g.[Guid]) = av.Value
+                INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id]
+                WHERE
+                gm.[PersonId] = {personId}
+                and gm.IsArchived = 0
+                and gm.GroupMemberStatus = 1
+                " ).ToList<int>();
 
             return results;
         }
@@ -911,17 +949,19 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <param name="personId">The person identifier.</param>
         /// <returns>IEnumerable&lt;Resource&gt;.</returns>
-        public IEnumerable<Resource> GetResourcesByApprovalGroupMembership( int personId )
+        public IEnumerable<int> GetResourceIdsByApprovalGroupMembership( int personId )
         {
             //// select location where location.approvalgroup in (select group where group.groupmember contains person ) 
             var rockContext = new RockContext();
-            var results = rockContext.Database.SqlQuery<Resource>(
+            var results = rockContext.Database.SqlQuery<int>(
                 $@"
-                SELECT r.* FROM [_com_bemaservices_RoomManagement_Resource] r
+                SELECT distinct r.Id FROM [_com_bemaservices_RoomManagement_Resource] r
                 INNER JOIN [Group] g ON g.[Id] = r.[ApprovalGroupId]
                 INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id]
                 WHERE gm.[PersonId] = {personId}
-                " ).ToList<Resource>();
+                    and gm.IsArchived = 0
+                    and gm.GroupMemberStatus = 1
+                " ).ToList<int>();
 
             return results;
         }

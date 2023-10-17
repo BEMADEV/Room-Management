@@ -846,32 +846,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             switch ( showBy )
             {
                 case ShowBy.MyReservations:
-                    qry = qry.Where( r => r.CreatedByPersonAliasId == CurrentPersonAliasId || r.AdministrativeContactPersonAliasId == CurrentPersonAliasId || r.EventContactPersonAliasId == CurrentPersonAliasId );
+                    qry = reservationService.FilterByMyReservations( qry, CurrentPerson.Id );
                     break;
                 case ShowBy.MyApprovals:
                     if ( CurrentPersonId.HasValue )
                     {
-                        var myLocationsToApproveIds = new List<int>();
-                        var myResourcesToApproveIds = new List<int>();
-
-                        // NICK TODO: GetLocationsByApprovalGroupMembership is not returning the locations correctly, I'll probably will need to re-write it
-                        var myLocationsToApprove = reservationService.GetLocationsByApprovalGroupMembership( CurrentPersonId.Value );
-                        if ( myLocationsToApprove != null )
-                        {
-                            myLocationsToApproveIds = myLocationsToApprove.Select( l => l.Id ).ToList();
-                        }
-
-                        var myResourcesToApprove = reservationService.GetResourcesByApprovalGroupMembership( CurrentPersonId.Value );
-                        if ( myResourcesToApprove != null )
-                        {
-                            myResourcesToApproveIds = myResourcesToApprove.Select( r => r.Id ).ToList();
-                        }
-
-                        qry = qry.Where( r => r.ReservationLocations.Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
-                                            r.ReservationResources.Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) ) ||
-                                            ( r.ApprovalState == ReservationApprovalState.PendingInitialApproval && r.ReservationType.ReservationApprovalGroups.Where( ag => ag.ApprovalGroupType == ApprovalGroupType.InitialApprovalGroup ).SelectMany( ag => ag.ApprovalGroup.Members ).Any( m => m.PersonId == CurrentPersonId.Value && m.GroupMemberStatus == GroupMemberStatus.Active ) ) ||
-                                            ( r.ApprovalState == ReservationApprovalState.PendingFinalApproval && r.ReservationType.ReservationApprovalGroups.Where( ag => ag.ApprovalGroupType == ApprovalGroupType.FinalApprovalGroup ).SelectMany( ag => ag.ApprovalGroup.Members ).Any( m => m.PersonId == CurrentPersonId.Value && m.GroupMemberStatus == GroupMemberStatus.Active ) )
-                                        );
+                        qry = reservationService.FilterByMyApprovals( qry, CurrentPerson.Id );
                     }
                     break;
                 default:

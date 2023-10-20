@@ -18,6 +18,7 @@
                             <asp:ListItem Value="Location" Text="Locations" Selected="True"></asp:ListItem>
                             <asp:ListItem Value="Resource" Text="Resources"></asp:ListItem>
                         </Rock:RockRadioButtonList>
+                        <Rock:CampusesPicker ID="cpCampus" runat="server" Label="Campus" />
                         <Rock:CategoryPicker ID="cpResource" runat="server" Label="Resource Category" Visible="false" EntityTypeName="com.bemaservices.RoomManagement.Model.Resource" />
                         <Rock:LocationItemPicker ID="lipLocation" runat="server" Label="Parent Location" />
                         <Rock:DateTimePicker ID="dtpEndDateTime" runat="server" Label="End Date" />
@@ -30,6 +31,7 @@
                             <Rock:RockTemplateField HeaderText="Name">
                                 <ItemTemplate><%# Convert.ToString( Eval( "LocationName" ) ) == string.Empty ? Convert.ToString( Eval( "Name" ) ) : Convert.ToString( Eval( "Name" ) ) + " <em class='text-muted'>(attached to " + Eval( "LocationName" ) + ")" %></em></ItemTemplate>
                             </Rock:RockTemplateField>
+                            <Rock:RockBoundField DataField="Campus.Name" HeaderText="Campus" />
                             <asp:ImageField DataImageUrlField="PhotoUrl" HeaderText="Photo" />
                             <Rock:RockBoundField DataField="Availability" HeaderText="Availability" HtmlEncode="false" />
                         </Columns>

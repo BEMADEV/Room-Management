@@ -41,13 +41,19 @@ namespace com.bemaservices.RoomManagement.Field.Types
     {
         #region Configuration
 
+        /// <summary>
+        /// The include inactive key
+        /// </summary>
         private const string INCLUDE_INACTIVE_KEY = "includeInactive";
+        /// <summary>
+        /// The values public key
+        /// </summary>
         private const string VALUES_PUBLIC_KEY = "values";
 
         /// <summary>
         /// Returns a list of the configuration keys
         /// </summary>
-        /// <returns></returns>
+        /// <returns>List&lt;System.String&gt;.</returns>
         public override List<string> ConfigurationKeys()
         {
             var configKeys = base.ConfigurationKeys();
@@ -58,7 +64,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <summary>
         /// Creates the HTML controls required to configure this type of field
         /// </summary>
-        /// <returns></returns>
+        /// <returns>List&lt;Control&gt;.</returns>
         public override List<Control> ConfigurationControls()
         {
             // Add checkbox for deciding if the list should include inactive items
@@ -79,7 +85,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// Gets the configuration value.
         /// </summary>
         /// <param name="controls">The controls.</param>
-        /// <returns></returns>
+        /// <returns>Dictionary&lt;System.String, ConfigurationValue&gt;.</returns>
         public override Dictionary<string, ConfigurationValue> ConfigurationValues( List<Control> controls )
         {
             Dictionary<string, ConfigurationValue> configurationValues = new Dictionary<string, ConfigurationValue>();
@@ -101,8 +107,8 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <summary>
         /// Sets the configuration value.
         /// </summary>
-        /// <param name="controls"></param>
-        /// <param name="configurationValues"></param>
+        /// <param name="controls">The controls.</param>
+        /// <param name="configurationValues">The configuration values.</param>
         public override void SetConfigurationValues( List<Control> controls, Dictionary<string, ConfigurationValue> configurationValues )
         {
             if ( controls != null && configurationValues != null )
@@ -119,6 +125,8 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <summary>
         /// Gets the list source.
         /// </summary>
+        /// <param name="configurationValues">The configuration values.</param>
+        /// <returns>Dictionary&lt;System.String, System.String&gt;.</returns>
         /// <value>
         /// The list source.
         /// </value>
@@ -130,6 +138,8 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <summary>
         /// Gets the list source.
         /// </summary>
+        /// <param name="configurationValues">The configuration values.</param>
+        /// <returns>Dictionary&lt;System.String, System.String&gt;.</returns>
         /// <value>
         /// The list source.
         /// </value>

@@ -443,6 +443,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
                 }
 
+                if ( reservation.ReservationType.LocationRequirement == ReservationTypeRequirement.Require && !reservation.ReservationLocations.Any() )
+                {
+                    nbEditModeMessage.Title = "Warning";
+                    nbEditModeMessage.Text = "At least one location is required for this reservation type.";
+                    nbEditModeMessage.Visible = true;
+                    return;
+                }
+
                 foreach ( var reservationResourceState in ResourcesState )
                 {
                     ReservationResource reservationResource = reservation.ReservationResources.Where( a => a.Guid == reservationResourceState.Guid ).FirstOrDefault();
@@ -461,6 +469,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservationResource.Reservation = reservationService.Get( reservation.Id );
                     reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
                     reservationResource.ReservationId = reservation.Id;
+                }
+
+                if ( reservation.ReservationType.ResourceRequirement == ReservationTypeRequirement.Require && !reservation.ReservationResources.Any() )
+                {
+                    nbEditModeMessage.Title = "Warning";
+                    nbEditModeMessage.Text = "At least one resource is required for this reservation type.";
+                    nbEditModeMessage.Visible = true;
+                    return;
                 }
 
                 if ( sbSchedule.iCalendarContent != null )
@@ -2259,10 +2275,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             hfApprovalState.Value = reservation.ApprovalState.ConvertToString();
             LoadAdditionalInfo( false, true );
 
+            divViewLocations.Visible = !(ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any());
             gViewLocations.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationLocation>().Id;
             gViewLocations.SetLinqDataSource( LocationsState.AsQueryable().OrderBy( l => l.Location.Name ) );
             gViewLocations.DataBind();
 
+            divViewResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any());
             gViewResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
             gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.Resource.Name ) );
             gViewResources.DataBind();
@@ -2513,6 +2531,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             ddlCampus.Required = ReservationType.IsCampusRequired;
+
+            wpLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
+            wpResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any() );
         }
 
         /// <summary>
@@ -3232,7 +3253,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void AddAttachedLocations( int resourceId, Reservation reservation = null )
         {
             var attachedResources = new ResourceService( new RockContext() ).Queryable().Where( r => r.Id == resourceId );
-            if ( attachedResources.Any() )
+            if ( attachedResources.Any() && ReservationType.LocationRequirement != ReservationTypeRequirement.Hide )
             {
                 foreach ( var resource in attachedResources )
                 {
@@ -3612,7 +3633,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void AddAttachedResources( int locationId, Reservation reservation = null )
         {
             var attachedResources = new ResourceService( new RockContext() ).Queryable().Where( r => r.LocationId == locationId );
-            if ( attachedResources.Any() )
+            if ( attachedResources.Any() && ReservationType.ResourceRequirement != ReservationTypeRequirement.Hide )
             {
                 foreach ( var resource in attachedResources )
                 {

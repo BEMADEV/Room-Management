@@ -41,6 +41,7 @@ namespace com.bemaservices.RoomManagement.Attribute
         /// <param name="category">The category.</param>
         /// <param name="order">The order.</param>
         /// <param name="key">The key.</param>
+        /// <param name="includeInactive">if set to <c>true</c> [include inactive].</param>
         /// <param name="fieldTypeAssembly">The field type assembly.</param>
         public ReservationTypeFieldAttribute( string name = "Reservation Type", string description = "", bool required = true, string defaultReservationTypeId = "", string category = "", int order = 0, string key = null, bool includeInactive = false, string fieldTypeAssembly = "com.bemaservices.RoomManagement" )
             : base( name, description, required, defaultReservationTypeId, category, order, key, typeof( com.bemaservices.RoomManagement.Field.Types.ReservationTypeFieldType ).FullName, fieldTypeAssembly )

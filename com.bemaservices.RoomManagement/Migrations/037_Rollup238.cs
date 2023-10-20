@@ -35,7 +35,7 @@ namespace com.bemaservices.RoomManagement.Migrations
 
 
             RockMigrationHelper.UpdateDefinedValue( "32EC3B34-01CF-4513-BC2E-58ECFA91D010", "Detailed Calendar", "An detailed calendar view for the Room Management home page.", "EFA1ADEE-09E2-44D0-9529-8B390BE82678", false );
-            RockMigrationHelper.AddDefinedValueAttributeValue( "EFA1ADEE-09E2-44D0-9529-8B390BE82678", "466DC361-B813-445A-8883-FED7E5D4229B", @"{% include ''~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/VueCalendar.lava'' %}" );
+            RockMigrationHelper.AddDefinedValueAttributeValue( "EFA1ADEE-09E2-44D0-9529-8B390BE82678", "466DC361-B813-445A-8883-FED7E5D4229B", @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/VueCalendar.lava' %}" );
             RockMigrationHelper.AddDefinedValueAttributeValue( "EFA1ADEE-09E2-44D0-9529-8B390BE82678", "EE70E271-EAE1-446B-AFA8-EE2D299B8D7F", @"" );
         }
 

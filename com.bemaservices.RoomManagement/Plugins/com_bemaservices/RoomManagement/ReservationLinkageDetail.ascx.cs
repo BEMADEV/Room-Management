@@ -481,6 +481,54 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        protected void eipSelectedEvent_SelectedIndexChanged( object sender, EventArgs e )
+        {
+            pnlNewOccurrenceSelection.Visible = false;
+            if ( eipSelectedEvent.SelectedValueAsId() != null )
+            {
+                var rockContext = new RockContext();
+                var eventItemService = new EventItemService( rockContext );
+                var eventItem = eventItemService.Get( eipSelectedEvent.SelectedValueAsId().Value );
+                var eventItemOccurrences = eventItem.EventItemOccurrences;
+                if ( eventItemOccurrences.Any() )
+                {
+                    pnlNewOccurrenceSelection.Visible = true;
+                    ddlSelectedOccurrence.Items.Clear();
+                    foreach ( var eventItemOccurrence in eventItemOccurrences.OrderBy( eio => eio.NextStartDateTime ) )
+                    {
+                        var description = new StringBuilder();
+                        description.AppendFormat("(ID: {0}) {1}", eventItemOccurrence.Id, eventItemOccurrence.Schedule.FriendlyScheduleText );
+
+                        if ( eventItemOccurrence.Location.IsNotNullOrWhiteSpace() )
+                        {
+                            description.AppendFormat( " at {0}", eventItemOccurrence.Location );
+                        }
+
+                        if(eventItemOccurrence.Campus != null )
+                        {
+                            description.AppendFormat( " for {0}", eventItemOccurrence.Campus.Name );
+                        }
+
+                        ddlSelectedOccurrence.Items.Add( new ListItem( description.ToString(), eventItemOccurrence.Id.ToString() ) );
+                    }                        
+                }
+            }
+        }
+
+        protected void tglOccurrenceSelection_CheckedChanged( object sender, EventArgs e )
+        {
+            if ( tglOccurrenceSelection.Checked )
+            {
+                pnlExistingOccurrence.Visible = false;
+                pnlNewOccurrence.Visible = true;
+            }
+            else
+            {
+                pnlExistingOccurrence.Visible = true;
+                pnlNewOccurrence.Visible = false;
+            }
+        }
+
         /// <summary>
         /// Handles the SaveSchedule event of the sbEventOccurrenceSchedule control.
         /// </summary>
@@ -785,13 +833,21 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 string eventDescription;
                 var schedule = new Schedule { iCalendarContent = sbEventOccurrenceSchedule.iCalendarContent };
+
                 if ( tglEventSelection.Checked )
                 {
                     eventDescription = "An event occurrence will be created for the new \"" + tbCalendarEventName.Text + "\" event with the following schedule: " + schedule.FriendlyScheduleText + ".";
                 }
                 else
                 {
-                    eventDescription = "An event occurrence will be created for the \"" + eipSelectedEvent.SelectedItem.Text + "\" event with the following schedule: " + schedule.FriendlyScheduleText + ".";
+                    if ( tglOccurrenceSelection.Checked )
+                    {
+                        eventDescription = "An event occurrence will be created for the \"" + eipSelectedEvent.SelectedItem.Text + "\" event with the following schedule: " + schedule.FriendlyScheduleText + ".";
+                    }
+                    else
+                    {
+                        eventDescription = "The event occurrence for the \"" + eipSelectedEvent.SelectedItem.Text + "\" event on \"" + ddlSelectedOccurrence.SelectedItem.Text + "\" will be linked to this reservation.";
+                    }
                 }
 
                 var eventLiteral = new Literal() { Text = string.Format( itemTemplate, "Calendar Event", eventDescription ) };
@@ -1085,45 +1141,61 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     // if eventItem is null, no EventItem was selected or created and we will not create an occurrence, either.
                     if ( eventItem != null )
                     {
-                        // Create new EventItemOccurrence.
-                        var eventItemOccurrence = new EventItemOccurrence { EventItemId = eventItem.Id };
-                        eventItemOccurrence.CampusId = reservation.CampusId;
-                        eventItemOccurrence.Location = tbLocationDescription.Text;
-                        eventItemOccurrence.ContactPersonAliasId = reservation.EventContactPersonAliasId;
-                        eventItemOccurrence.ContactPhone = reservation.EventContactPhone;
-                        eventItemOccurrence.ContactEmail = reservation.EventContactEmail;
-                        eventItemOccurrence.Note = htmlOccurrenceNote.Text;
-
-                        // Set Calendar.
-                        string iCalendarContent = sbEventOccurrenceSchedule.iCalendarContent ?? string.Empty;
-                        var calEvent = ScheduleICalHelper.GetCalendarEvent( iCalendarContent );
-                        if ( calEvent != null && calEvent.DTStart != null )
+                        EventItemOccurrence eventItemOccurrence = null;
+                        if ( tglOccurrenceSelection.Checked ) // "New Occurrence" Option Selected
                         {
-                            if ( eventItemOccurrence.Schedule == null )
+                            // Create new EventItemOccurrence.
+                            eventItemOccurrence = new EventItemOccurrence { EventItemId = eventItem.Id };
+                            eventItemOccurrence.CampusId = reservation.CampusId;
+                            eventItemOccurrence.Location = tbLocationDescription.Text;
+                            eventItemOccurrence.ContactPersonAliasId = reservation.EventContactPersonAliasId;
+                            eventItemOccurrence.ContactPhone = reservation.EventContactPhone;
+                            eventItemOccurrence.ContactEmail = reservation.EventContactEmail;
+                            eventItemOccurrence.Note = htmlOccurrenceNote.Text;
+
+                            // Set Calendar.
+                            string iCalendarContent = sbEventOccurrenceSchedule.iCalendarContent ?? string.Empty;
+                            var calEvent = ScheduleICalHelper.GetCalendarEvent( iCalendarContent );
+                            if ( calEvent != null && calEvent.DTStart != null )
                             {
-                                eventItemOccurrence.Schedule = new Schedule();
+                                if ( eventItemOccurrence.Schedule == null )
+                                {
+                                    eventItemOccurrence.Schedule = new Schedule();
+                                }
+
+                                eventItemOccurrence.Schedule.iCalendarContent = iCalendarContent;
                             }
 
-                            eventItemOccurrence.Schedule.iCalendarContent = iCalendarContent;
+                            var eventItemOccurrenceService = new EventItemOccurrenceService( rockContext );
+                            eventItemOccurrenceService.Add( eventItemOccurrence );
+                            rockContext.SaveChanges();
+                        }
+                        else
+                        {
+                            if ( ddlSelectedOccurrence.SelectedValueAsId() != null )
+                            {
+                                var eventItemOccurrenceService = new EventItemOccurrenceService( rockContext );
+                                eventItemOccurrence = eventItemOccurrenceService.Get( ddlSelectedOccurrence.SelectedValueAsId().Value );
+                            }
                         }
 
-                        var eventItemOccurrenceService = new EventItemOccurrenceService( rockContext );
-                        eventItemOccurrenceService.Add( eventItemOccurrence );
-                        rockContext.SaveChanges();
-                        result.EventOccurrenceId = eventItemOccurrence.Id.ToString();
+                        if( eventItemOccurrence != null )
+                        {
+                            result.EventOccurrenceId = eventItemOccurrence.Id.ToString();
 
-                        var reservationLinkage = new ReservationLinkage();
-                        reservationLinkage.Reservation = reservation;
-                        reservationLinkage.ReservationId = reservation.Id;
-                        reservationLinkage.EventItemOccurrence = eventItemOccurrence;
-                        reservationLinkage.EventItemOccurrenceId = eventItemOccurrence.Id;
-                        reservationLinkageService.Add( reservationLinkage );
-                        rockContext.SaveChanges();
+                            var reservationLinkage = new ReservationLinkage();
+                            reservationLinkage.Reservation = reservation;
+                            reservationLinkage.ReservationId = reservation.Id;
+                            reservationLinkage.EventItemOccurrence = eventItemOccurrence;
+                            reservationLinkage.EventItemOccurrenceId = eventItemOccurrence.Id;
+                            reservationLinkageService.Add( reservationLinkage );
+                            rockContext.SaveChanges();
 
-                        result.ReservationId = reservation.Id.ToString();
-                        result.ReservationName = reservation.Name;
+                            result.ReservationId = reservation.Id.ToString();
+                            result.ReservationName = reservation.Name;
+
+                        }
                     }
-
 
                     LaunchPostWizardWorkflow( rockContext, reservation );
                 }

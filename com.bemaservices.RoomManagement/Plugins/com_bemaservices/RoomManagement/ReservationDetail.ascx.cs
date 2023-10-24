@@ -481,9 +481,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                 if ( sbSchedule.iCalendarContent != null )
                 {
+                    var oldIcalContent = oldReservation?.Schedule?.iCalendarContent;
+
                     var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
                     var scheduleErrorMessage = String.Empty;
-                    reservation.Schedule = ReservationService.UpdateScheduleWithMaxEndDate( schedule, reservationType, out scheduleErrorMessage );
+                    var newSchedule = ReservationService.UpdateScheduleWithMaxEndDate( schedule, reservationType, out scheduleErrorMessage );
                     if ( scheduleErrorMessage.IsNotNullOrWhiteSpace() )
                     {
                         nbEditModeMessage.Title = "Warning";
@@ -492,7 +494,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         return;
                     }
 
-                    History.EvaluateChange( changes, "Schedule", oldReservation.GetFriendlyReservationScheduleText(), reservation.GetFriendlyReservationScheduleText() );
+                    if( newSchedule.iCalendarContent != oldIcalContent )
+                    {
+                        reservation.Schedule = newSchedule;
+                        History.EvaluateChange( changes, "Schedule", oldReservation.GetFriendlyReservationScheduleText(), reservation.GetFriendlyReservationScheduleText() );
+                    }
                 }
 
                 CampusCache oldCampus = null;

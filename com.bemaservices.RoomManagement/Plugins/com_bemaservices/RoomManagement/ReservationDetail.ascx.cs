@@ -2238,7 +2238,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             btnSubmit.Visible = ( hasStandardEditRights || hasApprovalRightsToState ) &&
                                 ( reservation.ApprovalState == ReservationApprovalState.Draft || reservation.ApprovalState == ReservationApprovalState.ChangesNeeded );
 
-            btnDelete.Visible = hasStandardEditRights || hasApprovalRightsToState || reservation.IsAuthorized( Authorization.DELETE, CurrentPerson );
+            btnDelete.Visible =  hasApprovalRightsToState || ( hasStandardEditRights && reservation.IsAuthorized( Authorization.DELETE, CurrentPerson ) );
 
             btnEdit.Visible = (
                                     hasStandardEditRights ||

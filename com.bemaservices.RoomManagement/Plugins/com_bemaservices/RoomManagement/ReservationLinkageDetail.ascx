@@ -100,7 +100,7 @@
                         <asp:Panel ID="pnlExistingEvent" runat="server">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <Rock:EventItemPicker ID="eipSelectedEvent" runat="server" Label="Event" Required="true" ValidationGroup="ReservationEvent" />
+                                    <Rock:EventItemPicker ID="eipSelectedEvent" runat="server" Label="Event" Required="true" ValidationGroup="ReservationEvent" OnSelectedIndexChanged="eipSelectedEvent_SelectedIndexChanged" />
                                 </div>
                             </div>
                         </asp:Panel>
@@ -163,26 +163,43 @@
 
                 <asp:Panel ID="pnlEventOccurrence" runat="server" Visible="false">
                     <asp:ValidationSummary ID="vsEventOccurrence" ValidationGroup="ReservationEventOccurrence" runat="server" HeaderText="Please correct the following:" CssClass="alert alert-warning" />
-
                     <fieldset>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <Rock:RockTextBox ID="tbLocationDescription" ValidationGroup="ReservationEventOccurrence" runat="server" Label="Location Description" />
+                        <asp:Panel ID="pnlNewOccurrenceSelection" runat="server" Visible="false">
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <Rock:Toggle ID="tglOccurrenceSelection" runat="server" ActiveButtonCssClass="btn-primary" OnText="New Occurrence" OffText="Existing Occurrence"
+                                        OnCheckedChanged="tglOccurrenceSelection_CheckedChanged" Checked="false" />
+                                    <hr />
+                                </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <Rock:RockControlWrapper ID="rcwEventOccurrenceSchedule" runat="server" Label="Schedule">
-                                    <Rock:ScheduleBuilder ID="sbEventOccurrenceSchedule" runat="server" ValidationGroup="Schedule" AllowMultiSelect="true" Required="true" OnSaveSchedule="sbEventOccurrenceSchedule_SaveSchedule" />
-                                    <asp:Literal ID="lEventOccurrenceScheduleText" runat="server" />
-                                </Rock:RockControlWrapper>
+                        </asp:Panel>
+                        <asp:Panel ID="pnlExistingOccurrence" runat="server">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <Rock:RockDropDownList ID="ddlSelectedOccurrence" runat="server" Label="Event" Required="true" ValidationGroup="ReservationEvent" />
+                                </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-12">
-                                <Rock:HtmlEditor ID="htmlOccurrenceNote" ValidationGroup="ReservationEventOccurrence" runat="server" Label="Occurrence Note" Toolbar="Light" />
+                        </asp:Panel>
+                        <asp:Panel ID="pnlNewOccurrence" runat="server" Visible="false">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <Rock:RockTextBox ID="tbLocationDescription" ValidationGroup="ReservationEventOccurrence" runat="server" Label="Location Description" />
+                                </div>
                             </div>
-                        </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <Rock:RockControlWrapper ID="rcwEventOccurrenceSchedule" runat="server" Label="Schedule">
+                                        <Rock:ScheduleBuilder ID="sbEventOccurrenceSchedule" runat="server" ValidationGroup="Schedule" AllowMultiSelect="true" Required="true" OnSaveSchedule="sbEventOccurrenceSchedule_SaveSchedule" />
+                                        <asp:Literal ID="lEventOccurrenceScheduleText" runat="server" />
+                                    </Rock:RockControlWrapper>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <Rock:HtmlEditor ID="htmlOccurrenceNote" ValidationGroup="ReservationEventOccurrence" runat="server" Label="Occurrence Note" Toolbar="Light" />
+                                </div>
+                            </div>
+                        </asp:Panel>
                         <div class="actions">
                             <asp:LinkButton ID="lbPrev_EventOccurrence" runat="server" AccessKey="p" ToolTip="Alt+p" Text="Previous" CssClass="btn btn-default js-wizard-navigation" CausesValidation="false" OnClick="lbPrev_EventOccurrence_Click" />
                             <asp:LinkButton ID="lbNext_EventOccurrence" runat="server" AccessKey="n" Text="Next" DataLoadingText="Next" CssClass="btn btn-primary pull-right js-wizard-navigation" OnClick="lbNext_EventOccurrence_Click" />

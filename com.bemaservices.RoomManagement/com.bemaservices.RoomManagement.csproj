@@ -118,6 +118,7 @@
     <Compile Include="Field\Types\ReservationFieldType.cs" />
     <Compile Include="Jobs\FireWorkflowFromReservationInDateRange.cs" />
     <Compile Include="Jobs\PopulateFirstLastOccurrenceDateTimes.cs" />
+    <Compile Include="Migrations\040_Rollup243.cs" />
     <Compile Include="Migrations\039_RockWorkflowCompliance.cs" />
     <Compile Include="Migrations\038_Rollup240.cs" />
     <Compile Include="Migrations\037_Rollup238.cs" />

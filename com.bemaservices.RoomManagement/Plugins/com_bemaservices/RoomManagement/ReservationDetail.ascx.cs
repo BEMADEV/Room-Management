@@ -2074,10 +2074,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                 string btnDownloadText = @"
                         <script>function ics_click() {
-                            text = `{{ Reservation.Schedule.iCalendarContent }}`.replace('END:VEVENT', 'SUMMARY: {{ Reservation.Name }}\r\nLOCATION: {{ Reservation.ReservationLocations | Select:'Location' | Select:'Name' | Join:', ' }}\r\nEND:VEVENT');
+                            {% capture replacementText %}SUMMARY: {{ Reservation.Name }}\r\nLOCATION: {{ Reservation.ReservationLocations | Select:'Location' | Select:'Name' | Join:', ' }}\r\nEND:VEVENT{% endcapture %}
+                            {% assign iCalendarContent = Reservation.Schedule.iCalendarContent | Replace:'END:VEVENT', replacementText %}
+                            text = `{{ iCalendarContent }}`;
                             var element = document.createElement('a');
                             element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-                            element.setAttribute('download', '{{ Reservation.Name }}.ics');
+                            element.setAttribute('download', `{{ Reservation.Name }}.ics`);
                             element.style.display = 'none';
                             document.body.appendChild(element);
                             element.click();

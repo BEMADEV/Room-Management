@@ -152,6 +152,7 @@
     <Compile Include="Model\ReservationApprovalGroup.cs" />
     <Compile Include="ReportTemplates\AdvancedReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportLandscapeTemplate.cs" />
+    <Compile Include="ReportTemplates\LavaV2ReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportTemplate.cs" />
     <Compile Include="ReportTemplates\ReportTemplate.cs" />
     <Compile Include="ReportTemplates\ReportTemplateContainer.cs" />

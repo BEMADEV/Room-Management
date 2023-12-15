@@ -298,11 +298,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <BEMA:ScheduledLocationItemPicker ID="slpLocation" runat="server" Label="Location" Required="false" Enabled="false" AllowMultiSelect="false" OnSelectItem="slpLocation_SelectItem" ValidationGroup="ReservationLocation" />
-                        <div class="col-md-12 xs-text-center" style="width: 200px;">
-                            <div class="photo">
-                                <asp:Literal ID="lImage" runat="server" />
-                            </div>
-                        </div>
+                        <asp:Literal ID="lLocationDetails" runat="server" />
                     </div>
                     <div class="col-md-6">
                         <Rock:NotificationBox ID="nbLocationConflicts" Visible="false" NotificationBoxType="Danger" runat="server" />

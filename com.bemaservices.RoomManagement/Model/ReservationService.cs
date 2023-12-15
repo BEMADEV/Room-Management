@@ -51,8 +51,7 @@ namespace com.bemaservices.RoomManagement.Model
 
             var myResourcesToApproveIds = GetResourceIdsByApprovalGroupMembership( personId );
 
-            qry = qry.Where( r => r.ReservationLocations.Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
-                                r.ReservationResources.Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) ) ||
+            qry = qry.Where( r => 
                                 (
                                     r.ApprovalState == ReservationApprovalState.PendingInitialApproval &&
                                     r.ReservationType.ReservationApprovalGroups
@@ -72,6 +71,18 @@ namespace com.bemaservices.RoomManagement.Model
                                             )
                                         .SelectMany( ag => ag.ApprovalGroup.Members )
                                         .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                ) ||
+                                (
+                                    r.ApprovalState == ReservationApprovalState.PendingSpecialApproval &&
+                                    (
+                                        r.ReservationLocations
+                                            .Where( rl => rl.ApprovalState == ReservationLocationApprovalState.Unapproved )
+                                            .Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
+                                        r.ReservationResources
+                                            .Where( rr => rr.ApprovalState == ReservationResourceApprovalState.Unapproved )
+                                            .Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) )
+                                    )
+
                                 )
                             );
             return qry;

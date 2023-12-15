@@ -124,6 +124,7 @@
     <Compile Include="Migrations\037_Rollup238.cs" />
     <Compile Include="Migrations\036_Rollup237.cs" />
     <Compile Include="Migrations\035_OptionalResourcePhoto.cs" />
+    <Compile Include="Migrations\042_ModificationFixes.cs" />
     <Compile Include="Migrations\041_RoomDetails.cs" />
     <Compile Include="Migrations\RoomManagementMigration.cs" />
     <Compile Include="Migrations\RoomManagementMigrationHelper.cs" />

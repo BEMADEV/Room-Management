@@ -43,8 +43,6 @@ namespace com.bemaservices.RoomManagement.Migrations
             RockMigrationHelper.UpdateBlockType( "My Reservations Lava", "Block to display reservations assigned to the current user.  The display format is controlled by a lava template.", "~/Plugins/com_bemaservices/RoomManagement/MyReservationsLava.ascx", "BEMA Services > Room Management", "37545F86-F11D-4A4D-98BA-2EDED63B02E1" );
             
             // Add Block to Page: My Dashboard, Site: Rock RMS
-            RockMigrationHelper.AddBlock( true, "AE1818D8-581C-4599-97B9-509EA450376A","","1B8E50A0-7AC4-475F-857C-50D0809A3F04","My Connection Opportunities Lava","Main","","",2,"35B7FF3C-969E-44BE-BACA-EDB490450DFF"); 
-            // Add Block to Page: My Dashboard, Site: Rock RMS
             RockMigrationHelper.AddBlock( true, "AE1818D8-581C-4599-97B9-509EA450376A","","37545F86-F11D-4A4D-98BA-2EDED63B02E1","My Reservation Approvals Lava","Main","","",3,"A5955E96-EBF3-426A-BD28-F6B8E5ED3329"); 
             // Add Block to Page: My Dashboard, Site: Rock RMS
             RockMigrationHelper.AddBlock( true, "AE1818D8-581C-4599-97B9-509EA450376A","","37545F86-F11D-4A4D-98BA-2EDED63B02E1","My Reservations Lava","Main","","",4,"B171D69D-F780-46CC-9538-AEB3D5102B51"); 

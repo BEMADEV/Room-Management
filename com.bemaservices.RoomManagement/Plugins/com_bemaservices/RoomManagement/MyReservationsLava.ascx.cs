@@ -29,7 +29,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
     [CustomRadioListField( "Role", "Display the active reservations that the current user Initiated / is a Contact for, or is currently Assigned To for approval.", "0^Assigned To,1^Initiated", true, "0", "", 0 )]
     [CustomRadioListField( "Status", "Display upcoming reservations, or past reservations.", "0^Upcoming,1^Past", true, "0", "", 1 )]
-    [CodeEditorField( "Contents", @"The Lava template to use for displaying reservations assigned to current user.", CodeEditorMode.Lava, CodeEditorTheme.Rock, 400, false, @"{% include 'Plugins/com_bemaservices/RoomManagement/Assets/Lava/MyReservationsSortable.lava' %}", "", 3 )]
+    [CodeEditorField( "Contents", @"The Lava template to use for displaying reservations assigned to current user.", CodeEditorMode.Lava, CodeEditorTheme.Rock, 400, false, @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/MyReservationsSortable.lava' %}", "", 3 )]
     [TextField( "Set Panel Title", "The title to display in the panel header. Leave empty to have the block name.", required: false, order: 4 )]
     [TextField( "Set Panel Icon", "The icon to display in the panel header.", required: false, order: 5 )]
     [Rock.SystemGuid.BlockTypeGuid( "0D2E85E7-5881-42C4-9CB1-6F8830BB620B" )]

@@ -57,9 +57,32 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [LinkedPage(
         "Workflow Entry Page",
         Description = "Page used to launch a new workflow of the selected type.",
-        Order = 4,
+        Order = 0,
         Key = "WorkflowEntryPage",
         DefaultValue = Rock.SystemGuid.Page.WORKFLOW_ENTRY )]
+    [LavaField(
+        "Location Detail Template",
+        Description = "A customizable template to dictate what details are displayed when selecting a location",
+        Order = 1,
+        Key = "LocationDetailTemplate",
+        DefaultValue = @"<div class='row'>
+    {% if Location.ImageId != null %}
+        {% capture imgUrl %}/GetImage.ashx?id={{Location.ImageId}}{% endcapture %}
+        {% capture imgTag %}<img src='{{imgUrl}}&maxwidth=200&maxheight=200'/>{% endcapture %}
+        <div class='col-md-4'>
+            <div class='photo'>
+                <a href='{{imgUrl}}' target='_blank'>{{imgTag}}</a>
+            </div>
+        </div>
+    {% endif %}
+
+    {% assign details = Location | Attribute:'RoomManagement_RoomDetails' %}
+    {% if details != null and details != empty and details != '' %}
+        <div class='col-md-8'>
+            {{details}}
+        </div>
+    {% endif %}
+</div>" )]
 
     public partial class ReservationDetail : Rock.Web.UI.RockBlock, IDetailBlock
     {
@@ -890,25 +913,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             ShowEditDetails( newItem );
         }
 
-        //protected void btnOverride_Click( object sender, EventArgs e )
-        //{
-        //    using ( var rockContext = new RockContext() )
-        //    {
-        //        var reservationService = new ReservationService( rockContext );
-
-        //        var reservation = reservationService.Get( hfReservationId.ValueAsInt() );
-        //        if ( reservation != null )
-        //        {
-        //            Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
-
-        //            reservation.ApprovalState = ReservationApprovalState.Approved;
-        //            SaveReservationChanges( rockContext, reservation, oldReservation );
-        //        }
-
-        //        ShowDetail( hfReservationId.ValueAsInt() );
-        //    }
-        //}
-
         /// <summary>
         /// Handles the Click event of the btnDeny control.
         /// </summary>
@@ -1550,7 +1554,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void slpLocation_SelectItem( object sender, EventArgs e )
         {
-            LoadLocationImage();
+            LoadLocationDetails();
             LoadLocationConflictMessage();
             BindLocationLayoutGrid();
             SelectDefaultLayout();
@@ -1683,7 +1687,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 reservationLocation.ApprovalState = ReservationLocationApprovalState.Unapproved;
                 slpLocation.SetValue( reservationLocation.LocationId );
-                LoadLocationImage();
+                LoadLocationDetails();
                 BindLocationLayoutGrid();
                 if ( reservationLocation.LocationLayoutId.HasValue )
                 {
@@ -1703,7 +1707,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             else
             {
-                lImage.Text = string.Empty;
+                lLocationDetails.Text = string.Empty;
                 slpLocation.SetValue( null );
                 gLocationLayouts.Visible = false;
             }
@@ -3300,23 +3304,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <summary>
         /// Loads the location image.
         /// </summary>
-        private void LoadLocationImage()
+        private void LoadLocationDetails()
         {
-            lImage.Text = string.Empty;
+            lLocationDetails.Text = string.Empty;
             if ( slpLocation.SelectedValueAsId().HasValue )
             {
                 var location = new LocationService( new RockContext() ).Get( slpLocation.SelectedValueAsId().Value );
-                if ( location != null && location.ImageId != null )
+                if ( location != null)
                 {
-                    string imgTag = string.Format( "<img src='{0}GetImage.ashx?id={1}&maxwidth=200&maxheight=200'/>", VirtualPathUtility.ToAbsolute( "~/" ), location.ImageId.Value );
+                    var lavaTemplate = GetAttributeValue( "LocationDetailTemplate" );
 
-                    string imgUrl = string.Format( "~/GetImage.ashx?id={0}", location.ImageId );
-                    if ( System.Web.HttpContext.Current != null )
-                    {
-                        imgUrl = VirtualPathUtility.ToAbsolute( imgUrl );
-                    }
-
-                    lImage.Text = string.Format( "<a href='{0}' target='_blank'>{1}</a>", imgUrl, imgTag );
+                    var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null );
+                    mergeFields.Add( "Location", location );
+                    lLocationDetails.Text = lavaTemplate.ResolveMergeFields( mergeFields );
                 }
             }
         }
@@ -3640,7 +3640,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="reservation">The reservation.</param>
         protected void AddAttachedResources( int locationId, Reservation reservation = null )
         {
-            var attachedResources = new ResourceService( new RockContext() ).Queryable().Where( r => r.LocationId == locationId );
+            var attachedResources = new ResourceService( new RockContext() ).Queryable().Where( r => r.LocationId == locationId && r.IsActive == true );
             if ( attachedResources.Any() && ReservationType.ResourceRequirement != ReservationTypeRequirement.Hide )
             {
                 foreach ( var resource in attachedResources )

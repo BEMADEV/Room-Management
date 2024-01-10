@@ -21,9 +21,6 @@ using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
 using com.bemaservices.RoomManagement.Model;
-using iTextSharp.text;
-using iTextSharp.text.html.simpleparser;
-using iTextSharp.text.pdf;
 using Rock;
 using Rock.Data;
 using Rock.Model;
@@ -62,8 +59,6 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
         /// <returns>System.Byte[].</returns>
         public override byte[] GenerateReport( List<ReservationService.ReservationSummary> reservationSummaryList, string logoFileUrl, string font, DateTime? filterStartDate, DateTime? filterEndDate, string lavaTemplate = "" )
         {
-            Font zapfdingbats = new Font( Font.ZAPFDINGBATS );
-
             // Date Ranges
             var today = RockDateTime.Today;
             var filterStartDateTime = filterStartDate.HasValue ? filterStartDate.Value : today;
@@ -150,7 +145,6 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
             mergeFields.Add( "FilterEndDate", filterEndDateTime );
             mergeFields.Add( "ImageUrl", logoFileUrl.EncodeHtml() );
             mergeFields.Add( "ReportFont", font );
-            mergeFields.Add( "CheckMark", new Phrase( "\u0034", zapfdingbats ).ToString() ); // This doesn't actually work.
 
             string mergeHtml = lavaTemplate.ResolveMergeFields( mergeFields );
             using ( var pdfGenerator = new PdfGenerator() )

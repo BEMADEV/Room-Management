@@ -497,7 +497,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     foreach ( var eventItemOccurrence in eventItemOccurrences.OrderBy( eio => eio.NextStartDateTime ) )
                     {
                         var description = new StringBuilder();
-                        description.AppendFormat("(ID: {0}) {1}", eventItemOccurrence.Id, eventItemOccurrence.Schedule.FriendlyScheduleText );
+                        description.AppendFormat("(ID: {0}) {1}", eventItemOccurrence.Id, eventItemOccurrence?.Schedule?.FriendlyScheduleText ?? "No Schedule" );
 
                         if ( eventItemOccurrence.Location.IsNotNullOrWhiteSpace() )
                         {

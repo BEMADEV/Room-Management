@@ -100,7 +100,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             reservationResource.ReservationId = reservation.Id;
             reservationResource.Resource = resource;
             reservationResource.ResourceId = resource.Id;
-            reservationResource.Quantity = quantity.Value;
+            reservationResource.Quantity = quantity;
 
             changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, String.Format( "[Resource] {0} {1}", reservationResource.Quantity, reservationResource.Resource.Name ) ) );
 

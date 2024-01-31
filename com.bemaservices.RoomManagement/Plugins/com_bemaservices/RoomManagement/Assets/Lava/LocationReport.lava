@@ -1,0 +1,141 @@
+<html>
+  <head>
+    <link rel="stylesheet" href="/Themes/Rock/Styles/bootstrap.css?v=638235402541249197">
+      <style>
+        body{
+        background-color: white;
+        }
+        .title {
+        font-size:24px;
+        font-weight:bold;
+        break-inside: avoid;
+        }
+        .reservation-date{
+        break-inside:avoid;
+        break-after: always;
+        }
+        .header {
+        font-size:18px;
+        font-weight:bold;
+        color:dimgray;
+        margin-top: 15px;
+        margin-bottom: 5px;
+        break-inside: avoid;
+        break-after: avoid;
+        }
+        .header-row{
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        border-bottom: 1px solid grey;
+        break-inside: avoid;
+        break-after: avoid;
+        }
+        .header-row div span{
+        font-size:12px;
+        font-weight:bold;
+        color:dimgray;
+        break-inside: avoid;
+        }
+        .reservation-row div span{
+        font-size:10px;
+        font-weight:normal;
+        border: none;
+        padding-top: 0;
+        padding-bottom: 0;
+        break-inside: avoid;
+        }
+        ul{
+        padding-left:10px;
+        }
+        .note-row div span{
+        font-size:10px;
+        font-weight:normal;
+        color:gray;
+        }
+      </style>
+    </head>
+  <body>
+    <h1 class="title">Reservations for {{FilterStartDate | Date:'MMMM d'}} - {{FilterEndDate | Date:'MMMM d'}}</h1>
+
+    {% assign reservationCount = ReservationSummaries | Size %}
+    {% if reservationCount == 0 %}
+    <h1 class="title"> There are no reservations in this time frame.</h1>
+    {% endif %}
+
+    {% for reservationDate in ReservationDates %}
+    {% assign locationCount = reservationDate | Select:'Reservations' | Select:'Locations' | Size  %}
+    <div class="reservation-date">
+      <h2 class="header">
+        {{ reservationDate.Date | Date:'dddd, MMMM d, yyyy' }} {{locationCount}}
+      </h2>
+      <div class="row header-row">
+        <div class='col-xs-2'>
+          <span>Event Start/End</span>
+        </div>
+        <div class='col-xs-1'>
+          <span>Event</span>
+        </div>
+        <div class='col-xs-1'>
+          <span>Location</span>
+        </div>
+        <div class='col-xs-1'>
+          <span>Layout</span>
+        </div>
+        <div class='col-xs-3'>
+          <span>Description</span>
+        </div>
+        <div class='col-xs-2'>
+          <span>Photo</span>
+        </div>
+        <div class='col-xs-2'>
+          <span>Contact</span>
+        </div>
+      </div>
+
+      {% for reservationSummary in reservationDate.Reservations %}
+      {% for reservationLocation in reservationSummary.Locations %}
+      <div class="row reservation-row">
+        <div class='col-xs-2'>
+          <span>{{ reservationSummary.EventDateTimeDescription }}</span>
+        </div>
+        <div class='col-xs-1'>
+          <span>{{ reservationSummary.ReservationName }}</span>
+        </div>
+        <div class='col-xs-1'>
+          <span>{{ reservationLocation.Location.Name }}</span>
+        </div>
+        <div class='col-xs-1'>
+          <span>{{ reservationLocation.LocationLayout.Name }}</span>
+        </div>
+        <div class='col-xs-3'>
+          <span>{{ reservationLocation.LocationLayout.Description }}</span>
+        </div>
+        <div class='col-xs-2'>
+          <span>
+            <img width='50%' src='{{ reservationLocation.Location.LocationLayout.LayoutPhotoUrl | Default:'https:=''//rockadmin.bemaservices.com/GetImage.ashx?id=103' }}'/>
+          </span>
+        </div>
+        <div class='col-xs-2'>
+          <span>
+            {% if reservationSummary.MinistryName != '' %}{{reservationSummary.MinistryName}}<br>{% endif %}
+                  {{reservationSummary.ContactInfo}}
+              </span>
+        </div>
+      </div>
+
+      {% if reservationSummary.Note != empty %}
+      <div class='row note-row'>
+        <div class="col-xs-10 col-xs-offset-2">
+          <span>{{reservationSummary.Note}}</span>
+        </div>
+      </div>
+      {% endif %}
+
+      {% endfor %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+  </body>
+</html>

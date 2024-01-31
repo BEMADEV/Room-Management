@@ -21,6 +21,7 @@ using System.ComponentModel.Composition;
 using System.IO;
 using System.Linq;
 using com.bemaservices.RoomManagement.Model;
+using PuppeteerSharp.Media;
 using Rock;
 using Rock.Data;
 using Rock.Model;
@@ -41,6 +42,8 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [ExportMetadata( "ComponentName", "Lava V2" )]
     public class LavaV2ReportTemplate : ReportTemplate
     {
+        protected virtual PaperFormat PaperFormat => PaperFormat.A4;
+
         /// <summary>
         /// Gets or sets the exceptions.
         /// </summary>
@@ -92,6 +95,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
                 EventContactPhoneNumber = r.EventContactPhoneNumber,
                 ReservationMinistry = r.ReservationMinistry,
                 MinistryName = r.ReservationMinistry != null ? r.ReservationMinistry.Name : string.Empty,
+                ContactInfo = String.Format( "{0} {1}", r.EventContactPersonAlias?.Person.FullName, r.EventContactPhoneNumber )
             } )
                 .ToList();
 
@@ -149,6 +153,8 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
             string mergeHtml = lavaTemplate.ResolveMergeFields( mergeFields );
             using ( var pdfGenerator = new PdfGenerator() )
             {
+                pdfGenerator.PaperFormat = this.PaperFormat;
+
                 var pdfStream = pdfGenerator.GetPDFDocumentFromHtml( mergeHtml );
                 var memoryStream = new MemoryStream( pdfStream.ReadBytesToEnd() );
                 return memoryStream.ToArray();

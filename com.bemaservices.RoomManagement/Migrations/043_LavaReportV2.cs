@@ -34,6 +34,10 @@ namespace com.bemaservices.RoomManagement.Migrations
             RockMigrationHelper.UpdateEntityType( "com.bemaservices.RoomManagement.ReportTemplates.LavaV2ReportTemplate", "Lava V2 Template", "com.bemaservices.RoomManagement.ReportTemplates.LavaV2ReportTemplate, com.bemaservices.RoomManagement, Version=2.4.6.14, Culture=neutral, PublicKeyToken=null", false, true, "bfdefc3d-3d1d-431c-b20a-92e56fadd7cc" );
             RockMigrationHelper.AddOrUpdateEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.LavaV2ReportTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "55F7D4F7-B235-4130-8FB3-E951A2EF61E9", "Active" );
             RockMigrationHelper.AddAttributeValue( "55F7D4F7-B235-4130-8FB3-E951A2EF61E9", 0, "True", "37432DE6-D601-4903-82F5-BDDCE80B02B3" );
+
+            RockMigrationHelper.UpdateEntityType( "com.bemaservices.RoomManagement.ReportTemplates.LavaV2ReportLandscapeTemplate", "Lava V2 Landscape Template", "com.bemaservices.RoomManagement.ReportTemplates.LavaV2ReportLandscapeTemplate, com.bemaservices.RoomManagement, Version=2.4.6.14, Culture=neutral, PublicKeyToken=null", false, true, "bf66fe07-e6f1-417b-baa4-a7c31bee4239" );
+            RockMigrationHelper.AddOrUpdateEntityAttribute( "com.bemaservices.RoomManagement.ReportTemplates.LavaV2ReportLandscapeTemplate", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "", "", "Active", "", "Should Service be used?", 0, "True", "02B87D1F-6B11-4B65-9627-DE21448C5DDB", "Active" );
+            RockMigrationHelper.AddAttributeValue( "02B87D1F-6B11-4B65-9627-DE21448C5DDB", 0, "True", "E63981D8-2D57-4C6B-A72C-8D90038C044E" );
         }
 
         /// <summary>

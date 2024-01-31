@@ -57,6 +57,7 @@
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>$(SolutionDir)packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="PuppeteerSharp, Version=7.0.0.0, Culture=neutral, PublicKeyToken=db12f80f85d8ba23" />
     <Reference Include="Quartz, Version=2.0.0.100, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(SolutionDir)libs\Quartz\Quartz.dll</HintPath>
@@ -155,6 +156,7 @@
     <Compile Include="Model\ReservationLinkageService.cs" />
     <Compile Include="Model\ReservationApprovalGroup.cs" />
     <Compile Include="ReportTemplates\AdvancedReportTemplate.cs" />
+    <Compile Include="ReportTemplates\LavaV2ReportLandscapeTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportLandscapeTemplate.cs" />
     <Compile Include="ReportTemplates\LavaV2ReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportTemplate.cs" />

@@ -17,6 +17,7 @@
 
 using com.bemaservices.RoomManagement.Model;
 using Quartz;
+using Rock;
 using Rock.Data;
 using Rock.Model;
 using System.ComponentModel;

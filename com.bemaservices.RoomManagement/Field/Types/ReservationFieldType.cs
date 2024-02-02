@@ -55,7 +55,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
 
             if ( !string.IsNullOrWhiteSpace( value ) )
             {
-                var reservation = new ReservationService(new RockContext()).Get( value.AsGuid() );
+                var reservation = new ReservationService( new RockContext() ).Get( value.AsGuid() );
                 if ( reservation != null )
                 {
                     formattedValue = reservation.Name;
@@ -240,16 +240,32 @@ namespace com.bemaservices.RoomManagement.Field.Types
         {
             var values = new List<string>();
 
-            if ( control != null && control is CheckBoxList )
+            if ( control != null )
             {
-                CheckBoxList cbl = (CheckBoxList)control;
-                foreach ( ListItem li in cbl.Items )
+                if ( control is CheckBoxList )
                 {
-                    if ( li.Selected )
+                    CheckBoxList cbl = ( CheckBoxList ) control;
+                    foreach ( ListItem li in cbl.Items )
                     {
-                        values.Add( li.Value );
+                        if ( li.Selected )
+                        {
+                            values.Add( li.Value );
+                        }
                     }
                 }
+
+                if ( control is RockListBox )
+                {
+                    RockListBox rlb = ( RockListBox ) control;
+                    foreach ( ListItem li in rlb.Items )
+                    {
+                        if ( li.Selected )
+                        {
+                            values.Add( li.Value );
+                        }
+                    }
+                }
+
             }
 
             return values.AsDelimited( "," );
@@ -272,14 +288,26 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <param name="value">The value.</param>
         public override void SetFilterValueValue( Control control, Dictionary<string, ConfigurationValue> configurationValues, string value )
         {
-            if ( control != null && control is CheckBoxList && value != null )
+            if ( control != null && value != null )
             {
                 var values = value.Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ).ToList();
 
-                CheckBoxList cbl = (CheckBoxList)control;
-                foreach ( ListItem li in cbl.Items )
+                if ( control is CheckBoxList )
                 {
-                    li.Selected = values.Contains( li.Value );
+                    CheckBoxList cbl = ( CheckBoxList ) control;
+                    foreach ( ListItem li in cbl.Items )
+                    {
+                        li.Selected = values.Contains( li.Value );
+                    }
+                }
+
+                if ( control is RockListBox )
+                {
+                    RockListBox rlb = ( RockListBox ) control;
+                    foreach ( ListItem li in rlb.Items )
+                    {
+                        li.Selected = values.Contains( li.Value );
+                    }
                 }
             }
         }
@@ -321,7 +349,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
         {
             Guid guid = GetEditValue( control, configurationValues ).AsGuid();
             var item = new ReservationService( new RockContext() ).Get( guid );
-            return item != null ? item.Id : (int?)null;
+            return item != null ? item.Id : ( int? ) null;
         }
 
         /// <summary>

@@ -58,7 +58,7 @@ namespace Rock.Rest.Controllers
         /// <returns>IQueryable&lt;ReservationOccurrence&gt;.</returns>
         [Authenticate, Secured]
         [System.Web.Http.Route( "api/Reservations/GetReservationOccurrences" )]
-        public IQueryable<ReservationOccurrence> GetReservationOccurrences(
+        public IQueryable<com.bemaservices.RoomManagement.Model.ReservationSummary> GetReservationOccurrences(
             DateTime? startDateTime = null,
             DateTime? endDateTime = null,
             string reservationTypeIds = null,
@@ -131,186 +131,11 @@ namespace Rock.Rest.Controllers
                 endDateTime = DateTime.Now.AddMonths( 1 );
             }
 
-            var qryStartDateTime = startDateTime.Value.AddMonths( -1 );
-            var qryEndDateTime = endDateTime.Value.AddMonths( 1 );
+            var reservationSummaryList = reservationService.GetReservationSummaries( reservationQry, startDateTime, endDateTime, false, includeAttributes );
 
-            var reservations = reservationQry.ToList();
-            var reservationsWithDates = reservations
-                .Select( r => new ReservationDate
-                {
-                    Reservation = r,
-                    ReservationDateTimes = r.GetReservationTimes( qryStartDateTime, qryEndDateTime )
-                } )
-                .Where( r => r.ReservationDateTimes.Any() )
-                .ToList();
-
-            var reservationOccurrenceList = new List<ReservationOccurrence>();
-            foreach ( var reservationWithDates in reservationsWithDates )
-            {
-                var reservation = reservationWithDates.Reservation;
-
-                if (includeAttributes)
-                {
-                    reservation.LoadAttributes();
-                }
-                foreach ( var reservationDateTime in reservationWithDates.ReservationDateTimes )
-                {
-                    var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
-                    var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
-
-                    if (
-                        ( ( reservationStartDateTime >= startDateTime ) || ( reservationEndDateTime >= startDateTime ) ) &&
-                        ( ( reservationStartDateTime < endDateTime ) || ( reservationEndDateTime < endDateTime ) ) )
-                    {
-                        var reservationOccurrence = new ReservationOccurrence
-                        {
-                            ReservationId = reservation.Id,
-                            ReservationType = reservation.ReservationType,
-                            ApprovalState = reservation.ApprovalState,
-                            ReservationName = reservation.Name,
-                            ReservationLocations = reservation.ReservationLocations.ToList(),
-                            ReservationResources = reservation.ReservationResources.ToList(),
-                            EventStartDateTime = reservationDateTime.StartDateTime,
-                            EventEndDateTime = reservationDateTime.EndDateTime,
-                            ReservationStartDateTime = reservationStartDateTime,
-                            ReservationEndDateTime = reservationEndDateTime,
-                            SetupPhotoId = reservation.SetupPhotoId,
-                            Note = reservation.Note,
-                            NumberAttending = reservation.NumberAttending,
-                            ModifiedDateTime = reservation.ModifiedDateTime,
-                            ScheduleId = reservation.ScheduleId
-                        };
-
-                        if (includeAttributes)
-                        {
-                            reservationOccurrence.Attributes = reservation.Attributes;
-                            reservationOccurrence.AttributeValues = reservation.AttributeValues;
-
-                            foreach (var reservationLocation in reservationOccurrence.ReservationLocations)
-                            {
-                                reservationLocation.LoadAttributes();
-                            }
-
-                            foreach (var reservationResource in reservationOccurrence.ReservationResources)
-                            {
-                                reservationResource.LoadAttributes();
-                            }
-                        }
-
-                        reservationOccurrenceList.Add(reservationOccurrence);
-                    }
-                }
-            }
-
-            return reservationOccurrenceList.AsQueryable();
+            return reservationSummaryList.AsQueryable();
         }
 
-    }
-
-    /// <summary>
-    /// A class to store occurrence data to be returned by the API
-    /// </summary>
-    public class ReservationOccurrence
-    {
-        /// <summary>
-        /// Gets or sets the reservation identifier.
-        /// </summary>
-        /// <value>The reservation identifier.</value>
-        [DataMember]
-        public int ReservationId { get; set; }
-        /// <summary>
-        /// Gets or sets the type of the reservation.
-        /// </summary>
-        /// <value>The type of the reservation.</value>
-        [DataMember]
-        public ReservationType ReservationType { get; set; }
-        /// <summary>
-        /// Gets or sets the state of the approval.
-        /// </summary>
-        /// <value>The state of the approval.</value>
-        [DataMember]
-        public ReservationApprovalState ApprovalState { get; set; }
-        /// <summary>
-        /// Gets or sets the name of the reservation.
-        /// </summary>
-        /// <value>The name of the reservation.</value>
-        [DataMember]
-        public String ReservationName { get; set; }
-        /// <summary>
-        /// Gets or sets the reservation locations.
-        /// </summary>
-        /// <value>The reservation locations.</value>
-        public List<ReservationLocation> ReservationLocations { get; set; }
-        /// <summary>
-        /// Gets or sets the reservation resources.
-        /// </summary>
-        /// <value>The reservation resources.</value>
-        [DataMember]
-        public List<ReservationResource> ReservationResources { get; set; }
-        /// <summary>
-        /// Gets or sets the reservation start date time.
-        /// </summary>
-        /// <value>The reservation start date time.</value>
-        [DataMember]
-        public DateTime ReservationStartDateTime { get; set; }// EventStartDateTime - Setup Time
-        /// <summary>
-        /// Gets or sets the reservation end date time.
-        /// </summary>
-        /// <value>The reservation end date time.</value>
-        [DataMember]
-        public DateTime ReservationEndDateTime { get; set; }// EventEndDateTime + Cleanup Time
-        /// <summary>
-        /// Gets or sets the event start date time.
-        /// </summary>
-        /// <value>The event start date time.</value>
-        [DataMember]
-        public DateTime EventStartDateTime { get; set; }
-        /// <summary>
-        /// Gets or sets the event end date time.
-        /// </summary>
-        /// <value>The event end date time.</value>
-        [DataMember]
-        public DateTime EventEndDateTime { get; set; }
-        /// <summary>
-        /// Gets or sets the setup photo identifier.
-        /// </summary>
-        /// <value>The setup photo identifier.</value>
-        [DataMember]
-        public int? SetupPhotoId { get; set; }
-        /// <summary>
-        /// Gets or sets the note.
-        /// </summary>
-        /// <value>The note.</value>
-        [DataMember]
-        public string Note { get; set; }
-        /// <summary>
-        /// Gets or sets the number attending.
-        /// </summary>
-        /// <value>The number attending.</value>
-        [DataMember]
-        public int? NumberAttending { get; set; }
-        /// <summary>
-        /// Gets or sets the modified date time.
-        /// </summary>
-        /// <value>The modified date time.</value>
-        [DataMember]
-        public DateTime? ModifiedDateTime { get; set; }
-        /// <summary>
-        /// Gets or sets the schedule identifier.
-        /// </summary>
-        /// <value>The schedule identifier.</value>
-        [DataMember]
-        public int? ScheduleId { get; set; }
-        /// <summary>
-        /// Gets or sets the attributes.
-        /// </summary>
-        /// <value>The attributes.</value>
-        public Dictionary<string, AttributeCache> Attributes { get; set; }
-        /// <summary>
-        /// Gets or sets the attribute values.
-        /// </summary>
-        /// <value>The attribute values.</value>
-        public Dictionary<string, AttributeValueCache> AttributeValues { get; set; }
     }
 }
 

@@ -102,7 +102,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="filterEndDateTime">The filter end date time.</param>
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public List<Model.ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false )
+        public List<Model.ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false, bool includeAttributes = false )
         {
             var reservationSummaryList = new List<Model.ReservationSummary>();
 
@@ -140,6 +140,12 @@ namespace com.bemaservices.RoomManagement.Model
             foreach ( var reservationWithDates in reservationsWithDates )
             {
                 var reservation = reservationWithDates.Reservation;
+
+                if ( includeAttributes )
+                {
+                    reservation.LoadAttributes();
+                }
+
                 foreach ( var reservationDateTime in reservationWithDates.ReservationDateTimes )
                 {
                     var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
@@ -149,7 +155,7 @@ namespace com.bemaservices.RoomManagement.Model
                         ( ( reservationStartDateTime >= filterStartDateTime ) || ( reservationEndDateTime >= filterStartDateTime ) ) &&
                         ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) ) )
                     {
-                        reservationSummaryList.Add( new ReservationSummary
+                        var reservationSummary = new Model.ReservationSummary
                         {
                             Id = reservation.Id,
                             ReservationType = reservation.ReservationType,
@@ -171,11 +177,33 @@ namespace com.bemaservices.RoomManagement.Model
                             EventContactPhoneNumber = reservation.EventContactPhone,
                             SetupPhotoId = reservation.SetupPhotoId,
                             Note = reservation.Note,
-                            RequesterAlias = reservation.RequesterAlias
-                        } );
+                            RequesterAlias = reservation.RequesterAlias,
+                            NumberAttending = reservation.NumberAttending,
+                            ModifiedDateTime = reservation.ModifiedDateTime,
+                            ScheduleId = reservation.ScheduleId
+                        };
+
+                        if ( includeAttributes )
+                        {
+                            reservationSummary.Attributes = reservation.Attributes;
+                            reservationSummary.AttributeValues = reservation.AttributeValues;
+
+                            foreach ( var reservationLocation in reservationSummary.ReservationLocations )
+                            {
+                                reservationLocation.LoadAttributes();
+                            }
+
+                            foreach ( var reservationResource in reservationSummary.ReservationResources )
+                            {
+                                reservationResource.LoadAttributes();
+                            }
+                        }
+
+                        reservationSummaryList.Add( reservationSummary );
                     }
                 }
             }
+
             return reservationSummaryList;
         }
 

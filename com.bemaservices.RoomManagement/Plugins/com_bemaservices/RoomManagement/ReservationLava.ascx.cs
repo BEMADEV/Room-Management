@@ -639,7 +639,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             HighlightActionButtons( showBy );
 
-            List<ReservationService.ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
+            List<ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
 
             // Bind to Grid
             var reservationSummaries = reservationSummaryList.Select( r => new
@@ -761,7 +761,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reportLava = definedValue.GetAttributeValue( "Lava" );
 
             var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
-            List<ReservationService.ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
+            List<ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
 
             if ( !logoFileUrl.ToLower().StartsWith( "http" ) )
             {
@@ -825,7 +825,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Gets the reservation summaries.
         /// </summary>
         /// <returns>List&lt;ReservationService.ReservationSummary&gt;.</returns>
-        private List<ReservationService.ReservationSummary> GetReservationSummaries()
+        private List<ReservationSummary> GetReservationSummaries()
         {
             return GetReservationSummaries( ShowBy.All );
         }
@@ -835,7 +835,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         /// <param name="showBy">The show by.</param>
         /// <returns>List&lt;ReservationService.ReservationSummary&gt;.</returns>
-        private List<ReservationService.ReservationSummary> GetReservationSummaries( ShowBy showBy )
+        private List<ReservationSummary> GetReservationSummaries( ShowBy showBy )
         {
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );

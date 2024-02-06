@@ -102,9 +102,9 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="filterEndDateTime">The filter end date time.</param>
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public List<ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false )
+        public List<Model.ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false )
         {
-            var reservationSummaryList = new List<ReservationSummary>();
+            var reservationSummaryList = new List<Model.ReservationSummary>();
 
             if ( qry == null )
             {
@@ -185,7 +185,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="newReservation">The new reservation.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
         /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private IEnumerable<ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, bool arePotentialConflictsReturned = false )
+        private IEnumerable<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, bool arePotentialConflictsReturned = false )
         {
             return GetConflictingReservationSummaries( newReservation, Queryable(), arePotentialConflictsReturned );
         }
@@ -197,7 +197,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="existingReservationQry">The existing reservation qry.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
         /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private IEnumerable<ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
+        private IEnumerable<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
         {
             var newReservationSummaries = GetReservationSummaries( new List<Reservation>() { newReservation }.AsQueryable(), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
             var conflictingSummaryList = GetReservationSummaries( existingReservationQry.AsNoTracking().Where( r => r.Id != newReservation.Id
@@ -708,7 +708,7 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // Check existing Reservations for conflicts
-            IEnumerable<ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
 
             // Grab any locations booked by conflicting Reservations
             var reservedLocationIds = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
@@ -750,7 +750,7 @@ namespace com.bemaservices.RoomManagement.Model
             var existingReservationQry = Queryable().Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
 
             // Check existing Reservations for conflicts
-            IEnumerable<ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
             var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
                     currentReservationSummary.ReservationLocations.Where( rl =>
                         rl.ApprovalState != ReservationLocationApprovalState.Denied &&
@@ -907,7 +907,7 @@ namespace com.bemaservices.RoomManagement.Model
             var existingReservationQry = Queryable().Where( r => r.ReservationResources.Any( rl => rl.ResourceId == resourceId ) );
 
             // Check existing Reservations for conflicts
-            IEnumerable<ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
             var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
                     currentReservationSummary.ReservationResources.Where( rr =>
                         rr.ApprovalState != ReservationResourceApprovalState.Denied &&
@@ -1050,179 +1050,11 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Holds the view model for a Reservation Summary
         /// </summary>
-        public class ReservationSummary
-        {
-            /// <summary>
-            /// Gets or sets the identifier.
-            /// </summary>
-            /// <value>The identifier.</value>
-            public int Id { get; set; }
-            /// <summary>
-            /// Gets or sets the type of the reservation.
-            /// </summary>
-            /// <value>The type of the reservation.</value>
-            public ReservationType ReservationType { get; set; }
-            /// <summary>
-            /// Gets or sets the state of the approval.
-            /// </summary>
-            /// <value>The state of the approval.</value>
-            public ReservationApprovalState ApprovalState { get; set; }
-            /// <summary>
-            /// Gets or sets the name of the reservation.
-            /// </summary>
-            /// <value>The name of the reservation.</value>
-            public String ReservationName { get; set; }
-            /// <summary>
-            /// Gets or sets the event date time description.
-            /// </summary>
-            /// <value>The event date time description.</value>
-            public String EventDateTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the event time description.
-            /// </summary>
-            /// <value>The event time description.</value>
-            public String EventTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation date time description.
-            /// </summary>
-            /// <value>The reservation date time description.</value>
-            public String ReservationDateTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation time description.
-            /// </summary>
-            /// <value>The reservation time description.</value>
-            public String ReservationTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation locations.
-            /// </summary>
-            /// <value>The reservation locations.</value>
-            public List<ReservationLocation> ReservationLocations { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation resources.
-            /// </summary>
-            /// <value>The reservation resources.</value>
-            public List<ReservationResource> ReservationResources { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation start date time.
-            /// </summary>
-            /// <value>The reservation start date time.</value>
-            public DateTime ReservationStartDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation end date time.
-            /// </summary>
-            /// <value>The reservation end date time.</value>
-            public DateTime ReservationEndDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the event start date time.
-            /// </summary>
-            /// <value>The event start date time.</value>
-            public DateTime EventStartDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the event end date time.
-            /// </summary>
-            /// <value>The event end date time.</value>
-            public DateTime EventEndDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation ministry.
-            /// </summary>
-            /// <value>The reservation ministry.</value>
-            public ReservationMinistry ReservationMinistry { get; set; }
-            /// <summary>
-            /// Gets or sets the event contact person alias.
-            /// </summary>
-            /// <value>The event contact person alias.</value>
-            public PersonAlias EventContactPersonAlias { get; set; }
-            /// <summary>
-            /// Gets or sets the event contact phone number.
-            /// </summary>
-            /// <value>The event contact phone number.</value>
-            public String EventContactPhoneNumber { get; set; }
-            /// <summary>
-            /// Gets or sets the event contact email.
-            /// </summary>
-            /// <value>The event contact email.</value>
-            public String EventContactEmail { get; set; }
-            /// <summary>
-            /// Gets or sets the setup photo identifier.
-            /// </summary>
-            /// <value>The setup photo identifier.</value>
-            public int? SetupPhotoId { get; set; }
-            /// <summary>
-            /// Gets or sets the note.
-            /// </summary>
-            /// <value>The note.</value>
-            public string Note { get; set; }
-            /// <summary>
-            /// Gets or sets the requester alias.
-            /// </summary>
-            /// <value>The requester alias.</value>
-            public PersonAlias RequesterAlias { get; set; }
+        public class ReservationSummary : com.bemaservices.RoomManagement.Model.ReservationSummary
+        {            
         }
 
-        /// <summary>
-        /// The view model for a Reservation Date
-        /// </summary>
-        public class ReservationDate
-        {
-            /// <summary>
-            /// Gets or sets the reservation.
-            /// </summary>
-            /// <value>The reservation.</value>
-            public Reservation Reservation { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation date times.
-            /// </summary>
-            /// <value>The reservation date times.</value>
-            public List<ReservationDateTime> ReservationDateTimes { get; set; }
-        }
-
-        /// <summary>
-        /// The view model for a Reservation Conflict
-        /// </summary>
-        public class ReservationConflict
-        {
-            /// <summary>
-            /// Gets or sets the location identifier.
-            /// </summary>
-            /// <value>The location identifier.</value>
-            public int LocationId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the location.
-            /// </summary>
-            /// <value>The location.</value>
-            public Location Location { get; set; }
-
-            /// <summary>
-            /// Gets or sets the resource identifier.
-            /// </summary>
-            /// <value>The resource identifier.</value>
-            public int ResourceId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the resource.
-            /// </summary>
-            /// <value>The resource.</value>
-            public Resource Resource { get; set; }
-
-            /// <summary>
-            /// Gets or sets the resource quantity.
-            /// </summary>
-            /// <value>The resource quantity.</value>
-            public int ResourceQuantity { get; set; }
-
-            /// <summary>
-            /// Gets or sets the reservation identifier.
-            /// </summary>
-            /// <value>The reservation identifier.</value>
-            public int ReservationId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the reservation.
-            /// </summary>
-            /// <value>The reservation.</value>
-            public Reservation Reservation { get; set; }
-        }
+        
         #endregion
     }
 

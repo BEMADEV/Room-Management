@@ -154,6 +154,9 @@
     <Compile Include="Model\ReservationLinkage\ReservationLinkage.cs" />
     <Compile Include="Model\ReservationLinkage\ReservationLinkageService.cs" />
     <Compile Include="Model\ReservationApprovalGroup\ReservationApprovalGroup.cs" />
+    <Compile Include="Model\Reservation\ReservationSummary.cs" />
+    <Compile Include="Model\Reservation\ReservationDate.cs" />
+    <Compile Include="Model\Reservation\ReservationConflict.cs" />
     <Compile Include="ReportTemplates\AdvancedReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportLandscapeTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportTemplate.cs" />

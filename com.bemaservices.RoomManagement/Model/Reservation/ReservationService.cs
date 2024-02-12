@@ -98,12 +98,12 @@ namespace com.bemaservices.RoomManagement.Model
                 qry = qry.Where( r => reservationQueryOptions.ReservationIds.Contains( r.Id ) );
             }
 
-            if ( reservationQueryOptions.LocationIds.Any() )
+            if ( reservationQueryOptions.LocationIds.Where( lId => lId != 0 ).Any() )
             {
                 qry = qry.Where( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && reservationQueryOptions.LocationIds.Contains( rl.LocationId ) ) );
             }
 
-            if ( reservationQueryOptions.ResourceIds.Any() )
+            if ( reservationQueryOptions.ResourceIds.Where( rId => rId != 0 ).Any() )
             {
                 qry = qry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && reservationQueryOptions.ResourceIds.Contains( rr.ResourceId ) ) );
             }
@@ -820,7 +820,7 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
                 // now) which have the given resource in them.
-                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations(arePotentialConflictsReturned: arePotentialConflictsReturned).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
+                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( arePotentialConflictsReturned: arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
                 var existingReservationSummaries = existingValidReservations.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
 
                 // Now narrow the reservations down to only the ones in the matching/overlapping time frame
@@ -828,7 +828,7 @@ namespace com.bemaservices.RoomManagement.Model
                 var newReservationSummaries = newReservationList.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
                 var reservedQuantities = newReservationSummaries
                     .Select( newReservationSummary =>
-                        newReservationSummary.MatchingSummaries(existingReservationSummaries).ReservedResourceQuantity(resource.Id)
+                        newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )
                    );
 
                 var maxReservedQuantity = reservedQuantities.Count() > 0 ? reservedQuantities.Max() : 0;

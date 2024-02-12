@@ -45,42 +45,43 @@ namespace com.bemaservices.RoomManagement.Model
         #region Reservation Methods
 
         /// <summary>
-        /// Returns a queryable collection of all <see cref="Rock.Model.Person"/> entities with eager loading of the properties that are included in the includes parameter.
+        /// Gets an <see cref="T:System.Linq.IQueryable`1" /> list of all models
+        /// with eager loading of the comma-delimited properties specified in includes
         /// </summary>
-        /// <param name="includes">A <see cref="System.String"/> containing a comma delimited list of properties that should support eager loading.</param>
-        /// <returns>A queryable collection of <see cref="Rock.Model.Person"/> entities with properties that support eager loading.</returns>
+        /// <param name="includes">The includes.</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
         public override IQueryable<Reservation> Queryable( string includes )
         {
             return Queryable( includes, new ReservationQueryOptions() );
         }
 
         /// <summary>
-        /// Returns a queryable collection of <see cref="Rock.Model.Person"/> entities (not including Deceased or Nameless records)
+        /// Gets an <see cref="T:System.Linq.IQueryable`1" /> list of all models
+        /// Note: You can sometimes improve performance by using Queryable().AsNoTracking(), but be careful. Lazy-Loading doesn't always work with AsNoTracking  https://stackoverflow.com/a/20290275/1755417
         /// </summary>
-        /// <returns>A queryable collection of <see cref="Rock.Model.Person"/> entities.</returns>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
         public override IQueryable<Reservation> Queryable()
         {
             return Queryable( new ReservationQueryOptions() );
         }
 
+
         /// <summary>
-        /// Returns a queryable collection of <see cref="Rock.Model.Person"/> entities 
-        /// using the options specified the <see cref="PersonQueryOptions"/> (default is to exclude deceased people and nameless person records)
+        /// Queryables the specified reservation query options.
         /// </summary>
-        /// <param name="personQueryOptions">The person query options.</param>
-        /// <returns></returns>
+        /// <param name="reservationQueryOptions">The reservation query options.</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
         public IQueryable<Reservation> Queryable( ReservationQueryOptions reservationQueryOptions )
         {
             return this.Queryable( null, reservationQueryOptions );
         }
 
         /// <summary>
-        /// Returns a queryable collection of <see cref="Rock.Model.Person"/> entities with eager loading of properties that are included in the includes parameter.
-        /// using the option specified the <see cref="PersonQueryOptions"/> (default is to exclude deceased people, nameless person records and the anonymous visitor. )
+        /// Queryables the specified includes.
         /// </summary>
         /// <param name="includes">The includes.</param>
-        /// <param name="personQueryOptions">The person query options.</param>
-        /// <returns></returns>
+        /// <param name="reservationQueryOptions">The reservation query options.</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
         private IQueryable<Reservation> Queryable( string includes, ReservationQueryOptions reservationQueryOptions )
         {
             var qry = base.Queryable( includes );

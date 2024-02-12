@@ -1,5 +1,5 @@
 ﻿// <copyright>
-// Copyright by the Spark Development Network
+// Copyright by BEMA Software Services
 //
 // Licensed under the Rock Community License (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ using Rock.Data;
 
 namespace com.bemaservices.RoomManagement.Model
 {
+    /// <summary>
+    /// Class ReservationExtensionMethods.
+    /// </summary>
     public static partial class ReservationExtensionMethods
     {
         /// <summary>
@@ -32,6 +35,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="filterStartDateTime">The filter start date time.</param>
         /// <param name="filterEndDateTime">The filter end date time.</param>
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
+        /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
         public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false )
         {
@@ -148,6 +152,13 @@ namespace com.bemaservices.RoomManagement.Model
             return reservationSummaryList;
         }
 
+        /// <summary>
+        /// Valids the existing reservations.
+        /// </summary>
+        /// <param name="reservations">The reservations.</param>
+        /// <param name="reservationId">The reservation identifier.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
         public static IQueryable<Reservation> ValidExistingReservations( this IQueryable<Reservation> reservations, int? reservationId = null, bool arePotentialConflictsReturned = false )
         {
             var validReservations = reservations.Where( r => r.ApprovalState != ReservationApprovalState.Denied
@@ -168,12 +179,24 @@ namespace com.bemaservices.RoomManagement.Model
             return validReservations;
         }
 
+        /// <summary>
+        /// Wheres the conflicts exist.
+        /// </summary>
+        /// <param name="existingReservationSummaries">The existing reservation summaries.</param>
+        /// <param name="newReservationSummaries">The new reservation summaries.</param>
+        /// <returns>List&lt;ReservationSummary&gt;.</returns>
         public static List<ReservationSummary> WhereConflictsExist( this List<ReservationSummary> existingReservationSummaries, List<ReservationSummary> newReservationSummaries )
         {
             var conflictingSummaries = existingReservationSummaries.Where( existingReservationSummary => existingReservationSummary.MatchingSummaries( newReservationSummaries ).Any() ).ToList();
             return conflictingSummaries;
         }
 
+        /// <summary>
+        /// Matchings the summaries.
+        /// </summary>
+        /// <param name="sourceReservationSummary">The source reservation summary.</param>
+        /// <param name="potentialSummaryMatches">The potential summary matches.</param>
+        /// <returns>List&lt;ReservationSummary&gt;.</returns>
         public static List<ReservationSummary> MatchingSummaries( this ReservationSummary sourceReservationSummary, List<ReservationSummary> potentialSummaryMatches )
         {
             var matchingSummaries = potentialSummaryMatches.Where( potentialSummaryMatch =>
@@ -183,6 +206,12 @@ namespace com.bemaservices.RoomManagement.Model
             return matchingSummaries;
         }
 
+        /// <summary>
+        /// Reserveds the resource quantity.
+        /// </summary>
+        /// <param name="reservationSummaries">The reservation summaries.</param>
+        /// <param name="resourceId">The resource identifier.</param>
+        /// <returns>System.Int32.</returns>
         public static int ReservedResourceQuantity( this List<ReservationSummary> reservationSummaries, int resourceId )
         {
             var reservedQuantity = reservationSummaries

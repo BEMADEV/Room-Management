@@ -32,6 +32,10 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The identifier.</value>
         public int Id { get; set; }
 
+        /// <summary>
+        /// Gets the reservation identifier.
+        /// </summary>
+        /// <value>The reservation identifier.</value>
         public int ReservationId { get { return Id; } }
 
         /// <summary>

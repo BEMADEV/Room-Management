@@ -37,6 +37,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             AddMyReservationsToDashboard();
         }
 
+        /// <summary>
+        /// Adds my reservations to dashboard.
+        /// </summary>
         private void AddMyReservationsToDashboard()
         {
             // Page: My Dashboard
@@ -73,7 +76,10 @@ namespace com.bemaservices.RoomManagement.Migrations
 
         }
 
-    private void UpdateDefaultCategories()
+        /// <summary>
+        /// Updates the default categories.
+        /// </summary>
+        private void UpdateDefaultCategories()
         {
 
             Sql( @"Update Category
@@ -85,6 +91,9 @@ namespace com.bemaservices.RoomManagement.Migrations
                 , 'DDEDE1A7-C02B-4322-9D5B-A73CDB9224C6')" );
         }
 
+        /// <summary>
+        /// Disconnects the old resources.
+        /// </summary>
         private void DisconnectOldResources()
         {
             try
@@ -99,6 +108,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             }
         }
 
+        /// <summary>
+        /// Adds the resource location options.
+        /// </summary>
         private void AddResourceLocationOptions()
         {
             Sql( @"

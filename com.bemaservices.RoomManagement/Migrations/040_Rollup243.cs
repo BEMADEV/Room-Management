@@ -35,6 +35,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             UpdateSpecialApprovalNotification();
         }
 
+        /// <summary>
+        /// Updates the special approval notification.
+        /// </summary>
         private void UpdateSpecialApprovalNotification()
         {
             RockMigrationHelper.UpdateWorkflowActionType( "E92F7E39-7C7B-45E4-97BA-7ECD197E7642", "Decrypt Relevant Items", 0, "BC21E57A-1477-44B3-A7C2-61A806118945", true, false, "", "", 1, "", "09C99356-6585-40BA-AAF5-89BCDD265118" ); // Special Approval Notification:Start:Decrypt Relevant Items
@@ -45,6 +48,9 @@ namespace com.bemaservices.RoomManagement.Migrations
           
         }
 
+        /// <summary>
+        /// Updates the approval process.
+        /// </summary>
         private void UpdateApprovalProcess()
         {
             RockMigrationHelper.AddActionTypeAttributeValue( "DB6E99A9-D680-48B7-BCFF-5DDF88D3DEB5", "F1F6F9D6-FDC5-489C-8261-4B9F45B3EED4", @"{% assign groupsNotified = 0 %}

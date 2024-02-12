@@ -24,13 +24,41 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     public class ReservationQueryOptions
     {
+        /// <summary>
+        /// Gets or sets the approvals by person identifier.
+        /// </summary>
+        /// <value>The approvals by person identifier.</value>
         public int? ApprovalsByPersonId { get; set; } = null;
+        /// <summary>
+        /// Gets or sets the reservations by person identifier.
+        /// </summary>
+        /// <value>The reservations by person identifier.</value>
         public int? ReservationsByPersonId { get; set; } = null;
 
+        /// <summary>
+        /// Gets or sets the reservation type ids.
+        /// </summary>
+        /// <value>The reservation type ids.</value>
         public List<int> ReservationTypeIds { get; set; } = new List<int>();
+        /// <summary>
+        /// Gets or sets the reservation ids.
+        /// </summary>
+        /// <value>The reservation ids.</value>
         public List<int> ReservationIds { get; set; } = new List<int>();
+        /// <summary>
+        /// Gets or sets the location ids.
+        /// </summary>
+        /// <value>The location ids.</value>
         public List<int> LocationIds { get; set; } = new List<int>();
+        /// <summary>
+        /// Gets or sets the resource ids.
+        /// </summary>
+        /// <value>The resource ids.</value>
         public List<int> ResourceIds { get; set; } = new List<int>();
+        /// <summary>
+        /// Gets or sets the approval states.
+        /// </summary>
+        /// <value>The approval states.</value>
         public List<ReservationApprovalState> ApprovalStates { get; set; } = new List<ReservationApprovalState>();
 
     }

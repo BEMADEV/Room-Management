@@ -408,13 +408,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var resourceService = new ResourceService( rockContext );
-            var reservationQry = reservationService.Queryable().AsNoTracking().Where( r => r.ApprovalState != ReservationApprovalState.Denied && r.ApprovalState != ReservationApprovalState.Draft && r.ApprovalState != ReservationApprovalState.Cancelled );
 
             var resourceQry = resourceService.Queryable().AsNoTracking();
             if ( cpResource.SelectedValueAsInt().HasValue )
             {
                 int categoryId = cpResource.SelectedValueAsInt().Value;
-                resourceQry = resourceQry.Where( r => r.CategoryId == categoryId );                
+                resourceQry = resourceQry.Where( r => r.CategoryId == categoryId );
             }
 
             if ( cpCampus.SelectedValuesAsInt.Any() )
@@ -424,16 +423,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             var resourceList = resourceQry.ToList();
             var resourceIdList = resourceList.Select( r => r.Id ).ToList();
-            if ( resourceIdList.Any() )
-            {
-                reservationQry = reservationQry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && resourceIdList.Contains( rr.ResourceId ) ) );
-            }
+
+            var reservationQryOptions = new ReservationQueryOptions();
+            reservationQryOptions.ApprovalStates = new List<ReservationApprovalState> {
+                ReservationApprovalState.PendingInitialApproval
+                ,ReservationApprovalState.PendingSpecialApproval
+                ,ReservationApprovalState.PendingFinalApproval
+                ,ReservationApprovalState.Approved
+                ,ReservationApprovalState.ChangesNeeded
+                };
+            reservationQryOptions.ResourceIds = resourceIdList;
+
+            var reservationQry = reservationService.Queryable( reservationQryOptions ).AsNoTracking();
 
             // Filter by Time
             var today = RockDateTime.Today;
             var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? today;
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? today.AddMonths( 1 );
-            var reservationSummaryList = reservationService.GetReservationSummaries( reservationQry, filterStartDateTime, filterEndDateTime, false );
+            var reservationSummaryList = reservationQry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
 
             // Bind to Grid
             gResources.DataSource = resourceList.Select( resource =>

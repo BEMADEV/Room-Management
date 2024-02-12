@@ -170,10 +170,29 @@ namespace com.bemaservices.RoomManagement.Model
 
         public static List<ReservationSummary> WhereConflictsExist( this List<ReservationSummary> existingReservationSummaries, List<ReservationSummary> newReservationSummaries )
         {
-            return existingReservationSummaries.Where( existingReservationSummary => newReservationSummaries.Any( newReservationSummary =>
-                 ( existingReservationSummary.ReservationStartDateTime > newReservationSummary.ReservationStartDateTime || existingReservationSummary.ReservationEndDateTime > newReservationSummary.ReservationStartDateTime ) &&
-                 ( existingReservationSummary.ReservationStartDateTime < newReservationSummary.ReservationEndDateTime || existingReservationSummary.ReservationEndDateTime < newReservationSummary.ReservationEndDateTime )
-                 ) ).ToList();
+            var conflictingSummaries = existingReservationSummaries.Where( existingReservationSummary => existingReservationSummary.MatchingSummaries( newReservationSummaries ).Any() ).ToList();
+            return conflictingSummaries;
+        }
+
+        public static List<ReservationSummary> MatchingSummaries( this ReservationSummary sourceReservationSummary, List<ReservationSummary> potentialSummaryMatches )
+        {
+            var matchingSummaries = potentialSummaryMatches.Where( potentialSummaryMatch =>
+                 ( sourceReservationSummary.ReservationStartDateTime > potentialSummaryMatch.ReservationStartDateTime || sourceReservationSummary.ReservationEndDateTime > potentialSummaryMatch.ReservationStartDateTime ) &&
+                 ( sourceReservationSummary.ReservationStartDateTime < potentialSummaryMatch.ReservationEndDateTime || sourceReservationSummary.ReservationEndDateTime < potentialSummaryMatch.ReservationEndDateTime )
+                 ).ToList();
+            return matchingSummaries;
+        }
+
+        public static int ReservedResourceQuantity( this List<ReservationSummary> reservationSummaries, int resourceId )
+        {
+            var reservedQuantity = reservationSummaries
+                .DistinctBy( reservationSummary => reservationSummary.Id )
+                .Sum( reservationSummary =>
+                    reservationSummary.ReservationResources
+                    .Where( rr => rr.Quantity.HasValue && rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resourceId )
+                    .Sum( rr => rr.Quantity.Value )
+                    );
+            return reservedQuantity;
         }
 
         /// <summary>

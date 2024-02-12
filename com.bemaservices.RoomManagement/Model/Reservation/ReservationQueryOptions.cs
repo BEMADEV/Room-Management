@@ -55,6 +55,12 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <value>The resource ids.</value>
         public List<int> ResourceIds { get; set; } = new List<int>();
+
+        public List<int> CampusIds { get; set; } = new List<int>();
+
+        public List<int> MinistryIds { get; set; } = new List<int>();
+
+        public List<string> MinistryNames { get; set; } = new List<string>();
         /// <summary>
         /// Gets or sets the approval states.
         /// </summary>

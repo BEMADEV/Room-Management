@@ -88,22 +88,46 @@ namespace com.bemaservices.RoomManagement.Model
 
             reservationQueryOptions = reservationQueryOptions ?? new ReservationQueryOptions();
 
-            if ( reservationQueryOptions.ReservationTypeIds.Any() )
+            if ( reservationQueryOptions.ReservationTypeIds.Where( Id => Id != 0 ).Any() )
             {
                 qry = qry.Where( r => reservationQueryOptions.ReservationTypeIds.Contains( r.ReservationTypeId ) );
             }
 
-            if ( reservationQueryOptions.ReservationIds.Any() )
+            if ( reservationQueryOptions.ReservationIds.Where( Id => Id != 0 ).Any() )
             {
                 qry = qry.Where( r => reservationQueryOptions.ReservationIds.Contains( r.Id ) );
             }
 
-            if ( reservationQueryOptions.LocationIds.Where( lId => lId != 0 ).Any() )
+            if ( reservationQueryOptions.CampusIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry
+                   .Where( r =>
+                       !r.CampusId.HasValue ||    // All
+                       reservationQueryOptions.CampusIds.Contains( r.CampusId.Value ) );
+            }
+
+            if ( reservationQueryOptions.MinistryIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry
+                    .Where( r =>
+                        !r.ReservationMinistryId.HasValue ||    // All
+                        reservationQueryOptions.MinistryIds.Contains( r.ReservationMinistry.Id ) );
+            }
+
+            if ( reservationQueryOptions.MinistryNames.Any() )
+            {
+                qry = qry
+                    .Where( r =>
+                        !r.ReservationMinistryId.HasValue ||    // All
+                        reservationQueryOptions.MinistryNames.Contains( r.ReservationMinistry.Name ) );
+            }
+
+            if ( reservationQueryOptions.LocationIds.Where( Id => Id != 0 ).Any() )
             {
                 qry = qry.Where( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && reservationQueryOptions.LocationIds.Contains( rl.LocationId ) ) );
             }
 
-            if ( reservationQueryOptions.ResourceIds.Where( rId => rId != 0 ).Any() )
+            if ( reservationQueryOptions.ResourceIds.Where( Id => Id != 0 ).Any() )
             {
                 qry = qry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && reservationQueryOptions.ResourceIds.Contains( rr.ResourceId ) ) );
             }

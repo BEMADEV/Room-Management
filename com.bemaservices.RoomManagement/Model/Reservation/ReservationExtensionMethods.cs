@@ -56,6 +56,15 @@ namespace com.bemaservices.RoomManagement.Model
                 filterEndDateTime = DateTime.Now.AddMonths( 1 );
             }
 
+            if ( filterStartDateTime < DateTime.MinValue.AddYears( 1 ) )
+            {
+                filterStartDateTime = DateTime.MinValue.AddYears( 1 );
+            }
+            if ( filterEndDateTime > DateTime.MaxValue.AddYears( -1 ) )
+            {
+                filterEndDateTime = DateTime.MaxValue.AddYears( -1 );
+            }
+
             var qryStartDateTime = filterStartDateTime.Value.AddMonths( -1 );
             var qryEndDateTime = filterEndDateTime.Value.AddMonths( 1 );
             if ( roundToDay )

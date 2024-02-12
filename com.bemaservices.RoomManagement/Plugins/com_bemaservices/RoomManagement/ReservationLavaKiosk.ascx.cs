@@ -223,21 +223,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
-            var qry = reservationService.Queryable();
+
+            var reservationQueryOptions = new ReservationQueryOptions();
 
             // Filter by Location
-            qry = qry
-                .Where( r =>
-                    r.ReservationLocations.Any( rl => rl.LocationId == locationId ) );
+            reservationQueryOptions.LocationIds = new List<int> { locationId };
 
             // Filter by Approval
             List<ReservationApprovalState> approvalValues = new List<ReservationApprovalState>();
             approvalValues.Add( ReservationApprovalState.Approved );
             if ( approvalValues.Any() )
             {
-                qry = qry
-                    .Where( r =>
-                        approvalValues.Contains( r.ApprovalState ) );
+                reservationQueryOptions.ApprovalStates = approvalValues;
             }
 
             // Filter by Time
@@ -245,7 +242,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var filterStartDateTime = today;
             var filterEndDateTime = today;
 
-            var reservationSummaryList = reservationService.GetReservationSummaries( qry, filterStartDateTime, filterEndDateTime, true );
+            var qry = reservationService.Queryable( reservationQueryOptions );
+
+            var reservationSummaryList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, true );
             return reservationSummaryList;
         }
 

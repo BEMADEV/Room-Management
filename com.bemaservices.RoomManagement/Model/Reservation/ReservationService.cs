@@ -88,6 +88,11 @@ namespace com.bemaservices.RoomManagement.Model
 
             reservationQueryOptions = reservationQueryOptions ?? new ReservationQueryOptions();
 
+            if ( reservationQueryOptions.Name.IsNotNullOrWhiteSpace() )
+            {
+                qry = qry.Where( r => r.Name.Contains( reservationQueryOptions.Name ) );
+            }
+
             if ( reservationQueryOptions.ReservationTypeIds.Where( Id => Id != 0 ).Any() )
             {
                 qry = qry.Where( r => reservationQueryOptions.ReservationTypeIds.Contains( r.ReservationTypeId ) );
@@ -180,6 +185,33 @@ namespace com.bemaservices.RoomManagement.Model
 
                                     )
                                 );
+            }
+
+            if ( reservationQueryOptions.CreatorPersonId.HasValue )
+            {
+                qry = qry
+                    .Where( r =>
+                        r.CreatedByPersonAlias != null &&
+                        r.CreatedByPersonAlias.PersonId != null &&
+                        r.CreatedByPersonAlias.PersonId == reservationQueryOptions.CreatorPersonId.Value );
+            }
+
+            if ( reservationQueryOptions.EventContactPersonId.HasValue )
+            {
+                qry = qry
+                    .Where( r =>
+                        r.EventContactPersonAlias != null &&
+                        r.EventContactPersonAlias.PersonId != null &&
+                        r.EventContactPersonAlias.PersonId == reservationQueryOptions.EventContactPersonId.Value );
+            }
+
+            if ( reservationQueryOptions.AdministrativeContactPersonId.HasValue )
+            {
+                qry = qry
+                    .Where( r =>
+                        r.AdministrativeContactPersonAlias != null &&
+                        r.AdministrativeContactPersonAlias.PersonId != null &&
+                        r.AdministrativeContactPersonAlias.PersonId == reservationQueryOptions.AdministrativeContactPersonId.Value );
             }
 
             if ( reservationQueryOptions.ReservationsByPersonId != null )

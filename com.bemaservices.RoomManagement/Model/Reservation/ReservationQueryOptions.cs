@@ -24,6 +24,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     public class ReservationQueryOptions
     {
+        public string Name { get; set; } = null;
         /// <summary>
         /// Gets or sets the approvals by person identifier.
         /// </summary>
@@ -34,6 +35,12 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <value>The reservations by person identifier.</value>
         public int? ReservationsByPersonId { get; set; } = null;
+
+        public int? CreatorPersonId { get; set; } = null;
+
+        public int? EventContactPersonId { get; set; } = null;
+
+        public int? AdministrativeContactPersonId { get; set; } = null;
 
         /// <summary>
         /// Gets or sets the reservation type ids.

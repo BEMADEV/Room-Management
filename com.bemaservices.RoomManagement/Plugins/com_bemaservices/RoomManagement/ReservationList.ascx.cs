@@ -298,7 +298,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Setup Reservation Type Filter
-            cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().Where(rt=> rt.IsActive).ToList();
+            cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().Where( rt => rt.IsActive ).ToList();
             cblReservationType.DataBind();
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.RESERVATION_TYPE ) ) )
@@ -383,7 +383,26 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var locationService = new LocationService( rockContext );
-            var qry = reservationService.Queryable();
+
+            var reservationQueryOptions = new ReservationQueryOptions();
+            reservationQueryOptions.Name = tbName.Text;
+            reservationQueryOptions.CreatorPersonId = ppCreator.PersonId;
+            reservationQueryOptions.EventContactPersonId = ppEventContact.PersonId;
+            reservationQueryOptions.AdministrativeContactPersonId = ppAdminContact.PersonId;
+            reservationQueryOptions.MinistryNames = cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Text ).ToList();
+            reservationQueryOptions.ApprovalStates = cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>() ).ToList();
+            reservationQueryOptions.ReservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
+            reservationQueryOptions.ResourceIds = rpResource.SelectedValuesAsInt().ToList();
+
+            var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
+            foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
+            {
+                locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
+                locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
+            }
+            reservationQueryOptions.LocationIds = locationIdList;
+
+            var qry = reservationService.Queryable( reservationQueryOptions );
 
             // Get the related entity query string parameter if it was configured
             var relatedEntity = GetAttributeValue( "RelatedEntityQueryStringParameter" );
@@ -402,88 +421,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            // Filter by Name
-            if ( !String.IsNullOrWhiteSpace( tbName.Text ) )
-            {
-                qry = qry.Where( r => r.Name.Contains( tbName.Text ) );
-            }
-
-            // Filter by Ministry
-            List<String> ministryNames = cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Text ).ToList();
-            if ( ministryNames.Any() )
-            {
-                qry = qry
-                    .Where( r =>
-                        !r.ReservationMinistryId.HasValue ||    // All
-                        ministryNames.Contains( r.ReservationMinistry.Name ) );
-            }
-
-            // Filter by Approval
-            List<ReservationApprovalState> approvalValues = cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>() ).ToList();
-            if ( approvalValues.Any() )
-            {
-                qry = qry
-                    .Where( r =>
-                        approvalValues.Contains( r.ApprovalState ) );
-            }
-
-            // Filter by Reservation Type
-            List<int> reservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
-            if ( reservationTypeIds.Any() )
-            {
-                qry = qry
-                    .Where( r => reservationTypeIds.Contains( r.ReservationTypeId ) );
-            }
-
-            // Filter by Creator
-            if ( ppCreator.PersonId.HasValue )
-            {
-                qry = qry
-                    .Where( r =>
-                        r.CreatedByPersonAlias != null &&
-                        r.CreatedByPersonAlias.PersonId != null &&
-                        r.CreatedByPersonAlias.PersonId == ppCreator.PersonId.Value );
-            }
-
-            // Filter by Event Contact
-            if ( ppEventContact.PersonId.HasValue )
-            {
-                qry = qry
-                    .Where( r =>
-                        r.EventContactPersonAlias != null &&
-                        r.EventContactPersonAlias.PersonId != null &&
-                        r.EventContactPersonAlias.PersonId == ppEventContact.PersonId.Value );
-            }
-
-            // Filter by Admin Contact
-            if ( ppAdminContact.PersonId.HasValue )
-            {
-                qry = qry
-                    .Where( r =>
-                        r.AdministrativeContactPersonAlias != null &&
-                        r.AdministrativeContactPersonAlias.PersonId != null &&
-                        r.AdministrativeContactPersonAlias.PersonId == ppAdminContact.PersonId.Value );
-            }
-
-            // Filter by Resources
-            var resourceIdList = rpResource.SelectedValuesAsInt().ToList();
-            if ( resourceIdList.Where( r => r != 0 ).Any() )
-            {
-                qry = qry.Where( r => r.ReservationResources.Any( rr => resourceIdList.Contains( rr.ResourceId ) ) );
-            }
-
-            // Filter by Locations
-            var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
-            foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
-            {
-                locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
-                locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
-            }
-            if ( locationIdList.Where( r => r != 0 ).Any() )
-            {
-                qry = qry.Where( r => r.ReservationLocations.Any( rr => locationIdList.Contains( rr.LocationId ) ) );
-            }
-
             // Filter by Time
             var today = RockDateTime.Today;
             var defaultStartDateTime = today;
@@ -495,15 +432,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? defaultStartDateTime;
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? defaultEndDateTime;
-            if ( filterStartDateTime < DateTime.MinValue.AddYears( 1 ) )
-            {
-                filterStartDateTime = DateTime.MinValue.AddYears( 1 );
-            }
-            if ( filterEndDateTime > DateTime.MaxValue.AddYears( -1 ) )
-            {
-                filterEndDateTime = DateTime.MaxValue.AddYears( -1 );
-            }
-            var reservationSummaryList = reservationService.GetReservationSummaries( qry, filterStartDateTime, filterEndDateTime, false );
+            var reservationSummaryList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
 
             // Bind to Grid
             gReservations.DataSource = reservationSummaryList.Select( r => new

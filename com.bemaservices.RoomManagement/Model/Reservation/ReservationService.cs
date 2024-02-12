@@ -99,12 +99,12 @@ namespace com.bemaservices.RoomManagement.Model
 
             if ( reservationQueryOptions.LocationIds.Any() )
             {
-                qry = qry.Where( r => r.ReservationLocations.Any( rl => reservationQueryOptions.LocationIds.Contains( rl.LocationId ) ) );
+                qry = qry.Where( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && reservationQueryOptions.LocationIds.Contains( rl.LocationId ) ) );
             }
 
             if ( reservationQueryOptions.ResourceIds.Any() )
             {
-                qry = qry.Where( r => r.ReservationResources.Any( rr => reservationQueryOptions.ResourceIds.Contains( rr.ResourceId ) ) );
+                qry = qry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && reservationQueryOptions.ResourceIds.Contains( rr.ResourceId ) ) );
             }
 
             if ( reservationQueryOptions.ApprovalStates.Any() )
@@ -827,12 +827,7 @@ namespace com.bemaservices.RoomManagement.Model
                 var newReservationSummaries = newReservationList.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
                 var reservedQuantities = newReservationSummaries
                     .Select( newReservationSummary =>
-                        existingReservationSummaries.Where( currentReservationSummary =>
-                         ( currentReservationSummary.ReservationStartDateTime > newReservationSummary.ReservationStartDateTime || currentReservationSummary.ReservationEndDateTime > newReservationSummary.ReservationStartDateTime ) &&
-                         ( currentReservationSummary.ReservationStartDateTime < newReservationSummary.ReservationEndDateTime || currentReservationSummary.ReservationEndDateTime < newReservationSummary.ReservationEndDateTime )
-                        )
-                        .DistinctBy( reservationSummary => reservationSummary.Id )
-                        .Sum( currentReservationSummary => currentReservationSummary.ReservationResources.Where( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resource.Id && rr.Quantity.HasValue ).Sum( rr => rr.Quantity.Value ) )
+                        newReservationSummary.MatchingSummaries(existingReservationSummaries).ReservedResourceQuantity(resource.Id)
                    );
 
                 var maxReservedQuantity = reservedQuantities.Count() > 0 ? reservedQuantities.Max() : 0;

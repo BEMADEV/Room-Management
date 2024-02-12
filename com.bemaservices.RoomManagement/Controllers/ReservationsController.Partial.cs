@@ -69,34 +69,8 @@ namespace Rock.Rest.Controllers
             bool includeAttributes = false
             )
         {
-
             RockContext rockContext = new RockContext();
             ReservationService reservationService = new ReservationService( rockContext );
-            var reservationQry = reservationService.Queryable();
-
-            List<int> reservationTypeIdList = reservationTypeIds.SplitDelimitedValues().AsIntegerList();
-            if ( reservationTypeIdList.Any() )
-            {
-                reservationQry = reservationQry.Where( r => reservationTypeIdList.Contains( r.ReservationTypeId ) );
-            }
-
-            List<int> reservationIdList = reservationIds.SplitDelimitedValues().AsIntegerList();
-            if ( reservationIdList.Any() )
-            {
-                reservationQry = reservationQry.Where( r => reservationIdList.Contains( r.Id ) );
-            }
-
-            List<int> locationIdList = locationIds.SplitDelimitedValues().AsIntegerList();
-            if ( locationIdList.Any() )
-            {
-                reservationQry = reservationQry.Where( r => r.ReservationLocations.Any( rl => locationIdList.Contains( rl.LocationId ) ) );
-            }
-
-            List<int> resourceIdList = resourceIds.SplitDelimitedValues().AsIntegerList();
-            if ( resourceIdList.Any() )
-            {
-                reservationQry = reservationQry.Where( r => r.ReservationResources.Any( rr => resourceIdList.Contains( rr.ResourceId ) ) );
-            }
 
             List<ReservationApprovalState> approvalStateList = new List<ReservationApprovalState>();
 
@@ -111,27 +85,20 @@ namespace Rock.Rest.Controllers
 
                 }
             }
-
-            if ( approvalStateList.Any() )
+            if ( !approvalStateList.Any() )
             {
-                reservationQry = reservationQry.Where( r => approvalStateList.Contains( r.ApprovalState ) );
-            }
-            else
-            {
-                reservationQry = reservationQry.Where( r => r.ApprovalState == ReservationApprovalState.Approved );
+                approvalStateList.Add( ReservationApprovalState.Approved );
             }
 
-            if ( startDateTime == null )
-            {
-                startDateTime = DateTime.Now;
-            }
+            var reservationQueryOptions = new ReservationQueryOptions();
+            reservationQueryOptions.ReservationTypeIds = reservationTypeIds.SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.ReservationIds = reservationIds.SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.LocationIds = locationIds.SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.ResourceIds = resourceIds.SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.ApprovalStates = approvalStateList;
 
-            if ( endDateTime == null )
-            {
-                endDateTime = DateTime.Now.AddMonths( 1 );
-            }
-
-            var reservationSummaryList = reservationService.GetReservationSummaries( reservationQry, startDateTime, endDateTime, false, includeAttributes );
+            var reservationSummaryList = reservationService.Queryable( reservationQueryOptions )
+                .GetReservationSummaries( startDateTime, endDateTime, false, includeAttributes );
 
             return reservationSummaryList.AsQueryable();
         }

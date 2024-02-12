@@ -840,23 +840,27 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var locationService = new LocationService( rockContext );
-            var qry = reservationService.Queryable();
+
+            var reservationQueryOptions = new ReservationQueryOptions();
 
             // Do additional filtering based on the ShowBy selection (My Reservations, My Approvals)
             switch ( showBy )
             {
                 case ShowBy.MyReservations:
-                    qry = reservationService.FilterByMyReservations( qry, CurrentPerson.Id );
+                    reservationQueryOptions.ReservationsByPersonId = CurrentPerson.Id;
                     break;
                 case ShowBy.MyApprovals:
                     if ( CurrentPersonId.HasValue )
                     {
-                        qry = reservationService.FilterByMyApprovals( qry, CurrentPerson.Id );
+                        reservationQueryOptions.ApprovalsByPersonId = CurrentPerson.Id;
                     }
                     break;
                 default:
                     break;
             }
+
+
+            var qry = reservationService.Queryable( reservationQueryOptions );
 
             // Filter by Resources
             var resourceIdList = rpResource.SelectedValuesAsInt().ToList();

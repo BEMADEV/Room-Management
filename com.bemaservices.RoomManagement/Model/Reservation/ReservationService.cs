@@ -44,167 +44,128 @@ namespace com.bemaservices.RoomManagement.Model
 
         #region Reservation Methods
 
-        public IQueryable<Reservation> FilterByMyApprovals( IQueryable<Reservation> qry, int personId )
+        /// <summary>
+        /// Returns a queryable collection of all <see cref="Rock.Model.Person"/> entities with eager loading of the properties that are included in the includes parameter.
+        /// </summary>
+        /// <param name="includes">A <see cref="System.String"/> containing a comma delimited list of properties that should support eager loading.</param>
+        /// <returns>A queryable collection of <see cref="Rock.Model.Person"/> entities with properties that support eager loading.</returns>
+        public override IQueryable<Reservation> Queryable( string includes )
         {
-            // NICK TODO: GetLocationsByApprovalGroupMembership is not returning the locations correctly, I'll probably will need to re-write it
-            var myLocationsToApproveIds = GetLocationIdsByApprovalGroupMembership( personId );
-
-            var myResourcesToApproveIds = GetResourceIdsByApprovalGroupMembership( personId );
-
-            qry = qry.Where( r => 
-                                (
-                                    r.ApprovalState == ReservationApprovalState.PendingInitialApproval &&
-                                    r.ReservationType.ReservationApprovalGroups
-                                        .Where( ag =>
-                                            ag.ApprovalGroupType == ApprovalGroupType.InitialApprovalGroup &&
-                                            ( ag.CampusId == null || ag.CampusId == r.CampusId )
-                                            )
-                                        .SelectMany( ag => ag.ApprovalGroup.Members )
-                                        .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
-                                ) ||
-                                (
-                                    r.ApprovalState == ReservationApprovalState.PendingFinalApproval &&
-                                    r.ReservationType.ReservationApprovalGroups
-                                        .Where( ag =>
-                                            ag.ApprovalGroupType == ApprovalGroupType.FinalApprovalGroup &&
-                                            ( ag.CampusId == null || ag.CampusId == r.CampusId )
-                                            )
-                                        .SelectMany( ag => ag.ApprovalGroup.Members )
-                                        .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
-                                ) ||
-                                (
-                                    r.ApprovalState == ReservationApprovalState.PendingSpecialApproval &&
-                                    (
-                                        r.ReservationLocations
-                                            .Where( rl => rl.ApprovalState == ReservationLocationApprovalState.Unapproved )
-                                            .Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
-                                        r.ReservationResources
-                                            .Where( rr => rr.ApprovalState == ReservationResourceApprovalState.Unapproved )
-                                            .Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) )
-                                    )
-
-                                )
-                            );
-            return qry;
-        }
-
-        public IQueryable<Reservation> FilterByMyReservations( IQueryable<Reservation> qry, int personId )
-        {
-            qry = qry.Where( r => r.AdministrativeContactPersonAlias.PersonId == personId || r.EventContactPersonAlias.PersonId == personId );
-            return qry;
+            return Queryable( includes, new ReservationQueryOptions() );
         }
 
         /// <summary>
-        /// Gets the reservation summaries.
+        /// Returns a queryable collection of <see cref="Rock.Model.Person"/> entities (not including Deceased or Nameless records)
         /// </summary>
-        /// <param name="qry">The qry.</param>
-        /// <param name="filterStartDateTime">The filter start date time.</param>
-        /// <param name="filterEndDateTime">The filter end date time.</param>
-        /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
-        /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public List<Model.ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false, bool includeAttributes = false )
+        /// <returns>A queryable collection of <see cref="Rock.Model.Person"/> entities.</returns>
+        public override IQueryable<Reservation> Queryable()
         {
-            var reservationSummaryList = new List<Model.ReservationSummary>();
+            return Queryable( new ReservationQueryOptions() );
+        }
 
-            if ( qry == null )
+        /// <summary>
+        /// Returns a queryable collection of <see cref="Rock.Model.Person"/> entities 
+        /// using the options specified the <see cref="PersonQueryOptions"/> (default is to exclude deceased people and nameless person records)
+        /// </summary>
+        /// <param name="personQueryOptions">The person query options.</param>
+        /// <returns></returns>
+        public IQueryable<Reservation> Queryable( ReservationQueryOptions reservationQueryOptions )
+        {
+            return this.Queryable( null, reservationQueryOptions );
+        }
+
+        /// <summary>
+        /// Returns a queryable collection of <see cref="Rock.Model.Person"/> entities with eager loading of properties that are included in the includes parameter.
+        /// using the option specified the <see cref="PersonQueryOptions"/> (default is to exclude deceased people, nameless person records and the anonymous visitor. )
+        /// </summary>
+        /// <param name="includes">The includes.</param>
+        /// <param name="personQueryOptions">The person query options.</param>
+        /// <returns></returns>
+        private IQueryable<Reservation> Queryable( string includes, ReservationQueryOptions reservationQueryOptions )
+        {
+            var qry = base.Queryable( includes );
+
+            reservationQueryOptions = reservationQueryOptions ?? new ReservationQueryOptions();
+
+            if ( reservationQueryOptions.ReservationTypeIds.Any() )
             {
-                return reservationSummaryList;
+                qry = qry.Where( r => reservationQueryOptions.ReservationTypeIds.Contains( r.ReservationTypeId ) );
             }
 
-            var qryStartDateTime = filterStartDateTime.AddMonths( -1 );
-            var qryEndDateTime = filterEndDateTime.AddMonths( 1 );
-            if ( roundToDay )
+            if ( reservationQueryOptions.ReservationIds.Any() )
             {
-                filterEndDateTime = filterEndDateTime.AddDays( 1 ).AddMilliseconds( -1 );
+                qry = qry.Where( r => reservationQueryOptions.ReservationIds.Contains( r.Id ) );
             }
 
-            var reservations = qry
-                .Where( r => r.FirstOccurrenceStartDateTime == null || r.FirstOccurrenceStartDateTime <= filterEndDateTime )
-                .Where( r => r.LastOccurrenceEndDateTime == null || r.LastOccurrenceEndDateTime >= filterStartDateTime )
-                .Where( r => r.Schedule.iCalendarContent.Contains( "RRULE" ) || r.Schedule.iCalendarContent.Contains( "RDATE" ) ||
-                        (
-                            r.Schedule.EffectiveStartDate >= qryStartDateTime &&
-                            r.Schedule.EffectiveEndDate <= qryEndDateTime )
-                        )
-                        .ToList();
-
-            var reservationsWithDates = reservations
-                .Select( r => new ReservationDate
-                {
-                    Reservation = r,
-                    ReservationDateTimes = r.GetReservationTimes( qryStartDateTime, qryEndDateTime )
-                } )
-                .Where( r => r.ReservationDateTimes.Any() )
-                .ToList();
-
-            foreach ( var reservationWithDates in reservationsWithDates )
+            if ( reservationQueryOptions.LocationIds.Any() )
             {
-                var reservation = reservationWithDates.Reservation;
-
-                if ( includeAttributes )
-                {
-                    reservation.LoadAttributes();
-                }
-
-                foreach ( var reservationDateTime in reservationWithDates.ReservationDateTimes )
-                {
-                    var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
-                    var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
-
-                    if (
-                        ( ( reservationStartDateTime >= filterStartDateTime ) || ( reservationEndDateTime >= filterStartDateTime ) ) &&
-                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) ) )
-                    {
-                        var reservationSummary = new Model.ReservationSummary
-                        {
-                            Id = reservation.Id,
-                            ReservationType = reservation.ReservationType,
-                            ApprovalState = reservation.ApprovalState,
-                            ReservationName = reservation.Name,
-                            ReservationLocations = reservation.ReservationLocations.ToList(),
-                            ReservationResources = reservation.ReservationResources.ToList(),
-                            EventStartDateTime = reservationDateTime.StartDateTime,
-                            EventEndDateTime = reservationDateTime.EndDateTime,
-                            ReservationStartDateTime = reservationStartDateTime,
-                            ReservationEndDateTime = reservationEndDateTime,
-                            EventDateTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime, reservationDateTime.EndDateTime ),
-                            EventTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime, reservationDateTime.EndDateTime, false ),
-                            ReservationDateTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 ), reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 ) ),
-                            ReservationTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 ), reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 ), false ),
-                            ReservationMinistry = reservation.ReservationMinistry,
-                            EventContactPersonAlias = reservation.EventContactPersonAlias,
-                            EventContactEmail = reservation.EventContactEmail,
-                            EventContactPhoneNumber = reservation.EventContactPhone,
-                            SetupPhotoId = reservation.SetupPhotoId,
-                            Note = reservation.Note,
-                            RequesterAlias = reservation.RequesterAlias,
-                            NumberAttending = reservation.NumberAttending,
-                            ModifiedDateTime = reservation.ModifiedDateTime,
-                            ScheduleId = reservation.ScheduleId
-                        };
-
-                        if ( includeAttributes )
-                        {
-                            reservationSummary.Attributes = reservation.Attributes;
-                            reservationSummary.AttributeValues = reservation.AttributeValues;
-
-                            foreach ( var reservationLocation in reservationSummary.ReservationLocations )
-                            {
-                                reservationLocation.LoadAttributes();
-                            }
-
-                            foreach ( var reservationResource in reservationSummary.ReservationResources )
-                            {
-                                reservationResource.LoadAttributes();
-                            }
-                        }
-
-                        reservationSummaryList.Add( reservationSummary );
-                    }
-                }
+                qry = qry.Where( r => r.ReservationLocations.Any( rl => reservationQueryOptions.LocationIds.Contains( rl.LocationId ) ) );
             }
 
-            return reservationSummaryList;
+            if ( reservationQueryOptions.ResourceIds.Any() )
+            {
+                qry = qry.Where( r => r.ReservationResources.Any( rr => reservationQueryOptions.ResourceIds.Contains( rr.ResourceId ) ) );
+            }
+
+            if ( reservationQueryOptions.ApprovalStates.Any() )
+            {
+                qry = qry.Where( r => reservationQueryOptions.ApprovalStates.Contains( r.ApprovalState ) );
+            }
+
+            if ( reservationQueryOptions.ApprovalsByPersonId != null )
+            {
+                var approvalPersonId = reservationQueryOptions.ApprovalsByPersonId.Value;
+
+                // NICK TODO: GetLocationsByApprovalGroupMembership is not returning the locations correctly, I'll probably will need to re-write it
+                var myLocationsToApproveIds = GetLocationIdsByApprovalGroupMembership( approvalPersonId );
+
+                var myResourcesToApproveIds = GetResourceIdsByApprovalGroupMembership( approvalPersonId );
+
+                qry = qry.Where( r =>
+                                    (
+                                        r.ApprovalState == ReservationApprovalState.PendingInitialApproval &&
+                                        r.ReservationType.ReservationApprovalGroups
+                                            .Where( ag =>
+                                                ag.ApprovalGroupType == ApprovalGroupType.InitialApprovalGroup &&
+                                                ( ag.CampusId == null || ag.CampusId == r.CampusId )
+                                                )
+                                            .SelectMany( ag => ag.ApprovalGroup.Members )
+                                            .Any( m => m.PersonId == approvalPersonId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                    ) ||
+                                    (
+                                        r.ApprovalState == ReservationApprovalState.PendingFinalApproval &&
+                                        r.ReservationType.ReservationApprovalGroups
+                                            .Where( ag =>
+                                                ag.ApprovalGroupType == ApprovalGroupType.FinalApprovalGroup &&
+                                                ( ag.CampusId == null || ag.CampusId == r.CampusId )
+                                                )
+                                            .SelectMany( ag => ag.ApprovalGroup.Members )
+                                            .Any( m => m.PersonId == approvalPersonId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                    ) ||
+                                    (
+                                        r.ApprovalState == ReservationApprovalState.PendingSpecialApproval &&
+                                        (
+                                            r.ReservationLocations
+                                                .Where( rl => rl.ApprovalState == ReservationLocationApprovalState.Unapproved )
+                                                .Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
+                                            r.ReservationResources
+                                                .Where( rr => rr.ApprovalState == ReservationResourceApprovalState.Unapproved )
+                                                .Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) )
+                                        )
+
+                                    )
+                                );
+            }
+
+            if ( reservationQueryOptions.ReservationsByPersonId != null )
+            {
+                qry = qry.Where( r =>
+                    r.AdministrativeContactPersonAlias.PersonId == reservationQueryOptions.ReservationsByPersonId.Value ||
+                    r.EventContactPersonAlias.PersonId == reservationQueryOptions.ReservationsByPersonId.Value
+                    );
+            }
+
+            return qry;
         }
 
         /// <summary>
@@ -225,49 +186,15 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="existingReservationQry">The existing reservation qry.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
         /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private IEnumerable<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
+        private List<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
         {
-            var newReservationSummaries = GetReservationSummaries( new List<Reservation>() { newReservation }.AsQueryable(), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
-            var conflictingSummaryList = GetReservationSummaries( existingReservationQry.AsNoTracking().Where( r => r.Id != newReservation.Id
-                                                                    && r.ApprovalState != ReservationApprovalState.Denied
-                                                                    && r.ApprovalState != ReservationApprovalState.Draft
-                                                                    && r.ApprovalState != ReservationApprovalState.Cancelled
-                                                                    && (
-                                                                        ( arePotentialConflictsReturned == false && ( !r.ReservationType.IsReservationBookedOnApproval || r.ApprovalState == ReservationApprovalState.Approved ) ) ||
-                                                                        ( arePotentialConflictsReturned == true && r.ReservationType.IsReservationBookedOnApproval && r.ApprovalState != ReservationApprovalState.Approved )
-                                                                        )
-                                                        ), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) )
-                .Where( currentReservationSummary => newReservationSummaries.Any( newReservationSummary =>
-                 ( currentReservationSummary.ReservationStartDateTime > newReservationSummary.ReservationStartDateTime || currentReservationSummary.ReservationEndDateTime > newReservationSummary.ReservationStartDateTime ) &&
-                 ( currentReservationSummary.ReservationStartDateTime < newReservationSummary.ReservationEndDateTime || currentReservationSummary.ReservationEndDateTime < newReservationSummary.ReservationEndDateTime )
-                 ) );
-            return conflictingSummaryList;
-        }
+            var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
+            var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( arePotentialConflictsReturned: arePotentialConflictsReturned );
 
-        /// <summary>
-        /// Gets the friendly schedule description.
-        /// </summary>
-        /// <param name="startDateTime">The start date time.</param>
-        /// <param name="endDateTime">The end date time.</param>
-        /// <param name="showDate">if set to <c>true</c> [show date].</param>
-        /// <returns>System.String.</returns>
-        public string GetFriendlyScheduleDescription( DateTime startDateTime, DateTime endDateTime, bool showDate = true )
-        {
-            if ( startDateTime.Date == endDateTime.Date )
-            {
-                if ( showDate )
-                {
-                    return String.Format( "{0} {1} - {2}", startDateTime.ToString( "MM/dd" ), startDateTime.ToString( "hh:mmt" ).ToLower(), endDateTime.ToString( "hh:mmt" ).ToLower() );
-                }
-                else
-                {
-                    return String.Format( "{0} - {1}", startDateTime.ToString( "hh:mmt" ).ToLower(), endDateTime.ToString( "hh:mmt" ).ToLower() );
-                }
-            }
-            else
-            {
-                return String.Format( "{0} {1} - {2} {3}", startDateTime.ToString( "MM/dd/yy" ), startDateTime.ToString( "hh:mmt" ).ToLower(), endDateTime.ToString( "MM/dd/yy" ), endDateTime.ToString( "hh:mmt" ).ToLower() );
-            }
+            var newReservationSummaries = newReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+
+            return existingReservationSummaries.WhereConflictsExist( newReservationSummaries );
         }
 
         /// <summary>
@@ -892,22 +819,13 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
                 // now) which have the given resource in them.
-                var existingReservationSummaries = GetReservationSummaries(
-                    Queryable().AsNoTracking()
-                    .Where( r => r.Id != reservation.Id
-                            && r.ApprovalState != ReservationApprovalState.Denied
-                            && r.ApprovalState != ReservationApprovalState.Cancelled
-                            && r.ApprovalState != ReservationApprovalState.Draft
-                            && (
-                                ( arePotentialConflictsReturned == false && ( !r.ReservationType.IsReservationBookedOnApproval || r.ApprovalState == ReservationApprovalState.Approved ) ) ||
-                                ( arePotentialConflictsReturned == true && r.ReservationType.IsReservationBookedOnApproval && r.ApprovalState != ReservationApprovalState.Approved )
-                                )
-                            && r.ReservationResources.Any( rr => resource.Id == rr.ResourceId )
-                            ),
-                    RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations(arePotentialConflictsReturned: arePotentialConflictsReturned).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
+                var existingReservationSummaries = existingValidReservations.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
 
                 // Now narrow the reservations down to only the ones in the matching/overlapping time frame
-                var reservedQuantities = GetReservationSummaries( new List<Reservation>() { reservation }.AsQueryable(), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) )
+                var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
+                var newReservationSummaries = newReservationList.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+                var reservedQuantities = newReservationSummaries
                     .Select( newReservationSummary =>
                         existingReservationSummaries.Where( currentReservationSummary =>
                          ( currentReservationSummary.ReservationStartDateTime > newReservationSummary.ReservationStartDateTime || currentReservationSummary.ReservationEndDateTime > newReservationSummary.ReservationStartDateTime ) &&
@@ -1079,83 +997,10 @@ namespace com.bemaservices.RoomManagement.Model
         /// Holds the view model for a Reservation Summary
         /// </summary>
         public class ReservationSummary : com.bemaservices.RoomManagement.Model.ReservationSummary
-        {            
+        {
         }
 
-        
+
         #endregion
-    }
-
-    /// <summary>
-    /// Extension Methods
-    /// </summary>
-    public static partial class ReservationExtensionMethods
-    {
-        /// <summary>
-        /// Clones this Reservation object to a new Reservation object
-        /// </summary>
-        /// <param name="source">The source.</param>
-        /// <param name="deepCopy">if set to <c>true</c> a deep copy is made. If false, only the basic entity properties are copied.</param>
-        /// <returns>Reservation.</returns>
-        public static Reservation Clone( this Reservation source, bool deepCopy )
-        {
-            if ( deepCopy )
-            {
-                return source.Clone() as Reservation;
-            }
-            else
-            {
-                var target = new Reservation();
-                target.CopyPropertiesFrom( source );
-                return target;
-            }
-        }
-
-        /// <summary>
-        /// Copies the properties from another Reservation object to this Reservation object
-        /// </summary>
-        /// <param name="target">The target.</param>
-        /// <param name="source">The source.</param>
-        public static void CopyPropertiesFrom( this Reservation target, Reservation source )
-        {
-            target.Id = source.Id;
-            target.Name = source.Name;
-
-            target.Schedule = source.Schedule;
-            target.ScheduleId = source.ScheduleId;
-
-            target.CampusId = source.CampusId;
-            target.EventItemOccurrenceId = source.EventItemOccurrenceId;
-            target.ReservationMinistryId = source.ReservationMinistryId;
-
-            //target.ApprovalState = source.ApprovalState;
-            target.RequesterAliasId = source.RequesterAliasId;
-            //target.ApproverAliasId = source.ApproverAliasId;
-            target.SetupTime = source.SetupTime;
-            target.CleanupTime = source.CleanupTime;
-            target.NumberAttending = source.NumberAttending;
-            target.Note = source.Note;
-            target.SetupPhotoId = source.SetupPhotoId;
-            target.EventContactPersonAlias = source.EventContactPersonAlias;
-            target.EventContactPersonAliasId = source.EventContactPersonAliasId;
-            target.EventContactPhone = source.EventContactPhone;
-            target.EventContactEmail = source.EventContactEmail;
-            target.AdministrativeContactPersonAlias = source.AdministrativeContactPersonAlias;
-            target.AdministrativeContactPersonAliasId = source.AdministrativeContactPersonAliasId;
-            target.AdministrativeContactPhone = source.AdministrativeContactPhone;
-            target.AdministrativeContactEmail = source.AdministrativeContactEmail;
-
-            target.ReservationLocations = source.ReservationLocations;
-            target.ReservationResources = source.ReservationResources;
-
-            target.CreatedDateTime = source.CreatedDateTime;
-            target.ModifiedDateTime = source.ModifiedDateTime;
-            target.CreatedByPersonAliasId = source.CreatedByPersonAliasId;
-            target.ModifiedByPersonAliasId = source.ModifiedByPersonAliasId;
-            target.Guid = source.Guid;
-            target.ForeignId = source.ForeignId;
-            target.ForeignGuid = source.ForeignGuid;
-            target.ForeignKey = source.ForeignKey;
-        }
     }
 }

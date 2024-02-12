@@ -108,10 +108,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                 using ( var rockContext = new RockContext() )
                 {
-                    var reservationService = new ReservationService( rockContext );
-                    var reservationQry = reservationService.Queryable().AsNoTracking();
-                    var rockDateTime = RockDateTime.Now;
+                    var reservationQueryOptions = new ReservationQueryOptions();
+                    if ( role == "1" )
+                    {
+                        reservationQueryOptions.ReservationsByPersonId = CurrentPerson.Id;
+                    }
+                    else
+                    {
+                        reservationQueryOptions.ApprovalsByPersonId = CurrentPerson.Id;
+                    }
 
+                    var reservationService = new ReservationService( rockContext );
+                    var reservationQry = reservationService.Queryable( reservationQueryOptions ).AsNoTracking();
+
+                    var rockDateTime = RockDateTime.Now;
                     if ( status == "1" )
                     {
                         reservationQry = reservationQry.Where( r => r.LastOccurrenceEndDateTime < rockDateTime );
@@ -119,15 +129,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     else
                     {
                         reservationQry = reservationQry.Where( r => r.LastOccurrenceEndDateTime >= rockDateTime );
-                    }
-
-                    if ( role == "1" )
-                    {
-                        reservationQry = reservationService.FilterByMyReservations( reservationQry,  CurrentPerson.Id );
-                    }
-                    else
-                    {
-                        reservationQry = reservationService.FilterByMyApprovals( reservationQry, CurrentPerson.Id );
                     }
 
                     var mergeFields = new Dictionary<string, object>();

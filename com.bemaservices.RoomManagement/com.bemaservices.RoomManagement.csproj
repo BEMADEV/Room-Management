@@ -154,6 +154,8 @@
     <Compile Include="Model\ReservationLinkage\ReservationLinkage.cs" />
     <Compile Include="Model\ReservationLinkage\ReservationLinkageService.cs" />
     <Compile Include="Model\ReservationApprovalGroup\ReservationApprovalGroup.cs" />
+    <Compile Include="Model\Reservation\ReservationExtensionMethods.cs" />
+    <Compile Include="Model\Reservation\ReservationQueryOptions.cs" />
     <Compile Include="Model\Reservation\ReservationSummary.cs" />
     <Compile Include="Model\Reservation\ReservationDate.cs" />
     <Compile Include="Model\Reservation\ReservationConflict.cs" />

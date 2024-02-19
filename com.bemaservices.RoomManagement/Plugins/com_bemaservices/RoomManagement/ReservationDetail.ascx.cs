@@ -46,10 +46,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     /// <summary>
     /// Class ReservationDetail.
     /// Implements the <see cref="Rock.Web.UI.RockBlock" />
-    /// Implements the <see cref="Rock.Web.UI.IDetailBlock" />
     /// </summary>
     /// <seealso cref="Rock.Web.UI.RockBlock" />
-    /// <seealso cref="Rock.Web.UI.IDetailBlock" />
     [DisplayName( "Reservation Detail" )]
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block for viewing a reservation detail" )]
@@ -84,7 +82,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     {% endif %}
 </div>" )]
 
-    public partial class ReservationDetail : Rock.Web.UI.RockBlock, IDetailBlock
+    public partial class ReservationDetail : Rock.Web.UI.RockBlock
     {
         #region Fields
 
@@ -1485,7 +1483,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( reservationResource != null )
             {
                 var hlApprovalStatus = e.Row.FindControl( "hlApprovalStatus" ) as HighlightLabel;
-                if ( hlApprovalStatus != null && reservationResource.ApprovalState != null )
+                if ( hlApprovalStatus != null )
                 {
                     hlApprovalStatus.Text = reservationResource.ApprovalState.ConvertToString();
                     switch ( reservationResource.ApprovalState )
@@ -1871,7 +1869,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( reservationLocation != null )
             {
                 var hlApprovalStatus = e.Row.FindControl( "hlApprovalStatus" ) as HighlightLabel;
-                if ( hlApprovalStatus != null && reservationLocation.ApprovalState != null )
+                if ( hlApprovalStatus != null )
                 {
                     hlApprovalStatus.Text = reservationLocation.ApprovalState.ConvertToString();
                     switch ( reservationLocation.ApprovalState )
@@ -3706,7 +3704,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         sb.AppendFormat( "{0} is already reserved for the scheduled times by the following reservations:<ul>", resource.Name );
                         foreach ( var conflict in conflicts )
                         {
-                            var duration = conflict.Reservation.Schedule.GetCalendarEvent().Duration;
+                            var duration = conflict.Reservation.Schedule.GetICalEvent().Duration;
                             int hours = duration.Hours;
                             int minutes = duration.Minutes;
 

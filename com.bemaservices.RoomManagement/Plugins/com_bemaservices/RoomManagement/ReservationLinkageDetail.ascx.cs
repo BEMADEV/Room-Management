@@ -1165,8 +1165,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                             // Set Calendar.
                             string iCalendarContent = sbEventOccurrenceSchedule.iCalendarContent ?? string.Empty;
-                            var calEvent = ScheduleICalHelper.GetCalendarEvent( iCalendarContent );
-                            if ( calEvent != null && calEvent.DTStart != null )
+                            var calEvent = InetCalendarHelper.CreateCalendarEvent( iCalendarContent );
+                            if ( calEvent != null && calEvent.Start != null )
                             {
                                 if ( eventItemOccurrence.Schedule == null )
                                 {

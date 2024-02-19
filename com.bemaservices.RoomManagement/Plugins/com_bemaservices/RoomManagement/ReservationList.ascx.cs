@@ -239,7 +239,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ApplyFilterClick event of the gfSettings control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void gfSettings_ApplyFilterClick( object sender, EventArgs e )
         {
             gfSettings.SaveUserPreference( FilterSetting.RESERVATION_NAME, tbName.Text );

@@ -917,7 +917,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnDeny control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnDeny_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -941,7 +941,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnApprove control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnApprove_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -992,7 +992,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnRequestChanges control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnRequestChanges_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1023,7 +1023,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnSubmit control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnSubmit_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1063,7 +1063,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnCancelReservation control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnCancelReservation_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1123,7 +1123,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ValueChanged event of the approval toggle. If the reservation is set to approved, it will iterate through each resource and location and approve the ones the user has access to approve.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void hfApprovalState_ValueChanged( object sender, EventArgs e )
         {
             if ( PageParameter( "ReservationId" ).AsIntegerOrNull() != null )
@@ -1252,7 +1252,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SaveThenAddClick event of the dlgReservationResource control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dlgReservationResource_SaveThenAddClick( object sender, EventArgs e )
         {
             SaveReservationResource();
@@ -1864,7 +1864,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the RowDataBound event of the gViewLocations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
         protected void gViewLocations_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             var reservationLocation = e.Row.DataItem as ReservationLocationSummary;
@@ -1946,7 +1946,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the RowDataBound event of the gLocationLayouts control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
         protected void gLocationLayouts_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             int? selectedLocationLayoutId = null;
@@ -1997,7 +1997,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the CheckedChanged event of the rbSelected control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void rbSelected_CheckedChanged( object sender, EventArgs e )
         {
             //Clear the existing selected row 

@@ -449,7 +449,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectItem event of the lipLocation control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lipLocation_SelectItem( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "Locations", lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
@@ -460,7 +460,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectItem event of the rpResource control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void rpResource_SelectItem( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "Resources", rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
@@ -515,7 +515,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the TextChanged event of the dpStartDate control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dpStartDate_TextChanged( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "Start Date", dpStartDate.SelectedDate.ToString() );
@@ -527,7 +527,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the TextChanged event of the dpEndDate control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dpEndDate_TextChanged( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "End Date", dpEndDate.SelectedDate.ToString() );
@@ -539,7 +539,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnViewMode control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnViewMode_Click( object sender, EventArgs e )
         {
             var btnViewMode = sender as BootstrapButton;
@@ -556,7 +556,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnAllReservations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnAllReservations_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.All ).ToString();
@@ -568,7 +568,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnMyReservations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnMyReservations_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.MyReservations ).ToString();
@@ -580,7 +580,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnMyApprovals control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnMyApprovals_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.MyApprovals ).ToString();
@@ -592,7 +592,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ItemCommand event of the rptReports control.
         /// </summary>
         /// <param name="source">The source of the event.</param>
-        /// <param name="e">The <see cref="RepeaterCommandEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="RepeaterCommandEventArgs" /> instance containing the event data.</param>
         protected void rptReports_ItemCommand( object source, RepeaterCommandEventArgs e )
         {
             var definedValueId = e.CommandArgument.ToString().AsIntegerOrNull();
@@ -605,7 +605,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ItemCommand event of the rptViews control.
         /// </summary>
         /// <param name="source">The source of the event.</param>
-        /// <param name="e">The <see cref="RepeaterCommandEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="RepeaterCommandEventArgs" /> instance containing the event data.</param>
         protected void rptViews_ItemCommand( object source, RepeaterCommandEventArgs e )
         {
             var definedValueId = e.CommandArgument.ToString().AsIntegerOrNull();

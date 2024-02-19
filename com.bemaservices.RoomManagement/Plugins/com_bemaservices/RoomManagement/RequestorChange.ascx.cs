@@ -113,7 +113,7 @@ namespace RockWeb.Plugins.com_bemadev.RoomReservation
         /// Handles the Click event of the btnChange control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnChange_Click( object sender, EventArgs e )
         {
             if ( ppOld.PersonId.HasValue && ppNew.PersonId.HasValue )

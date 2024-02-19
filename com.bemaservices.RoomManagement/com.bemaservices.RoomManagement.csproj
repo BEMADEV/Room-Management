@@ -119,6 +119,8 @@
     <Compile Include="Jobs\FireWorkflowFromReservationInDateRange.cs" />
     <Compile Include="Jobs\PopulateFirstLastOccurrenceDateTimes.cs" />
     <Compile Include="Jobs\V247TemporarySetupPhotoFix.cs" />
+    <Compile Include="Lava\Blocks\ReservationSummariesBlock.cs" />
+    <Compile Include="Lava\Blocks\ReservationSummariesLavaDataSource.cs" />
     <Compile Include="Migrations\040_Rollup243.cs" />
     <Compile Include="Migrations\039_RockWorkflowCompliance.cs" />
     <Compile Include="Migrations\038_Rollup240.cs" />
@@ -229,6 +231,10 @@
     <ProjectReference Include="$(SolutionDir)Rock.Enums\Rock.Enums.csproj">
       <Project>{61dece2b-0434-435e-8d65-49a4fdf98365}</Project>
       <Name>Rock.Enums</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\BemaRockV14\Rock.Lava\Rock.Lava.csproj">
+      <Project>{37E293DD-F282-4A34-91FA-5FB8503D5672}</Project>
+      <Name>Rock.Lava</Name>
     </ProjectReference>
     <ProjectReference Include="..\com.centralaz.RoomManagement\com.centralaz.RoomManagement.csproj">
       <Project>{7034b83c-c331-436c-aa16-e87ad280b0e9}</Project>

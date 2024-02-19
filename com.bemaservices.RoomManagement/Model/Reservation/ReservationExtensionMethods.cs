@@ -36,8 +36,9 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="filterEndDateTime">The filter end date time.</param>
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
         /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
+        /// <param name="maxOccurrences">The maximum occurrences.</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false )
+        public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false, int? maxOccurrences = null )
         {
             var reservationSummaryList = new List<Model.ReservationSummary>();
 
@@ -129,6 +130,9 @@ namespace com.bemaservices.RoomManagement.Model
                             EventContactPersonAlias = reservation.EventContactPersonAlias,
                             EventContactEmail = reservation.EventContactEmail,
                             EventContactPhoneNumber = reservation.EventContactPhone,
+                            AdministrativeContactPersonAlias = reservation.AdministrativeContactPersonAlias,
+                            AdministrativeContactEmail = reservation.AdministrativeContactEmail,
+                            AdministrativeContactPhoneNumber = reservation.AdministrativeContactPhone,
                             SetupPhotoId = reservation.SetupPhotoId,
                             Note = reservation.Note,
                             RequesterAlias = reservation.RequesterAlias,
@@ -154,8 +158,24 @@ namespace com.bemaservices.RoomManagement.Model
                         }
 
                         reservationSummaryList.Add( reservationSummary );
+
+                        // Exit if the number of instance of this specific event has exceeded the occurrence limit.
+                        if ( maxOccurrences != null && reservationSummaryList.Count >= maxOccurrences )
+                        {
+                            break;
+                        }
                     }
                 }
+            }
+
+            // Pass 2: Sort all of the event occurrences by date, and then apply the occurrence limit.
+            if(maxOccurrences != null )
+            {
+                reservationSummaryList = reservationSummaryList
+                    .OrderBy( x => x.ReservationStartDateTime )
+                    .Take( maxOccurrences.Value )
+                    .ToList();
+
             }
 
             return reservationSummaryList;

@@ -65,7 +65,6 @@ namespace com.bemaservices.RoomManagement.Model
             return Queryable( new ReservationQueryOptions() );
         }
 
-
         /// <summary>
         /// Queryables the specified reservation query options.
         /// </summary>
@@ -223,6 +222,20 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             return qry;
+        }
+
+        /// <summary>
+        /// Gets the reservation summaries.
+        /// </summary>
+        /// <param name="qry">The qry.</param>
+        /// <param name="filterStartDateTime">The filter start date time.</param>
+        /// <param name="filterEndDateTime">The filter end date time.</param>
+        /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
+        /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
+        /// <returns>List&lt;Model.ReservationSummary&gt;.</returns>
+        public List<Model.ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false, bool includeAttributes = false )
+        {
+            return qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, roundToDay, includeAttributes );
         }
 
         /// <summary>

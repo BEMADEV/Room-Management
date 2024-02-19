@@ -188,7 +188,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 case "Campus":
                     {
                         var campusIdList = e.Value.Split( ',' ).AsIntegerList();
-                        if ( campusIdList.Any()  )
+                        if ( campusIdList.Any() )
                         {
                             var service = new CampusService( new RockContext() );
                             var campuses = service.GetByIds( campusIdList );
@@ -330,7 +330,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
-            var reservationQry = reservationService.Queryable().AsNoTracking().Where( r => r.ApprovalState != ReservationApprovalState.Denied && r.ApprovalState != ReservationApprovalState.Draft && r.ApprovalState != ReservationApprovalState.Cancelled );
             var locationService = new LocationService( rockContext );
 
             var locationQry = locationService.Queryable().AsNoTracking();
@@ -338,7 +337,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 var locationIdList = locationService.GetAllDescendents( lipLocation.SelectedValueAsInt().Value ).Select( l => l.Id ).ToList();
                 locationIdList.Add( lipLocation.SelectedValueAsInt().Value );
-                locationQry = locationQry.Where( l => locationIdList.Contains( l.Id ) );                
+                locationQry = locationQry.Where( l => locationIdList.Contains( l.Id ) );
             }
             else
             {
@@ -353,7 +352,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( cpCampus.SelectedValuesAsInt.Any() )
             {
                 var locationIdList = new List<int>();
-                foreach(var campusId in cpCampus.SelectedValuesAsInt )
+                foreach ( var campusId in cpCampus.SelectedValuesAsInt )
                 {
                     var campusCache = CampusCache.Get( campusId );
                     if ( campusCache.LocationId != null )
@@ -370,19 +369,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             var locationList = locationQry.ToList();
             var locationIds = locationList.Select( l => l.Id ).ToList();
-            if ( locationIds.Any() )
-            {
-                reservationQry = reservationQry.Where( r => r.ReservationLocations.Any( rr => rr.ApprovalState != ReservationLocationApprovalState.Denied && locationIds.Contains( rr.LocationId ) ) );
-            }
-
             var locationResourceList = new ResourceService( rockContext ).Queryable().Where( r => r.LocationId.HasValue && locationIds.Contains( r.LocationId.Value ) ).ToList();
 
+            var reservationQueryOptions = new ReservationQueryOptions();
+            reservationQueryOptions.ApprovalStates = new List<ReservationApprovalState> {
+                ReservationApprovalState.Approved,
+                ReservationApprovalState.PendingInitialApproval,
+                ReservationApprovalState.PendingSpecialApproval,
+                ReservationApprovalState.PendingFinalApproval,
+                ReservationApprovalState.ChangesNeeded
+            };
+            reservationQueryOptions.LocationIds = locationIds;
+            var reservationQry = reservationService.Queryable( reservationQueryOptions ).AsNoTracking();
 
             // Filter by Time
             var today = RockDateTime.Today;
             var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? today;
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? today.AddMonths( 1 );
-            var reservationSummaryList = reservationService.GetReservationSummaries( reservationQry, filterStartDateTime, filterEndDateTime, false );
+            var reservationSummaryList = reservationQry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
 
             // Bind to Grid
             gLocations.DataSource = locationList.Select( l => new

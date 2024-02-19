@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using Rock.Model;
+using Rock.Utility;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -24,7 +25,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// <summary>
     /// Holds the view model for a Reservation Summary
     /// </summary>
-    public class ReservationSummary
+    public class ReservationSummary : RockDynamic
     {
         /// <summary>
         /// Gets or sets the identifier.
@@ -139,6 +140,24 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <value>The event contact email.</value>
         public String EventContactEmail { get; set; }
+
+        /// <summary>
+        /// Gets or sets the administrative contact person alias.
+        /// </summary>
+        /// <value>The administrative contact person alias.</value>
+        public PersonAlias AdministrativeContactPersonAlias { get; set; }
+
+        /// <summary>
+        /// Gets or sets the administrative contact phone number.
+        /// </summary>
+        /// <value>The administrative contact phone number.</value>
+        public String AdministrativeContactPhoneNumber { get; set; }
+
+        /// <summary>
+        /// Gets or sets the administrative contact email.
+        /// </summary>
+        /// <value>The administrative contact email.</value>
+        public String AdministrativeContactEmail { get; set; }
 
         /// <summary>
         /// Gets or sets the setup photo identifier.

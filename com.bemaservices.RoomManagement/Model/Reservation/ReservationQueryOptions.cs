@@ -24,6 +24,10 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     public class ReservationQueryOptions
     {
+        /// <summary>
+        /// Gets or sets the name.
+        /// </summary>
+        /// <value>The name.</value>
         public string Name { get; set; } = null;
         /// <summary>
         /// Gets or sets the approvals by person identifier.
@@ -36,10 +40,22 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The reservations by person identifier.</value>
         public int? ReservationsByPersonId { get; set; } = null;
 
+        /// <summary>
+        /// Gets or sets the creator person identifier.
+        /// </summary>
+        /// <value>The creator person identifier.</value>
         public int? CreatorPersonId { get; set; } = null;
 
+        /// <summary>
+        /// Gets or sets the event contact person identifier.
+        /// </summary>
+        /// <value>The event contact person identifier.</value>
         public int? EventContactPersonId { get; set; } = null;
 
+        /// <summary>
+        /// Gets or sets the administrative contact person identifier.
+        /// </summary>
+        /// <value>The administrative contact person identifier.</value>
         public int? AdministrativeContactPersonId { get; set; } = null;
 
         /// <summary>
@@ -63,10 +79,22 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The resource ids.</value>
         public List<int> ResourceIds { get; set; } = new List<int>();
 
+        /// <summary>
+        /// Gets or sets the campus ids.
+        /// </summary>
+        /// <value>The campus ids.</value>
         public List<int> CampusIds { get; set; } = new List<int>();
 
+        /// <summary>
+        /// Gets or sets the ministry ids.
+        /// </summary>
+        /// <value>The ministry ids.</value>
         public List<int> MinistryIds { get; set; } = new List<int>();
 
+        /// <summary>
+        /// Gets or sets the ministry names.
+        /// </summary>
+        /// <value>The ministry names.</value>
         public List<string> MinistryNames { get; set; } = new List<string>();
         /// <summary>
         /// Gets or sets the approval states.

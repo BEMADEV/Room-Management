@@ -259,7 +259,7 @@ namespace com.bemaservices.RoomManagement.Model
         private List<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
         {
             var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
-            var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( arePotentialConflictsReturned: arePotentialConflictsReturned );
+            var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
 
             var newReservationSummaries = newReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
             var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
@@ -889,7 +889,7 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
                 // now) which have the given resource in them.
-                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( arePotentialConflictsReturned: arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
+                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations(reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
                 var existingReservationSummaries = existingValidReservations.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
 
                 // Now narrow the reservations down to only the ones in the matching/overlapping time frame

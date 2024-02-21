@@ -167,7 +167,7 @@
                             <asp:LinkButton ID="btnApprove" runat="server" ToolTip="Approve Reservation" CssClass="btn btn-success" OnClick="btnApprove_Click" CausesValidation="false">Approve</asp:LinkButton>
                             <asp:LinkButton ID="btnDeny" runat="server" ToolTip="Approve Reservation" CssClass="btn btn-danger" OnClick="btnDeny_Click" CausesValidation="false">Deny</asp:LinkButton>
                             <asp:LinkButton ID="btnRequestChanges" runat="server" ToolTip="Request Changes" CssClass="btn btn-warning" OnClick="btnRequestChanges_Click" CausesValidation="false">Request Changes</asp:LinkButton>
-
+                            <asp:LinkButton ID="btnOverride" runat="server" ToolTip="Override Reservation" CssClass="btn btn-warning" OnClick="btnOverride_Click" CausesValidation="false">Override</asp:LinkButton>
                             <asp:LinkButton ID="btnCancelReservation" runat="server" ToolTip="Cancel Reservation" CssClass="btn btn-default" OnClick="btnCancelReservation_Click" CausesValidation="false">Cancel</asp:LinkButton>
                             <asp:LinkButton ID="btnCopy" runat="server" ToolTip="Copy Reservation" CssClass="btn btn-default fa fa-clone" OnClick="btnCopy_Click" CausesValidation="false" />
 

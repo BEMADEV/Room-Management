@@ -517,7 +517,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         return;
                     }
 
-                    if( newSchedule.iCalendarContent != oldIcalContent )
+                    if ( newSchedule.iCalendarContent != oldIcalContent )
                     {
                         reservation.Schedule = newSchedule;
                         History.EvaluateChange( changes, "Schedule", oldReservation.GetFriendlyReservationScheduleText(), reservation.GetFriendlyReservationScheduleText() );
@@ -1240,6 +1240,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbQuantity.Visible = false;
                 }
 
+                if ( resource.Location != null )
+                {
+                    ddlReservationLocation.Visible = false;
+                }
+                else
+                {
+                    ddlReservationLocation.Visible = true;
+                }
+
             }
 
             LoadResourceConflictMessage();
@@ -1322,11 +1331,31 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             nbError.Visible = false;
             nbQuantity.Label = "Quantity";
 
+            ddlReservationLocation.Items.Clear();
+            ddlReservationLocation.Items.Add( new ListItem( string.Empty, string.Empty ) );
+            foreach ( var reservationLocation in LocationsState )
+            {
+                ddlReservationLocation.Items.Add( new ListItem( reservationLocation.Location.Name, reservationLocation.Guid.ToString() ) );
+            }
+
             ReservationResourceSummary reservationResource = ResourcesState.FirstOrDefault( l => l.Guid.Equals( reservationResourceGuid ) );
             if ( reservationResource != null )
             {
                 nbQuantity.Text = reservationResource.Quantity.ToString();
                 srpResource.SetValue( reservationResource.ResourceId );
+
+                if ( reservationResource.Resource.Location != null )
+                {
+                    ddlReservationLocation.Visible = false;
+                }
+                else
+                {
+                    ddlReservationLocation.Visible = true;
+                    if ( reservationResource?.ReservationLocation?.Guid != null )
+                    {
+                        ddlReservationLocation.SetValue( reservationResource.ReservationLocation.Guid.ToString() );
+                    }
+                }
 
                 if ( reservationResource.Resource.Note.IsNotNullOrWhiteSpace() )
                 {
@@ -2308,12 +2337,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             hfApprovalState.Value = reservation.ApprovalState.ConvertToString();
             LoadAdditionalInfo( false, true );
 
-            divViewLocations.Visible = !(ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any());
+            divViewLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
             gViewLocations.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationLocation>().Id;
             gViewLocations.SetLinqDataSource( LocationsState.AsQueryable().OrderBy( l => l.Location.Name ) );
             gViewLocations.DataBind();
 
-            divViewResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any());
+            divViewResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any() );
             gViewResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
             gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.Resource.Name ) );
             gViewResources.DataBind();
@@ -2430,7 +2459,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ddlMinistry.SetValue( reservation.ReservationMinistryId );
 
                 ddlReservationType.Items.Clear();
-                foreach ( var reservationType in new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where(m=> m.IsActive).OrderBy( m => m.Name ).ToList() )
+                foreach ( var reservationType in new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where( m => m.IsActive ).OrderBy( m => m.Name ).ToList() )
                 {
                     if ( reservationType.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
                     {
@@ -3331,7 +3360,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( slpLocation.SelectedValueAsId().HasValue )
             {
                 var location = new LocationService( new RockContext() ).Get( slpLocation.SelectedValueAsId().Value );
-                if ( location != null)
+                if ( location != null )
                 {
                     var lavaTemplate = GetAttributeValue( "LocationDetailTemplate" );
 
@@ -3769,6 +3798,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationResourceSummary reservationResource = null;
                 Guid guid = hfAddReservationResourceGuid.Value.AsGuid();
                 var newQuantity = nbQuantity.Text.AsIntegerOrNull();
+                var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
 
                 if ( !guid.IsEmpty() )
                 {
@@ -3814,6 +3844,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationResource.ApprovalState = resourceApprovalState;
                 reservationResource.Quantity = newQuantity;
                 reservationResource.ReservationId = 0;
+
+                ReservationLocation reservationLocation = null;
+                if(resource.Location != null )
+                {
+                    reservationLocation = LocationsState.Where( rl => rl.LocationId == resource.LocationId ).FirstOrDefault();
+                }
+                else
+                {
+                    if(reservationLocationGuid != null )
+                    {
+                        reservationLocation = LocationsState.Where( rl => rl.Guid == reservationLocationGuid.Value ).FirstOrDefault();
+                    }
+                }
+                reservationResource.ReservationLocation = reservationLocation;                
 
                 var existingResourceCount = ResourcesState.Where( rr => rr.Guid != guid && rr.ResourceId == reservationResource.ResourceId ).Count();
                 if ( existingResourceCount > 0 )

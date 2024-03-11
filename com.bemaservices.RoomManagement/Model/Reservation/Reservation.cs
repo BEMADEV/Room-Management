@@ -320,6 +320,7 @@ namespace com.bemaservices.RoomManagement.Model
             get { return _reservationResources ?? ( _reservationResources = new Collection<ReservationResource>() ); }
             set { _reservationResources = value; }
         }
+
         /// <summary>
         /// The reservation resources
         /// </summary>
@@ -498,6 +499,16 @@ namespace com.bemaservices.RoomManagement.Model
                 }
 
                 return startDate;
+            }
+        }
+
+        [LavaVisibleAttribute]
+        [NotMapped]
+        public virtual ICollection<ReservationResource> UnassignedReservationResources
+        {
+            get
+            {
+                return ( ICollection<ReservationResource> ) ReservationResources.Where(rr=> rr.ReservationLocation == null);
             }
         }
 

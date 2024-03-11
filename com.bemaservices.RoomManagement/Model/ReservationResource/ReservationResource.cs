@@ -50,6 +50,9 @@ namespace com.bemaservices.RoomManagement.Model
         [DataMember]
         public int ResourceId { get; set; }
 
+        [DataMember]
+        public int? ReservationLocationId { get; set; }
+
         /// <summary>
         /// Gets or sets the quantity.
         /// </summary>
@@ -81,6 +84,9 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The resource.</value>
         [LavaVisibleAttribute]
         public virtual Resource Resource { get; set; }
+
+        [LavaVisibleAttribute]
+        public virtual ReservationLocation ReservationLocation { get; set; }
 
         #endregion
 
@@ -151,6 +157,8 @@ namespace com.bemaservices.RoomManagement.Model
         {
             this.HasRequired( r => r.Reservation ).WithMany( r => r.ReservationResources ).HasForeignKey( r => r.ReservationId ).WillCascadeOnDelete( true );
             this.HasRequired( r => r.Resource ).WithMany().HasForeignKey( r => r.ResourceId ).WillCascadeOnDelete( true );
+            this.HasOptional( p => p.ReservationLocation ).WithMany( r => r.ReservationResources ).HasForeignKey( p => p.ReservationLocationId ).WillCascadeOnDelete( true );
+
 
             // IMPORTANT!!
             this.HasEntitySetName( "ReservationResource" );

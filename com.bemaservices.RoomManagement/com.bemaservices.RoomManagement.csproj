@@ -121,6 +121,7 @@
     <Compile Include="Jobs\V247TemporarySetupPhotoFix.cs" />
     <Compile Include="Lava\Blocks\ReservationSummariesBlock.cs" />
     <Compile Include="Lava\Blocks\ReservationSummariesLavaDataSource.cs" />
+    <Compile Include="Migrations\019_ReservationTypes.cs" />
     <Compile Include="Migrations\040_Rollup243.cs" />
     <Compile Include="Migrations\039_RockWorkflowCompliance.cs" />
     <Compile Include="Migrations\038_Rollup240.cs" />
@@ -185,7 +186,7 @@
     <Compile Include="Migrations\003_SampleData.cs" />
     <Compile Include="Migrations\002_Pages.cs" />
     <Compile Include="Migrations\001_CreateDb.cs" />
-    <Compile Include="Migrations\019_ReservationTypes.cs" />
+    <Compile Include="Migrations\044_Rollup250.cs" />
     <Compile Include="Model\ReservationType\ReservationTypeService.cs" />
     <Compile Include="Model\ReservationType\ReservationType.cs" />
     <Compile Include="Model\ReservationWorkflow\ReservationWorkflowService.cs" />

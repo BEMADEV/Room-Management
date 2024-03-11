@@ -23,6 +23,8 @@ using Rock.Data;
 using System;
 using Rock;
 using Rock.Lava;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -87,6 +89,23 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The location layout.</value>
         [LavaVisibleAttribute]
         public virtual LocationLayout LocationLayout { get; set; }
+
+
+        /// <summary>
+        /// Gets or sets the reservation resources.
+        /// </summary>
+        /// <value>The reservation resources.</value>
+        [LavaVisibleAttribute]
+        public virtual ICollection<ReservationResource> ReservationResources
+        {
+            get { return _reservationResources ?? ( _reservationResources = new Collection<ReservationResource>() ); }
+            set { _reservationResources = value; }
+        }
+
+        /// <summary>
+        /// The reservation resources
+        /// </summary>
+        private ICollection<ReservationResource> _reservationResources;
 
         #endregion
 

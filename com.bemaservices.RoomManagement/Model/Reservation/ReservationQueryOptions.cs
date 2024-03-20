@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using System.Collections.Generic;
 using Rock.Model;
 
@@ -102,5 +103,13 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The approval states.</value>
         public List<ReservationApprovalState> ApprovalStates { get; set; } = new List<ReservationApprovalState>();
 
+    }
+
+    public class ReservationCalendarOptions : ReservationQueryOptions
+    {
+        public DateTime? StartDate { get; set; } = null;
+        public DateTime? EndDate { get; set; } = null;
+
+        public string ClientDeviceType { get; set; } = null;
     }
 }

@@ -20,12 +20,15 @@ using System.Data.Entity;
 using System.Linq;
 using System.Text;
 using Ical.Net;
+using Ical.Net.CalendarComponents;
+using Ical.Net.DataTypes;
 using Ical.Net.Serialization;
 using Rock;
 using Rock.Communication;
 using Rock.Data;
 using Rock.Model;
 using Rock.Web.UI.Controls;
+using TimeZoneConverter;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -889,7 +892,7 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
                 // now) which have the given resource in them.
-                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations(reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
+                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
                 var existingReservationSummaries = existingValidReservations.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
 
                 // Now narrow the reservations down to only the ones in the matching/overlapping time frame
@@ -987,6 +990,227 @@ namespace com.bemaservices.RoomManagement.Model
                 " ).ToList<int>();
 
             return results;
+        }
+
+        #endregion
+
+        #region GetReservationCalendarFeed
+
+        public string CreateICalendar( ReservationCalendarOptions reservationCalendarOptions )
+        {
+            // Get a list of Rock Reservations that match the specified filter.
+            var reservations = this.Queryable( reservationCalendarOptions )
+                .Where( r => r.Schedule.EffectiveStartDate <= reservationCalendarOptions.EndDate && reservationCalendarOptions.StartDate <= r.Schedule.EffectiveEndDate )
+                .ToList();
+
+            // Create the iCalendar.
+            var icalendar = new Calendar();
+
+            // Specify the calendar timezone using the Internet Assigned Numbers Authority (IANA) identifier, because most third-party applications
+            // require this to interpret event times correctly.
+            var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
+            icalendar.AddTimeZone( VTimeZone.FromDateTimeZone( timeZoneId ) );
+
+            // Create each of the events for the calendar(s)
+            foreach ( var reservation in reservations )
+            {
+                if ( reservation.Schedule == null )
+                {
+                    continue;
+                }
+
+                string locations = null;
+                if ( reservation.ReservationLocations.Any() )
+                {
+                    locations = reservation.ReservationLocations.Select( x => x.Location.Name ).JoinStrings( ", " );
+                }
+
+                var ical = CalendarCollection.Load( reservation.Schedule.iCalendarContent.ToStreamReader() );
+                foreach ( var icalEvent in ical[0].Events )
+                {
+                    // We get all of the schedule info from Schedule.iCalendarContent
+                    var ievent = icalEvent.Copy<CalendarEvent>();
+                    ievent.Summary = !string.IsNullOrEmpty( reservation.Name ) ? reservation.Name : string.Empty;
+                    ievent.Location = !string.IsNullOrEmpty( locations ) ? locations : string.Empty;
+                    ievent.Uid = reservation.Guid.ToString();
+
+                    // Determine the start and end time for the event.
+                    // For an all-day event, omit the End date.
+                    // see https://stackoverflow.com/questions/1716237/single-day-all-day-appointments-in-ics-files
+                    ievent.Start = new CalDateTime( icalEvent.Start.Value, timeZoneId );
+
+                    if ( !ievent.Start.HasTime
+                        && ( ievent.End != null && !ievent.End.HasTime )
+                        && ievent.Duration == null || ievent.Duration.Ticks == 0 )
+                    {
+                        ievent.End = null;
+                    }
+                    else
+                    {
+                        ievent.End = new CalDateTime( icalEvent.End.Value, timeZoneId );
+                    }
+
+                    /*
+                        2022-10-19 - DL
+
+                        This code contains a number of workarounds for exporting recurring events in a format that can be processed by
+                        external calendar applications such as Microsoft Outlook, namely:
+                        1. The iCalendar PERIOD type is not recognized by some applications.
+                           We need to ensure that recurrence settings are always specified using the DATE type.
+                        2. Exception dates must have exactly the same start time and time zone as the template event, and the time zone
+                           must be expressed as an IANA name.
+                        3. Duplicate events may be imported if the template event date is also included in the list of recurrence dates.
+                           We need to remove the template event date (DTSTART) from the list of recurrences (RDATE).
+                        4. If a set of ad-hoc recurrence dates exist, events for these dates may not be created unless
+                           a recurrence rule also exists.
+
+                         Reason: To allow recurring events to be imported correctly to third-party calendar applications.
+                    */
+
+                    // Create the list of exceptions.
+                    // Exceptions must meet RFC 5545 iCalendar specifications to be correctly processed by third-party calendar applications
+                    // such as Microsoft Outlook and Google Calendar. Specifically, an exception must have exactly the same start time
+                    // and time zone as the template event, and the time zone must be expressed as an IANA name.
+                    // The most recent version of iCal.Net (v2.3.5) that supports .NET framework v4.5.2 has some inconsistencies in the
+                    // iCalendar serialization process, so we need to force the Start, End and Exception dates to render in exactly the same format.
+
+                    var eventStartTime = new TimeSpan( ievent.DtStart.Hour, ievent.DtStart.Minute, ievent.DtStart.Second );
+
+                    ievent.ExceptionDates = ConvertPeriodListElementsToDateType( ievent.ExceptionDates, timeZoneId, eventStartTime );
+
+                    // Microsoft Outlook does not import a recurrence date of type PERIOD, only DATE or DATETIME.
+                    // If the Recurrence Dates do not specify a Start Time, set the start time to the same as the event.
+                    // If this is an all day event, set the Start Time to 12:00am.
+                    ievent.RecurrenceDates = ConvertPeriodListElementsToDateType( ievent.RecurrenceDates, timeZoneId, eventStartTime );
+
+                    // If the recurrence dates include the calendar event start date, remove it.
+                    // If we don't, Microsoft Outlook will create a duplicate entry for that date.
+                    ievent.RecurrenceDates = RemoveDateFromPeriodList( ievent.RecurrenceDates, ievent.DtStart );
+
+                    // If one-time recurrence dates exist, create a placeholder recurrence rule to ensure that the iCalendar file
+                    // can be correctly imported by Outlook.
+                    // Fixes Issue #4112. Refer https://github.com/SparkDevNetwork/Rock/issues/4112
+                    if ( ievent.RecurrenceRules.Count == 0
+                        && ievent.RecurrenceDates.Count > 0 )
+                    {
+                        ievent.RecurrenceRules.Add( new RecurrencePattern( "FREQ=DAILY;COUNT=1" ) );
+                    }
+
+                    string description = reservation.Note;
+
+                    // Don't set the description prop for outlook to force it to use the X-ALT-DESC property which can have markup.
+                    if ( reservationCalendarOptions.ClientDeviceType != "Outlook" )
+                    {
+                        ievent.Description = description.ConvertBrToCrLf()
+                                                            .Replace( "</P>", "" )
+                                                            .Replace( "</p>", "" )
+                                                            .Replace( "<P>", Environment.NewLine )
+                                                            .Replace( "<p>", Environment.NewLine )
+                                                            .Replace( "&nbsp;", " " )
+                                                            .SanitizeHtml();
+                    }
+
+                    // HTML version of the description for outlook
+                    ievent.AddProperty( "X-ALT-DESC;FMTTYPE=text/html", "<html>" + description + "</html>" );
+
+                    // classification: "PUBLIC", "PRIVATE", "CONFIDENTIAL"
+                    ievent.Class = "PUBLIC";
+
+                    // add contact info if it exists
+                    if ( reservation.EventContactPersonAliasId != null )
+                    {
+                        ievent.Organizer = new Organizer( string.Format( "MAILTO:{0}", reservation.EventContactPersonAlias.Person.Email ) );
+                        ievent.Organizer.CommonName = reservation.EventContactPersonAlias.Person.FullName;
+
+                        // Outlook doesn't seems to use Contacts or Comments
+                        string contactName = !string.IsNullOrEmpty( reservation.EventContactPersonAlias.Person.FullName ) ? "Name: " + reservation.EventContactPersonAlias.Person.FullName : string.Empty;
+                        string contactEmail = !string.IsNullOrEmpty( reservation.EventContactEmail ) ? ", Email: " + reservation.EventContactEmail : string.Empty;
+                        string contactPhone = !string.IsNullOrEmpty( reservation.EventContactPhone ) ? ", Phone: " + reservation.EventContactPhone : string.Empty;
+                        string contactInfo = contactName + contactEmail + contactPhone;
+
+                        ievent.Contacts.Add( contactInfo );
+                        ievent.Comments.Add( contactInfo );
+                    }
+
+                    icalendar.Events.Add( ievent );
+                }
+            }
+
+            // Return a serialized iCalendar.
+            var serializer = new CalendarSerializer();
+            var calendarString = serializer.SerializeToString( icalendar );
+
+            return calendarString;
+        }
+
+        /// <summary>
+        /// Convert the elements of a PeriodList from the iCalendar PERIOD type to the DATE type.
+        /// </summary>
+        /// <param name="periodLists"></param>
+        /// <param name="tzId"></param>
+        /// <param name="eventStartTime"></param>
+        /// <returns></returns>
+        private IList<PeriodList> ConvertPeriodListElementsToDateType( IList<PeriodList> periodLists, string tzId, TimeSpan eventStartTime )
+        {
+            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
+            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
+            var newDatesList = new List<PeriodList>();
+
+            foreach ( var periodList in periodLists )
+            {
+                var newPeriodList = new PeriodList() { TzId = tzId };
+                foreach ( var period in periodList )
+                {
+                    var newDateTime = period.StartTime.HasTime
+                        ? period.StartTime.Value
+                        : period.StartTime.Value.Add( eventStartTime );
+                    newDateTime = new DateTime( newDateTime.Year, newDateTime.Month, newDateTime.Day, newDateTime.Hour, newDateTime.Minute, newDateTime.Second, newDateTime.Millisecond, DateTimeKind.Local );
+
+                    var newDate = new CalDateTime( newDateTime );
+
+                    // Set the HasTime property to ensure that iCal.Net serializes the date value as an iCalendar "DATE" rather than a "PERIOD".
+                    // Microsoft Outlook ignores date values that are expressed using the iCalendar "PERIOD" type.
+                    // (see: MS-STANOICAL - v20210817 - 2.2.86)
+                    newDate.HasTime = true;
+                    var newPeriod = new Period( newDate );
+
+                    newPeriodList.Add( newPeriod );
+                }
+
+                newDatesList.Add( newPeriodList );
+            }
+
+            return newDatesList;
+        }
+
+        /// <summary>
+        /// Removes instances of the specified date from a collection of PeriodList objects.
+        /// </summary>
+        /// <param name="periodLists"></param>
+        /// <param name="removeDate"></param>
+        /// <returns></returns>
+        private IList<PeriodList> RemoveDateFromPeriodList( IList<PeriodList> periodLists, IDateTime removeDate )
+        {
+            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
+            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
+            var newPeriodLists = new List<PeriodList>();
+
+            foreach ( var periodList in periodLists )
+            {
+                var newPeriodList = new PeriodList() { TzId = periodList.TzId };
+                foreach ( var period in periodList )
+                {
+                    if ( period.StartTime.Ticks == removeDate.Ticks )
+                    {
+                        continue;
+                    }
+                    newPeriodList.Add( period );
+                }
+
+                newPeriodLists.Add( newPeriodList );
+            }
+
+            return newPeriodLists;
         }
 
         #endregion

@@ -307,7 +307,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             };
 
             ViewState["ReservationType"] = JsonConvert.SerializeObject( ReservationType, Formatting.None, jsonSetting );
-            ViewState["ResourcesState"] = JsonConvert.SerializeObject( ResourcesState, Formatting.None, jsonSetting );
+            ViewState["ResourcesState"] = JsonConvert.SerializeObject( ResourcesState, typeof( List<ReservationResourceSummary> ), Formatting.None, jsonSetting );
             ViewState["LocationsState"] = JsonConvert.SerializeObject( LocationsState, Formatting.None, jsonSetting );
             ViewState["ModifiedDateTime"] = JsonConvert.SerializeObject( ModifiedDateTime, Formatting.None, jsonSetting );
 
@@ -492,6 +492,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservationResource.Reservation = reservationService.Get( reservation.Id );
                     reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
                     reservationResource.ReservationId = reservation.Id;
+
+                    if ( reservationResourceState.ReservationLocationGuid != null )
+                    {
+                        var reservationResourceLocation = reservation.ReservationLocations.Where( rl => reservationResourceState.ReservationLocationGuid == rl.Guid ).FirstOrDefault();
+                        if ( reservationResourceLocation != null )
+                        {
+                            reservationResource.ReservationLocation = reservationResourceLocation;
+                            reservationResource.ReservationLocationId = reservationResourceLocation.Id;
+                        }
+                    }
                 }
 
                 if ( reservation.ReservationType.ResourceRequirement == ReservationTypeRequirement.Require && !reservation.ReservationResources.Any() )
@@ -891,11 +901,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             hfReservationId.Value = "0";
 
             LocationsState = new List<ReservationLocationSummary>();
+            Dictionary<Guid, Guid> locationMappings = new Dictionary<Guid, Guid>();
             foreach ( var reservationLocation in newItem.ReservationLocations.ToList() )
             {
                 var rlSummary = new ReservationLocationSummary();
                 rlSummary.CopyPropertiesFrom( reservationLocation );
-                rlSummary.Guid = Guid.NewGuid();
+
+                var newGuid = Guid.NewGuid();
+                locationMappings.Add( reservationLocation.Guid, newGuid );
+                rlSummary.Guid = newGuid;
+
                 LocationsState.Add( rlSummary );
             }
 
@@ -905,6 +920,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var rrSummary = new ReservationResourceSummary();
                 rrSummary.CopyPropertiesFrom( reservationResource );
                 rrSummary.Guid = Guid.NewGuid();
+
+                var oldLocationGuid = reservationResource?.ReservationLocation?.Guid;
+                if ( oldLocationGuid != null && locationMappings.ContainsKey( oldLocationGuid.Value ) )
+                {
+                    rrSummary.ReservationLocationGuid = locationMappings[oldLocationGuid.Value];
+                }
+
                 ResourcesState.Add( rrSummary );
             }
 
@@ -1351,7 +1373,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 else
                 {
                     ddlReservationLocation.Visible = true;
-                    if ( reservationResource?.ReservationLocation?.Guid != null )
+                    if ( reservationResource.ReservationLocationGuid != null )
                     {
                         ddlReservationLocation.SetValue( reservationResource.ReservationLocation.Guid.ToString() );
                     }
@@ -1398,7 +1420,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             Hydrate( ResourcesState, new RockContext() );
             gResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
-            gResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.Resource.Name ) );
+            gResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.LocationName ).ThenBy( r => r.Resource.Name ) );
             gResources.DataBind();
         }
 
@@ -2185,6 +2207,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 var rrSummary = new ReservationResourceSummary();
                 rrSummary.CopyPropertiesFrom( reservationResource );
+                rrSummary.ReservationLocationGuid = reservationResource?.ReservationLocation?.Guid;
                 ResourcesState.Add( rrSummary );
             }
 
@@ -2342,9 +2365,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gViewLocations.SetLinqDataSource( LocationsState.AsQueryable().OrderBy( l => l.Location.Name ) );
             gViewLocations.DataBind();
 
+            Hydrate( ResourcesState, new RockContext() );
             divViewResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any() );
             gViewResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
-            gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.Resource.Name ) );
+            gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.LocationName ).ThenBy( r => r.Resource.Name ) );
             gViewResources.DataBind();
 
             if ( ReservationType != null )
@@ -3540,16 +3564,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="rowGuid">The row unique identifier.</param>
         private void RemoveLocation( Guid rowGuid )
         {
-            // check for attached resources and remove them too
             var reservationLocation = LocationsState.FirstOrDefault( a => a.Guid == rowGuid );
             if ( reservationLocation != null )
             {
+                // check for attached resources and remove them too
                 var attachedResources = new ResourceService( new RockContext() ).Queryable().Where( r => r.Location.Id == reservationLocation.LocationId );
                 if ( attachedResources.Any() )
                 {
                     foreach ( var resource in attachedResources )
                     {
                         var item = ResourcesState.FirstOrDefault( a => a.ResourceId == resource.Id );
+                        if ( item != null )
+                        {
+                            ResourcesState.Remove( item );
+                            var headControlResource = phResourceAnswers.FindControl( "cReservationResource_" + item.Guid.ToString() ) as Control;
+                            if ( headControlResource != null )
+                            {
+                                phResourceAnswers.Controls.Remove( headControlResource );
+                            }
+                        }
+                    }
+                    BindReservationResourcesGrid();
+                }
+
+                // check for assigned resources and remove them too
+                var assignedReservationResourceGuids = ResourcesState.Where(r=> r.ReservationLocationGuid == reservationLocation.Guid).Select(r=> r.Guid).ToList();
+                if ( assignedReservationResourceGuids.Any() )
+                {
+                    foreach ( var assignedReservationResourceGuid in assignedReservationResourceGuids )
+                    {
+                        var item = ResourcesState.FirstOrDefault( a => a.Guid == assignedReservationResourceGuid );
                         if ( item != null )
                         {
                             ResourcesState.Remove( item );
@@ -3846,18 +3890,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationResource.ReservationId = 0;
 
                 ReservationLocation reservationLocation = null;
-                if(resource.Location != null )
+                if ( resource.Location != null )
                 {
                     reservationLocation = LocationsState.Where( rl => rl.LocationId == resource.LocationId ).FirstOrDefault();
                 }
                 else
                 {
-                    if(reservationLocationGuid != null )
+                    if ( reservationLocationGuid != null )
                     {
                         reservationLocation = LocationsState.Where( rl => rl.Guid == reservationLocationGuid.Value ).FirstOrDefault();
                     }
                 }
-                reservationResource.ReservationLocation = reservationLocation;                
+                reservationResource.ReservationLocation = reservationLocation;
+                reservationResource.ReservationLocationGuid = reservationLocation.Guid;
 
                 var existingResourceCount = ResourcesState.Where( rr => rr.Guid != guid && rr.ResourceId == reservationResource.ResourceId ).Count();
                 if ( existingResourceCount > 0 )
@@ -3912,6 +3957,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 reservationResource.Reservation = reservationService.Get( reservationResource.ReservationId );
                 reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
+                reservationResource.ReservationLocation = LocationsState.Where( rl => rl.Guid == reservationResource.ReservationLocationGuid ).FirstOrDefault();
             }
         }
 
@@ -3931,7 +3977,28 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// Gets or sets a value indicating whether this instance is new.
             /// </summary>
             /// <value><c>true</c> if this instance is new; otherwise, <c>false</c>.</value>
+            [JsonProperty]
             public bool IsNew { get; set; }
+
+            [JsonProperty]
+            public Guid? ReservationLocationGuid { get; set; }
+
+            public string LocationName
+            {
+                get
+                {
+                    if ( ReservationLocation != null &&
+                        ReservationLocation.Location != null &&
+                        ReservationLocation.Location.Name.IsNotNullOrWhiteSpace() )
+                    {
+                        return ReservationLocation.Location.Name;
+                    }
+                    else
+                    {
+                        return string.Empty;
+                    }
+                }
+            }
         }
 
         /// <summary>

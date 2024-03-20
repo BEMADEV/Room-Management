@@ -118,6 +118,7 @@ namespace com.bemaservices.RoomManagement.Model
                             ReservationName = reservation.Name,
                             ReservationLocations = reservation.ReservationLocations.ToList(),
                             ReservationResources = reservation.ReservationResources.ToList(),
+                            UnassignedReservationResources = reservation.UnassignedReservationResources.ToList(),
                             EventStartDateTime = reservationDateTime.StartDateTime,
                             EventEndDateTime = reservationDateTime.EndDateTime,
                             ReservationStartDateTime = reservationStartDateTime,

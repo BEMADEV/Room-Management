@@ -504,11 +504,11 @@ namespace com.bemaservices.RoomManagement.Model
 
         [LavaVisibleAttribute]
         [NotMapped]
-        public virtual ICollection<ReservationResource> UnassignedReservationResources
+        public virtual List<ReservationResource> UnassignedReservationResources
         {
             get
             {
-                return ( ICollection<ReservationResource> ) ReservationResources.Where(rr=> rr.ReservationLocation == null);
+                return ReservationResources.Where(rr=> rr.ReservationLocation == null).ToList();
             }
         }
 

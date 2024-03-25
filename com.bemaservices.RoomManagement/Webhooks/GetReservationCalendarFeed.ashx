@@ -42,15 +42,15 @@ namespace com.bemaservices.Webhooks
                 request = httpContext.Request;
                 response = httpContext.Response;
 
-                if ( !ValidateSecurity( httpContext ) )
-                {
-                    return;
-                }
-
                 RockContext rockContext = new RockContext();
                 ReservationCalendarOptions reservationCalendarOptions = ValidateRequestData( httpContext );
 
                 if ( reservationCalendarOptions == null )
+                {
+                    return;
+                }
+
+                if ( !ValidateSecurity( httpContext, reservationCalendarOptions ) )
                 {
                     return;
                 }
@@ -72,7 +72,7 @@ namespace com.bemaservices.Webhooks
                 ExceptionLogService.LogException( ex, httpContext );
                 SendBadRequest( httpContext );
             }
-        }       
+        }
 
         /// <summary>
         /// Sends the not authorized response
@@ -81,7 +81,7 @@ namespace com.bemaservices.Webhooks
         private void SendNotAuthorized( HttpContext httpContext )
         {
             httpContext.Response.StatusCode = HttpStatusCode.Forbidden.ConvertToInt();
-            httpContext.Response.StatusDescription = "Not authorized to view calendar.";
+            httpContext.Response.StatusDescription = "Not authorized to view reservation type.";
             httpContext.ApplicationInstance.CompleteRequest();
         }
 
@@ -102,9 +102,39 @@ namespace com.bemaservices.Webhooks
         /// </summary>
         /// <param name="context">The context.</param>
         /// <returns></returns>
-        private bool ValidateSecurity( HttpContext context )
+        private bool ValidateSecurity( HttpContext context, ReservationCalendarOptions reservationCalendarOptions )
         {
-            return true;
+            RockContext rockContext = new RockContext();
+            ReservationTypeService reservationTypeService = new ReservationTypeService( rockContext );
+
+            var potentialReservationTypeQry = reservationTypeService.Queryable();
+            if ( reservationCalendarOptions.ReservationTypeIds.Any() )
+            {
+                potentialReservationTypeQry = potentialReservationTypeQry.Where( rt => reservationCalendarOptions.ReservationTypeIds.Contains( rt.Id ) );
+            }
+
+            // Need to replace CurrentUser with the result of a person token, in the meantime this will always create a null person unless directly downloadng the ical when logged into the site
+            UserLogin currentUser = new UserLoginService( rockContext ).GetByUserName( UserLogin.GetCurrentUserName() );
+            Person currentPerson = currentUser != null ? currentUser.Person : null;
+
+            var authorizedReservationTypeIds = new List<int>();
+            foreach ( var reservationType in potentialReservationTypeQry )
+            {
+                if ( reservationType.IsAuthorized( Rock.Security.Authorization.VIEW, currentPerson ) )
+                {
+                    authorizedReservationTypeIds.Add( reservationType.Id );
+                }
+            }
+
+            reservationCalendarOptions.ReservationTypeIds = authorizedReservationTypeIds;
+
+            if ( reservationCalendarOptions.ReservationTypeIds.Any() )
+            {
+                return true;
+            }
+
+            SendNotAuthorized( context );
+            return false;
         }
 
         /// <summary>
@@ -126,10 +156,10 @@ namespace com.bemaservices.Webhooks
 
             reservationCalendarOptions.ReservationTypeIds = ( request.QueryString["reservationtypeids"] != null ? request.QueryString["reservationtypeids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
             reservationCalendarOptions.ReservationIds = ( request.QueryString["reservationids"] != null ? request.QueryString["reservationids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationCalendarOptions.LocationIds =  ( request.QueryString["locationids"] != null ? request.QueryString["locationids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationCalendarOptions.ResourceIds =  ( request.QueryString["resourceids"] != null ? request.QueryString["resourceids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationCalendarOptions.CampusIds =  ( request.QueryString["campusids"] != null ? request.QueryString["campusids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationCalendarOptions.MinistryIds =  ( request.QueryString["ministryids"] != null ? request.QueryString["ministryids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationCalendarOptions.LocationIds = ( request.QueryString["locationids"] != null ? request.QueryString["locationids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationCalendarOptions.ResourceIds = ( request.QueryString["resourceids"] != null ? request.QueryString["resourceids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationCalendarOptions.CampusIds = ( request.QueryString["campusids"] != null ? request.QueryString["campusids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationCalendarOptions.MinistryIds = ( request.QueryString["ministryids"] != null ? request.QueryString["ministryids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
 
             reservationCalendarOptions.MinistryNames = ( request.QueryString["ministrynames"] != null ? request.QueryString["ministrynames"] : string.Empty ).SplitDelimitedValues().Where( s => s.IsNotNullOrWhiteSpace() ).ToList();
 

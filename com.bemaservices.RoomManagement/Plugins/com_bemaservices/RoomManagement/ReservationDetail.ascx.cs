@@ -659,7 +659,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         if ( phAttributes != null )
                         {
                             reservationResource.LoadReservationResourceAttributes();
-                            Rock.Attribute.Helper.GetEditValues( phAttributes, reservationResource );
+                            GetResourceEditValues( phAttributes, reservationResource );
                         }
                     }
                 }
@@ -2635,31 +2635,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var rockContext = new RockContext();
             RequiredAdditionalInfoFieldCount = AdditionalInfoFieldCount = 0;
-            var locationService = new LocationService( rockContext );
-            var locationLayoutService = new LocationLayoutService( rockContext );
-            var resourceService = new ResourceService( rockContext );
-            var reservationService = new ReservationService( rockContext );
 
             if ( LocationsState == null || ResourcesState == null )
             {
                 return;
             }
 
-            foreach ( var reservationLocation in LocationsState )
-            {
-                reservationLocation.Reservation = reservationService.Get( reservationLocation.ReservationId );
-                reservationLocation.Location = locationService.Get( reservationLocation.LocationId );
-                if ( reservationLocation.LocationLayoutId.HasValue )
-                {
-                    reservationLocation.LocationLayout = locationLayoutService.Get( reservationLocation.LocationLayoutId.Value );
-                }
-            }
+            Hydrate( LocationsState, rockContext );
 
-            foreach ( var reservationResource in ResourcesState )
-            {
-                reservationResource.Reservation = reservationService.Get( reservationResource.ReservationId );
-                reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
-            }
+            Hydrate( ResourcesState, rockContext );
 
             BuildReservationQuestions( isEditMode, resetControls );
 
@@ -3632,13 +3616,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var locationService = new LocationService( rockContext );
             var reservationService = new ReservationService( rockContext );
+            var locationLayoutService = new LocationLayoutService( rockContext );
+
             foreach ( var reservationLocation in locationsState )
             {
                 reservationLocation.Reservation = reservationService.Get( reservationLocation.ReservationId );
                 reservationLocation.Location = locationService.Get( reservationLocation.LocationId );
                 if ( reservationLocation.LocationLayoutId.HasValue )
                 {
-                    var locationLayoutService = new LocationLayoutService( rockContext );
                     reservationLocation.LocationLayout = locationLayoutService.Get( reservationLocation.LocationLayoutId.Value );
                 }
             }
@@ -3661,7 +3646,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 phViewResourceAnswers.Controls.Clear();
             }
 
-            foreach ( var reservationResource in ResourcesState )
+            foreach ( var reservationResource in ResourcesState.OrderBy( rr => rr.Resource.Name ).ThenBy( rr => rr.LocationName ) )
             {
                 reservationResource.LoadReservationResourceAttributes();
                 var editableAttributes = isEditMode ? reservationResource.Attributes.Where( a => a.Value.IsAuthorized( Authorization.EDIT, this.CurrentPerson ) ).Select( a => a.Key ).ToList() : new List<string>();
@@ -3694,7 +3679,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         PlaceHolder phAttributes = new PlaceHolder();
                         var headingTitle = new HtmlGenericControl( "h5" );
 
-                        headingTitle.InnerText = reservationResource.Resource.Name;
+
+                        headingTitle.InnerText = String.Format(
+                            "{0}{1}"
+                            , reservationResource.Resource.Name
+                            , reservationResource.LocationName.IsNotNullOrWhiteSpace() ? String.Format( " ({0})", reservationResource.LocationName ) : ""
+                            );
                         hfReservationResourceGuid.Value = reservationResource.Guid.ToString();
 
                         childControl.ID = "cReservationResource_" + reservationResource.Guid.ToString();
@@ -3705,7 +3695,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         if ( isEditMode )
                         {
                             var excludeKeys = reservationResource.Attributes.Where( a => !editableAttributes.Contains( a.Key ) ).Select( a => a.Key ).ToList();
-                            Rock.Attribute.Helper.AddEditControls( reservationResource, phAttributes, reservationResource.IsNew, BlockValidationGroup, excludeKeys );
+                            AddResourceEditControls( reservationResource, phAttributes, reservationResource.IsNew, BlockValidationGroup, excludeKeys );
                             reservationResource.IsNew = false;
                         }
                         else
@@ -3970,6 +3960,111 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationResource.ReservationLocation = LocationsState.Where( rl => rl.Guid == reservationResource.ReservationLocationGuid ).FirstOrDefault();
             }
         }
+
+        #region Custom Attribute Control Create / Parse Methods
+
+        // These are temporary custom methods used instead of the normal Rock.Attribute.Helper methods
+        // since we need to dictate distinct control ids in the format attribute_field_{AttributeId}_{ReservationResourceGuid}.
+        // Potential permanent options include moving questions into the popup modal, but we'll need to figure
+        // out how to display them in view mode. Info button with a popup maybe?
+
+        private static void AddResourceEditControls( ReservationResourceSummary reservationResource, Control parentControl, bool setValue, string validationGroup, List<string> exclude )
+        {
+            if ( reservationResource != null && reservationResource.Attributes != null )
+            {
+                exclude = exclude ?? new List<string>();
+                foreach ( var attributeCategory in Rock.Attribute.Helper.GetAttributeCategories( reservationResource, false, false, false ) )
+                {
+                    if ( attributeCategory.Attributes.Where( a => a.IsActive ).Where( a => !exclude.Contains( a.Name ) && !exclude.Contains( a.Key ) ).Select( a => a.Key ).Count() > 0 )
+                    {
+                        var categoryName = attributeCategory.Category != null ? attributeCategory.Category.Name : string.Empty;
+                        var attributeKeys = attributeCategory.Attributes.Where( a => a.IsActive ).Select( a => a.Key ).ToList();
+
+                        AttributeAddEditControlsOptions attributeAddEditControlsOptions = new AttributeAddEditControlsOptions { };
+
+                        attributeAddEditControlsOptions.IncludedAttributes = attributeKeys != null ? reservationResource?.Attributes.Select( a => a.Value ).Where( a => attributeKeys.Contains( a.Key ) ).ToList() : null;
+                        attributeAddEditControlsOptions.ExcludedAttributes = exclude != null ? reservationResource?.Attributes.Select( a => a.Value ).Where( a => exclude.Contains( a.Key ) || exclude.Contains( a.Name ) ).ToList() : null;
+
+                        List<AttributeCache> excludedAttributes = attributeAddEditControlsOptions?.ExcludedAttributes ?? new List<AttributeCache>();
+                        List<AttributeCache> attributes = attributeAddEditControlsOptions?.IncludedAttributes ?? reservationResource.Attributes.Select( a => a.Value ).Where( a => a.Categories.Any( ( CategoryCache c ) => c.Name == categoryName ) ).ToList();
+                        bool showCategoryLabel = attributeAddEditControlsOptions?.ShowCategoryLabel ?? true;
+
+                        bool parentIsDynamic = parentControl is DynamicControlsPanel || parentControl is DynamicPlaceholder;
+                        HtmlGenericControl fieldSet = parentIsDynamic ? new DynamicControlsHtmlGenericControl( "fieldset" ) : new HtmlGenericControl( "fieldset" );
+
+                        parentControl.Controls.Add( fieldSet );
+                        fieldSet.Controls.Clear();
+                        if ( showCategoryLabel && !string.IsNullOrEmpty( categoryName ) )
+                        {
+                            HtmlGenericControl legend = new HtmlGenericControl( "h4" );
+                            fieldSet.Controls.Add( legend );
+
+                            legend.Controls.Clear();
+                            legend.InnerText = categoryName.Trim();
+                        }
+
+                        HtmlGenericControl attributeRow = parentIsDynamic ? new DynamicControlsHtmlGenericControl( "div" ) : new HtmlGenericControl( "div" );
+
+                        foreach ( AttributeCache attribute in attributes )
+                        {
+                            if ( attribute.IsActive && !excludedAttributes.Contains( attribute ) )
+                            {
+                                // Add the control for editing the attribute value
+                                AttributeControlOptions attributeControlOptions = new AttributeControlOptions
+                                {
+                                    SetValue = setValue,
+                                    SetId = true,
+                                    ValidationGroup = validationGroup,
+                                    Value = setValue ? reservationResource.AttributeValues?[attribute.Key]?.Value : null,
+                                    ShowPrePostHtml = ( attributeAddEditControlsOptions?.ShowPrePostHtml ?? true ),
+                                    AttributeControlId = String.Format( "attribute_field_{0}_{1}", attribute.Id, reservationResource.Guid )
+                                };
+
+                                if ( attributeAddEditControlsOptions.RequiredAttributes != null )
+                                {
+                                    attributeControlOptions.Required = attributeAddEditControlsOptions.RequiredAttributes.Any( a => a.Id == attribute.Id );
+                                }
+
+                                attribute.AddControl( fieldSet.Controls, attributeControlOptions );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void GetResourceEditValues( Control parentControl, ReservationResource reservationResource )
+        {
+            Dictionary<AttributeCache, Control> attributeEditControls = new Dictionary<AttributeCache, Control>();
+            if ( reservationResource?.Attributes != null )
+            {
+                foreach ( var attributeKeyValue in reservationResource.Attributes )
+                {
+
+                    Control control = parentControl?.FindControl( String.Format( "attribute_field_{0}_{1}", attributeKeyValue.Value.Id, reservationResource.Guid ) );
+                    if ( control != null )
+                    {
+                        attributeEditControls.AddOrIgnore( attributeKeyValue.Value, control );
+                    }
+                }
+            }
+
+            if ( attributeEditControls != null )
+            {
+                foreach ( var attributeEditControl in attributeEditControls )
+                {
+                    var attribute = attributeEditControl.Key;
+                    var control = attributeEditControl.Value;
+                    if ( control != null )
+                    {
+                        var editValue = attribute.FieldType.Field.GetEditValue( control, attribute.QualifierValues );
+                        reservationResource.AttributeValues[attribute.Key] = new AttributeValueCache { AttributeId = attribute.Id, EntityId = reservationResource.Id, Value = editValue };
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         #endregion
 

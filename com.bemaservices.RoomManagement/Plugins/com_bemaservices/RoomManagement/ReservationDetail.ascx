@@ -342,7 +342,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <BEMA:ScheduledResourcePicker ID="srpResource" runat="server" Label="Resource" Required="false" Enabled="false" AllowMultiSelect="false" OnSelectItem="srpResource_SelectItem" ValidationGroup="ReservationResource" />
-                        <Rock:RockDropDownList ID="ddlReservationLocation" runat="server" Label="Location" Required="false" />
+                        <Rock:RockDropDownList ID="ddlReservationLocation" runat="server" Label="Location" Required="false" AutoPostBack="true" OnSelectedIndexChanged="ddlReservationLocation_SelectedIndexChanged"/>
                     </div>
                     <div class="col-md-6">
                         <Rock:NumberBox ID="nbQuantity" runat="server" NumberType="Integer" MinimumValue="1" ValidationGroup="ReservationResource" Label="Quantity" />

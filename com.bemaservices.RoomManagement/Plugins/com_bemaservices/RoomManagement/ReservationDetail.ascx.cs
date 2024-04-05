@@ -84,7 +84,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     {% endif %}
 </div>" )]
 
-    public partial class ReservationDetail : Rock.Web.UI.RockBlock, IDetailBlock
+    public partial class ReservationDetail : Rock.Web.UI.RockBlock
     {
         #region Fields
 
@@ -1285,6 +1285,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 nbResourceNote.Visible = false;
             }
         }
+        protected void ddlReservationLocation_SelectedIndexChanged( object sender, EventArgs e )
+        {
+            LoadResourceConflictMessage();
+        }
 
         /// <summary>
         /// Handles the SaveClick event of the dlgReservationResource control.
@@ -1375,7 +1379,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     ddlReservationLocation.Visible = true;
                     if ( reservationResource.ReservationLocationGuid != null )
                     {
-                        ddlReservationLocation.SetValue( reservationResource.ReservationLocation.Guid.ToString() );
+                        ddlReservationLocation.SetValue( reservationResource.ReservationLocationGuid.ToStringSafe() );
                     }
                 }
 
@@ -1555,7 +1559,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( reservationResource != null )
             {
                 var hlApprovalStatus = e.Row.FindControl( "hlApprovalStatus" ) as HighlightLabel;
-                if ( hlApprovalStatus != null && reservationResource.ApprovalState != null )
+                if ( hlApprovalStatus != null )
                 {
                     hlApprovalStatus.Text = reservationResource.ApprovalState.ConvertToString();
                     switch ( reservationResource.ApprovalState )
@@ -1941,7 +1945,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( reservationLocation != null )
             {
                 var hlApprovalStatus = e.Row.FindControl( "hlApprovalStatus" ) as HighlightLabel;
-                if ( hlApprovalStatus != null && reservationLocation.ApprovalState != null )
+                if ( hlApprovalStatus != null )
                 {
                     hlApprovalStatus.Text = reservationLocation.ApprovalState.ConvertToString();
                     switch ( reservationLocation.ApprovalState )
@@ -3779,9 +3783,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var rockContext = new RockContext();
                 var resourceId = srpResource.SelectedValueAsId().Value;
                 var resource = new ResourceService( rockContext ).Get( resourceId );
+                var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
 
                 var reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
-                var existingResourceCount = ResourcesState.Where( rr => rr.Guid != reservationResourceGuid && rr.ResourceId == resourceId ).Count();
+                var existingResourceCount = ResourcesState.Where( rr =>
+                        rr.Guid != reservationResourceGuid &&
+                        rr.ResourceId == resourceId &&
+                        rr.ReservationLocationGuid == reservationLocationGuid
+                    )
+                    .Count();
                 if ( existingResourceCount > 0 )
                 {
                     sb.AppendFormat( "{0} has already been added to this reservation", resource.Name );
@@ -3800,7 +3810,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         sb.AppendFormat( "{0} is already reserved for the scheduled times by the following reservations:<ul>", resource.Name );
                         foreach ( var conflict in conflicts )
                         {
-                            var duration = conflict.Reservation.Schedule.GetCalendarEvent().Duration;
+                            var duration = conflict.Reservation.Schedule.GetICalEvent().Duration;
                             int hours = duration.Hours;
                             int minutes = duration.Minutes;
 
@@ -3902,9 +3912,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
                 }
                 reservationResource.ReservationLocation = reservationLocation;
-                reservationResource.ReservationLocationGuid = reservationLocation.Guid;
+                reservationResource.ReservationLocationGuid = reservationLocation?.Guid;
 
-                var existingResourceCount = ResourcesState.Where( rr => rr.Guid != guid && rr.ResourceId == reservationResource.ResourceId ).Count();
+                var existingResourceCount = ResourcesState.Where( rr => rr.Guid != guid && rr.ResourceId == reservationResource.ResourceId && rr.ReservationLocationGuid == reservationResource.ReservationLocationGuid ).Count();
                 if ( existingResourceCount > 0 )
                 {
                     return;
@@ -4015,6 +4025,5 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             public bool IsNew { get; set; }
         }
         #endregion
-
     }
 }

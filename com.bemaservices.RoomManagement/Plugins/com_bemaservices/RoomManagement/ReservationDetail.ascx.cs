@@ -1229,65 +1229,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void srpResource_SelectItem( object sender, EventArgs e )
         {
-            // On Item selected, set maximum value on the quantity number box and display it somewhere
-            var rockContext = new RockContext();
-            var resource = new ResourceService( rockContext ).Get( srpResource.SelectedValueAsId() ?? 0 );
-            if ( resource != null )
-            {
-                var newReservation = new Reservation() { Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-                var availableQuantity = new ReservationService( rockContext ).GetAvailableResourceQuantity( resource, newReservation );
-                if ( availableQuantity.HasValue )
-                {
-                    nbQuantity.Visible = true;
-                    nbQuantity.MaximumValue = availableQuantity.ToString();
-                    nbQuantity.Label = String.Format( "Quantity ({0} of {1} Available)", availableQuantity, resource.Quantity );
-                    if ( availableQuantity >= 1 )
-                    {
-                        nbQuantity.Enabled = true;
-
-                        if ( string.IsNullOrWhiteSpace( nbQuantity.Text ) )
-                        {
-                            nbQuantity.Text = "1";
-                        }
-                    }
-                    else
-                    {
-                        nbQuantity.MinimumValue = "0";
-                        nbQuantity.Enabled = false;
-                    }
-                }
-                else
-                {
-                    nbQuantity.Required = false;
-                    nbQuantity.Visible = false;
-                }
-
-                if ( resource.Location != null )
-                {
-                    ddlReservationLocation.Visible = false;
-                }
-                else
-                {
-                    ddlReservationLocation.Visible = true;
-                }
-
-            }
-
-            LoadResourceConflictMessage();
-
-            if ( resource.Note.IsNotNullOrWhiteSpace() )
-            {
-                nbResourceNote.Text = resource.Note;
-                nbResourceNote.Visible = true;
-            }
-            else
-            {
-                nbResourceNote.Visible = false;
-            }
+            LoadResourcePopup();
         }
         protected void ddlReservationLocation_SelectedIndexChanged( object sender, EventArgs e )
         {
-            LoadResourceConflictMessage();
+            LoadResourcePopup();
         }
 
         /// <summary>
@@ -1401,7 +1347,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             hfAddReservationResourceGuid.Value = reservationResourceGuid.ToString();
             hfActiveDialog.Value = "dlgReservationResource";
-            LoadResourceConflictMessage();
+            LoadResourcePopup();
 
             dlgReservationResource.Show();
         }
@@ -3764,18 +3710,48 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <summary>
         /// Loads the resource conflict message when using the resource editor modal.
         /// </summary>
-        private void LoadResourceConflictMessage()
+        private void LoadResourcePopup()
         {
-            StringBuilder sb = new StringBuilder();
-
-            if ( srpResource.SelectedValueAsId().HasValue )
+            // On Item selected, set maximum value on the quantity number box and display it somewhere
+            var rockContext = new RockContext();
+            var resourceId = srpResource.SelectedValueAsId() ?? 0;
+            var resource = new ResourceService( rockContext ).Get( resourceId );
+            if ( resource != null )
             {
-                var rockContext = new RockContext();
-                var resourceId = srpResource.SelectedValueAsId().Value;
-                var resource = new ResourceService( rockContext ).Get( resourceId );
+                var newReservation = new Reservation() { Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
+                var availableQuantity = new ReservationService( rockContext ).GetAvailableResourceQuantity( resource, newReservation );
                 var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
+                Guid reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
+                var reservationQuantity = ResourcesState.Where( rr => rr.Guid != reservationResourceGuid && rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );
 
-                var reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
+                if ( availableQuantity.HasValue )
+                {
+                    availableQuantity = availableQuantity - reservationQuantity;
+                    nbQuantity.Visible = true;
+                    nbQuantity.MaximumValue = availableQuantity.ToString();
+                    nbQuantity.Label = String.Format( "Quantity ({0} of {1} Available)", availableQuantity, resource.Quantity );
+                    if ( availableQuantity >= 1 )
+                    {
+                        nbQuantity.Enabled = true;
+
+                        if ( string.IsNullOrWhiteSpace( nbQuantity.Text ) )
+                        {
+                            nbQuantity.Text = "1";
+                        }
+                    }
+                    else
+                    {
+                        nbQuantity.MinimumValue = "0";
+                        nbQuantity.Enabled = false;
+                    }
+                }
+                else
+                {
+                    nbQuantity.Required = false;
+                    nbQuantity.Visible = false;
+                }
+
+                StringBuilder sb = new StringBuilder();
                 var existingResourceCount = ResourcesState.Where( rr =>
                         rr.Guid != reservationResourceGuid &&
                         rr.ResourceId == resourceId &&
@@ -3789,8 +3765,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 else
                 {
                     int reservationId = hfReservationId.ValueAsInt();
-                    var newReservation = new Reservation() { Id = reservationId, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-
                     var conflicts = new ReservationService( rockContext ).GetConflictsForResourceId( resource.Id, newReservation );
                     if ( conflicts.Any() )
                     {
@@ -3816,16 +3790,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         sb.Append( "</ul>" );
                     }
                 }
-            }
 
-            if ( !String.IsNullOrWhiteSpace( sb.ToString() ) )
-            {
-                nbResourceConflicts.Text = sb.ToString();
-                nbResourceConflicts.Visible = true;
-            }
-            else
-            {
-                nbResourceConflicts.Visible = false;
+                if ( !String.IsNullOrWhiteSpace( sb.ToString() ) )
+                {
+                    nbResourceConflicts.Text = sb.ToString();
+                    nbResourceConflicts.Visible = true;
+                }
+                else
+                {
+                    nbResourceConflicts.Visible = false;
+                }
+
+                if ( resource.Location != null )
+                {
+                    ddlReservationLocation.Visible = false;
+                }
+                else
+                {
+                    ddlReservationLocation.Visible = true;
+                }
+
+                if ( resource.Note.IsNotNullOrWhiteSpace() )
+                {
+                    nbResourceNote.Text = resource.Note;
+                    nbResourceNote.Visible = true;
+                }
+                else
+                {
+                    nbResourceNote.Visible = false;
+                }
+
             }
         }
 

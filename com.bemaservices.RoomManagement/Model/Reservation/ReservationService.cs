@@ -312,13 +312,15 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // Check resources...
-            foreach ( var resource in reservation.ReservationResources )
+            var resources = reservation.ReservationResources.Select( rr => rr.Resource ).Distinct().ToList();
+            foreach ( var resource in resources )
             {
-                var availableQuantity = GetAvailableResourceQuantity( resource.Resource, reservation, arePotentialConflictsReturned );
-                if ( availableQuantity.HasValue && availableQuantity - resource.Quantity < 0 )
+                var reservationQuantity = reservation.ReservationResources.Where( rr => rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );
+                var availableQuantity = GetAvailableResourceQuantity( resource, reservation, arePotentialConflictsReturned );
+                if ( availableQuantity.HasValue && availableQuantity - reservationQuantity < 0 )
                 {
-                    message = BuildResourceConflictHtmlList( reservation, resource.Resource.Id, detailPageRoute, arePotentialConflictsReturned );
-                    sb.AppendFormat( "<li>{0} [note: only {1} available] due to:<ul>{2}</ul></li>", resource.Resource.Name, availableQuantity, message );
+                    message = BuildResourceConflictHtmlList( reservation, resource.Id, detailPageRoute, arePotentialConflictsReturned );
+                    sb.AppendFormat( "<li>{0} [note: only {1} available] due to:<ul>{2}</ul></li>", resource.Name, availableQuantity, message );
                     hasConflict = true;
                 }
             }

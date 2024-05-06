@@ -19,7 +19,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
-
+using Rock;
 using Rock.Data;
 using Rock.Lava;
 using Rock.Model;
@@ -91,6 +91,7 @@ namespace com.bemaservices.RoomManagement.Model
         #endregion
 
         #region Methods
+
         /// <summary>
         /// Copies the properties from.
         /// </summary>
@@ -138,6 +139,17 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             return hasApprovalRightsToState;
+        }
+
+        public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
+        {
+            if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified || entry.State == System.Data.Entity.EntityState.Deleted )
+            {
+                var reservationResource = entry.Entity as ReservationResource;
+                reservationResource.Reservation.ModifiedDateTime = RockDateTime.Now;
+            }
+
+            base.PreSaveChanges( dbContext, entry );
         }
 
         #endregion

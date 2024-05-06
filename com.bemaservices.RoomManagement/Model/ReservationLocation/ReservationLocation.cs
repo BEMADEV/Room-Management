@@ -166,6 +166,17 @@ namespace com.bemaservices.RoomManagement.Model
             return hasApprovalRightsToState;
         }
 
+        public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
+        {
+            if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified || entry.State == System.Data.Entity.EntityState.Deleted )
+            {
+                var reservationLocation = entry.Entity as ReservationLocation;
+                reservationLocation.Reservation.ModifiedDateTime = RockDateTime.Now;
+            }
+
+            base.PreSaveChanges( dbContext, entry );
+        }
+
         #endregion
     }
 

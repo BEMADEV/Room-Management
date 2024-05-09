@@ -84,6 +84,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     {% endif %}
 </div>" )]
 
+    [BooleanField(
+        "Is Additional Info Expanded By Default"
+        , Key = "IsAdditionalInfoExpanded"
+        , DefaultBooleanValue = false
+		, Order = 2 )]
+
     public partial class ReservationDetail : Rock.Web.UI.RockBlock
     {
         #region Fields
@@ -2413,6 +2419,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 LoadAdditionalInfo( resetControls: true );
+                wpAdditionalInfo.Expanded = GetAttributeValue( "IsAdditionalInfoExpanded" ).AsBoolean();
+
 
                 ddlCampus.Items.Clear();
                 ddlCampus.Items.Add( new ListItem( string.Empty, string.Empty ) );

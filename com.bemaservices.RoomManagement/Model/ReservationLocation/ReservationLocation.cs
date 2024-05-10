@@ -138,7 +138,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="person">The person.</param>
         /// <returns><c>true</c> if [has approval rights to state] [the specified person]; otherwise, <c>false</c>.</returns>
         public bool HasApprovalRightsToState( Person person )
-        {   
+        {
             bool hasApprovalRightsToState = false;
             if ( Reservation.ReservationType.HasApprovalRights( person, ApprovalGroupType.OverrideApprovalGroup, Reservation.CampusId ) )
             {
@@ -170,8 +170,20 @@ namespace com.bemaservices.RoomManagement.Model
         {
             if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified || entry.State == System.Data.Entity.EntityState.Deleted )
             {
-                var reservationLocation = entry.Entity as ReservationLocation;
-                reservationLocation.Reservation.ModifiedDateTime = RockDateTime.Now;
+                try
+                {
+
+                    var reservationLocation = entry.Entity as ReservationLocation;
+                    var reservation = new ReservationService( dbContext as RockContext ).Get( reservationLocation.ReservationId );
+                    if ( reservation != null )
+                    {
+                        reservation.ModifiedDateTime = RockDateTime.Now;
+                    }
+                }
+                catch ( Exception ex )
+                {
+                    ExceptionLogService.LogException( ex );
+                }
             }
 
             base.PreSaveChanges( dbContext, entry );

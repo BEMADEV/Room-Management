@@ -143,10 +143,19 @@ namespace com.bemaservices.RoomManagement.Model
 
         public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
         {
-            if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified || entry.State == System.Data.Entity.EntityState.Deleted )
+            try
             {
+
                 var reservationResource = entry.Entity as ReservationResource;
-                reservationResource.Reservation.ModifiedDateTime = RockDateTime.Now;
+                var reservation = new ReservationService( dbContext as RockContext ).Get( reservationResource.ReservationId );
+                if ( reservation != null )
+                {
+                    reservation.ModifiedDateTime = RockDateTime.Now;
+                }
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex );
             }
 
             base.PreSaveChanges( dbContext, entry );

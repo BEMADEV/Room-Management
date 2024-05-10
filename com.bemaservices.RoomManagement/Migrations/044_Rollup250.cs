@@ -41,11 +41,17 @@ namespace com.bemaservices.RoomManagement.Migrations
             AddReservationResourceWorkflowActionLocation();
         }
 
+        /// <summary>
+        /// Adds the reservation resource workflow action location.
+        /// </summary>
         private void AddReservationResourceWorkflowActionLocation()
         {
             RockMigrationHelper.UpdateWorkflowActionEntityAttribute( "2441F4FC-3812-4511-9E55-6BA46141D767", "33E6DF69-BDFA-407A-9744-C175B60643AE", "Location Attribute", "LocationAttribute", "Rock will try to find a ReservationLocation with this location, and will ignore it if one is not found.", 1, @"", "71D4AA48-B087-4107-832D-1FEB905A5A72" ); // com.bemaservices.RoomManagement.Workflow.Actions.Reservations.AddReservationResource:Location Attribute         
         }
 
+        /// <summary>
+        /// Adds the reserved items view.
+        /// </summary>
         private void AddReservedItemsView()
         {
             RockMigrationHelper.UpdateDefinedValue( "32EC3B34-01CF-4513-BC2E-58ECFA91D010", "Location-Based", "A location-based view for the Room Management home page.", "BD2162EB-5CC4-438A-8C0E-F2760897E2A0", false );
@@ -53,6 +59,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             RockMigrationHelper.AddDefinedValueAttributeValue( "BD2162EB-5CC4-438A-8C0E-F2760897E2A0", "EE70E271-EAE1-446B-AFA8-EE2D299B8D7F", @"RockEntity" );
         }
 
+        /// <summary>
+        /// Adds the reservation resource column.
+        /// </summary>
         private void AddReservationResourceColumn()
         {
 
@@ -77,11 +86,17 @@ namespace com.bemaservices.RoomManagement.Migrations
             RemoveReservedItemView();
         }
 
+        /// <summary>
+        /// Removes the reserved item view.
+        /// </summary>
         private void RemoveReservedItemView()
         {
             RockMigrationHelper.DeleteDefinedValue( "BD2162EB-5CC4-438A-8C0E-F2760897E2A0" ); // Location-Based
         }
 
+        /// <summary>
+        /// Removes the reservation resource column.
+        /// </summary>
         private void RemoveReservationResourceColumn()
         {
             Sql( @"

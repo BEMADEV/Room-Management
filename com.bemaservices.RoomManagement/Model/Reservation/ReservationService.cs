@@ -998,6 +998,11 @@ namespace com.bemaservices.RoomManagement.Model
 
         #region GetReservationCalendarFeed
 
+        /// <summary>
+        /// Creates the i calendar.
+        /// </summary>
+        /// <param name="reservationCalendarOptions">The reservation calendar options.</param>
+        /// <returns>System.String.</returns>
         public string CreateICalendar( ReservationCalendarOptions reservationCalendarOptions )
         {
             // Get a list of Rock Reservations that match the specified filter.
@@ -1148,10 +1153,10 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Convert the elements of a PeriodList from the iCalendar PERIOD type to the DATE type.
         /// </summary>
-        /// <param name="periodLists"></param>
-        /// <param name="tzId"></param>
-        /// <param name="eventStartTime"></param>
-        /// <returns></returns>
+        /// <param name="periodLists">The period lists.</param>
+        /// <param name="tzId">The tz identifier.</param>
+        /// <param name="eventStartTime">The event start time.</param>
+        /// <returns>IList&lt;PeriodList&gt;.</returns>
         private IList<PeriodList> ConvertPeriodListElementsToDateType( IList<PeriodList> periodLists, string tzId, TimeSpan eventStartTime )
         {
             // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
@@ -1188,9 +1193,9 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Removes instances of the specified date from a collection of PeriodList objects.
         /// </summary>
-        /// <param name="periodLists"></param>
-        /// <param name="removeDate"></param>
-        /// <returns></returns>
+        /// <param name="periodLists">The period lists.</param>
+        /// <param name="removeDate">The remove date.</param>
+        /// <returns>IList&lt;PeriodList&gt;.</returns>
         private IList<PeriodList> RemoveDateFromPeriodList( IList<PeriodList> periodLists, IDateTime removeDate )
         {
             // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,

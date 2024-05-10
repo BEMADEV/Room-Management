@@ -50,6 +50,10 @@ namespace com.bemaservices.RoomManagement.Model
         [DataMember]
         public int ResourceId { get; set; }
 
+        /// <summary>
+        /// Gets or sets the reservation location identifier.
+        /// </summary>
+        /// <value>The reservation location identifier.</value>
         [DataMember]
         public int? ReservationLocationId { get; set; }
 
@@ -85,6 +89,10 @@ namespace com.bemaservices.RoomManagement.Model
         [LavaVisibleAttribute]
         public virtual Resource Resource { get; set; }
 
+        /// <summary>
+        /// Gets or sets the reservation location.
+        /// </summary>
+        /// <value>The reservation location.</value>
         [LavaVisibleAttribute]
         public virtual ReservationLocation ReservationLocation { get; set; }
 
@@ -141,6 +149,11 @@ namespace com.bemaservices.RoomManagement.Model
             return hasApprovalRightsToState;
         }
 
+        /// <summary>
+        /// Method that will be called on an entity immediately before the item is saved by context
+        /// </summary>
+        /// <param name="dbContext">The database context.</param>
+        /// <param name="entry">The entry.</param>
         public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
         {
             try

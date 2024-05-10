@@ -93,6 +93,10 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The reservation resources.</value>
         public List<ReservationResource> ReservationResources { get; set; }
 
+        /// <summary>
+        /// Gets or sets the unassigned reservation resources.
+        /// </summary>
+        /// <value>The unassigned reservation resources.</value>
         public List<ReservationResource> UnassignedReservationResources { get; set; }
 
         /// <summary>

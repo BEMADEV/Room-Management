@@ -941,6 +941,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             ShowEditDetails( newItem );
         }
 
+        /// <summary>
+        /// Handles the Click event of the btnOverride control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void btnOverride_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -964,7 +969,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnDeny control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnDeny_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -988,7 +993,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnApprove control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnApprove_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1039,7 +1044,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnRequestChanges control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnRequestChanges_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1070,7 +1075,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnSubmit control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnSubmit_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1110,7 +1115,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnCancelReservation control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnCancelReservation_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1170,7 +1175,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ValueChanged event of the approval toggle. If the reservation is set to approved, it will iterate through each resource and location and approve the ones the user has access to approve.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void hfApprovalState_ValueChanged( object sender, EventArgs e )
         {
             if ( PageParameter( "ReservationId" ).AsIntegerOrNull() != null )
@@ -1237,6 +1242,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             LoadResourcePopup();
         }
+		
+        /// <summary>
+        /// Handles the SelectedIndexChanged event of the ddlReservationLocation control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void ddlReservationLocation_SelectedIndexChanged( object sender, EventArgs e )
         {
             LoadResourcePopup();
@@ -1258,7 +1269,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SaveThenAddClick event of the dlgReservationResource control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dlgReservationResource_SaveThenAddClick( object sender, EventArgs e )
         {
             SaveReservationResource();
@@ -1890,7 +1901,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the RowDataBound event of the gViewLocations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
         protected void gViewLocations_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             var reservationLocation = e.Row.DataItem as ReservationLocationSummary;
@@ -1972,7 +1983,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the RowDataBound event of the gLocationLayouts control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
         protected void gLocationLayouts_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             int? selectedLocationLayoutId = null;
@@ -2023,7 +2034,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the CheckedChanged event of the rbSelected control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void rbSelected_CheckedChanged( object sender, EventArgs e )
         {
             //Clear the existing selected row 
@@ -3530,7 +3541,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 // check for assigned resources and remove them too
-                var assignedReservationResourceGuids = ResourcesState.Where(r=> r.ReservationLocationGuid == reservationLocation.Guid).Select(r=> r.Guid).ToList();
+                var assignedReservationResourceGuids = ResourcesState.Where( r => r.ReservationLocationGuid == reservationLocation.Guid ).Select( r => r.Guid ).ToList();
                 if ( assignedReservationResourceGuids.Any() )
                 {
                     foreach ( var assignedReservationResourceGuid in assignedReservationResourceGuids )
@@ -3970,6 +3981,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         // Potential permanent options include moving questions into the popup modal, but we'll need to figure
         // out how to display them in view mode. Info button with a popup maybe?
 
+        /// <summary>
+        /// Adds the resource edit controls.
+        /// </summary>
+        /// <param name="reservationResource">The reservation resource.</param>
+        /// <param name="parentControl">The parent control.</param>
+        /// <param name="setValue">if set to <c>true</c> [set value].</param>
+        /// <param name="validationGroup">The validation group.</param>
+        /// <param name="exclude">The exclude.</param>
         private static void AddResourceEditControls( ReservationResourceSummary reservationResource, Control parentControl, bool setValue, string validationGroup, List<string> exclude )
         {
             if ( reservationResource != null && reservationResource.Attributes != null )
@@ -4035,6 +4054,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Gets the resource edit values.
+        /// </summary>
+        /// <param name="parentControl">The parent control.</param>
+        /// <param name="reservationResource">The reservation resource.</param>
         private static void GetResourceEditValues( Control parentControl, ReservationResource reservationResource )
         {
             Dictionary<AttributeCache, Control> attributeEditControls = new Dictionary<AttributeCache, Control>();
@@ -4087,9 +4111,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             [JsonProperty]
             public bool IsNew { get; set; }
 
+            /// <summary>
+            /// Gets or sets the reservation location unique identifier.
+            /// </summary>
+            /// <value>The reservation location unique identifier.</value>
             [JsonProperty]
             public Guid? ReservationLocationGuid { get; set; }
 
+            /// <summary>
+            /// Gets the name of the location.
+            /// </summary>
+            /// <value>The name of the location.</value>
             public string LocationName
             {
                 get

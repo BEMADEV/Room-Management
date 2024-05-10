@@ -105,11 +105,28 @@ namespace com.bemaservices.RoomManagement.Model
 
     }
 
+    /// <summary>
+    /// Class ReservationCalendarOptions.
+    /// Implements the <see cref="com.bemaservices.RoomManagement.Model.ReservationQueryOptions" />
+    /// </summary>
+    /// <seealso cref="com.bemaservices.RoomManagement.Model.ReservationQueryOptions" />
     public class ReservationCalendarOptions : ReservationQueryOptions
     {
+        /// <summary>
+        /// Gets or sets the start date.
+        /// </summary>
+        /// <value>The start date.</value>
         public DateTime? StartDate { get; set; } = null;
+        /// <summary>
+        /// Gets or sets the end date.
+        /// </summary>
+        /// <value>The end date.</value>
         public DateTime? EndDate { get; set; } = null;
 
+        /// <summary>
+        /// Gets or sets the type of the client device.
+        /// </summary>
+        /// <value>The type of the client device.</value>
         public string ClientDeviceType { get; set; } = null;
     }
 }

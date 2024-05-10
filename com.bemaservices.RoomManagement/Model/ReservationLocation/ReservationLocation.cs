@@ -166,6 +166,11 @@ namespace com.bemaservices.RoomManagement.Model
             return hasApprovalRightsToState;
         }
 
+        /// <summary>
+        /// Method that will be called on an entity immediately before the item is saved by context
+        /// </summary>
+        /// <param name="dbContext">The database context.</param>
+        /// <param name="entry">The entry.</param>
         public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
         {
             if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified || entry.State == System.Data.Entity.EntityState.Deleted )

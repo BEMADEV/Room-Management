@@ -502,6 +502,10 @@ namespace com.bemaservices.RoomManagement.Model
             }
         }
 
+        /// <summary>
+        /// Gets the unassigned reservation resources.
+        /// </summary>
+        /// <value>The unassigned reservation resources.</value>
         [LavaVisibleAttribute]
         [NotMapped]
         public virtual List<ReservationResource> UnassignedReservationResources

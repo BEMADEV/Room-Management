@@ -19,7 +19,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
-
+using Rock;
 using Rock.Data;
 using Rock.Lava;
 using Rock.Model;
@@ -49,6 +49,13 @@ namespace com.bemaservices.RoomManagement.Model
         [Required]
         [DataMember]
         public int ResourceId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the reservation location identifier.
+        /// </summary>
+        /// <value>The reservation location identifier.</value>
+        [DataMember]
+        public int? ReservationLocationId { get; set; }
 
         /// <summary>
         /// Gets or sets the quantity.
@@ -82,9 +89,17 @@ namespace com.bemaservices.RoomManagement.Model
         [LavaVisibleAttribute]
         public virtual Resource Resource { get; set; }
 
+        /// <summary>
+        /// Gets or sets the reservation location.
+        /// </summary>
+        /// <value>The reservation location.</value>
+        [LavaVisibleAttribute]
+        public virtual ReservationLocation ReservationLocation { get; set; }
+
         #endregion
 
         #region Methods
+
         /// <summary>
         /// Copies the properties from.
         /// </summary>
@@ -134,6 +149,31 @@ namespace com.bemaservices.RoomManagement.Model
             return hasApprovalRightsToState;
         }
 
+        /// <summary>
+        /// Method that will be called on an entity immediately before the item is saved by context
+        /// </summary>
+        /// <param name="dbContext">The database context.</param>
+        /// <param name="entry">The entry.</param>
+        public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
+        {
+            try
+            {
+
+                var reservationResource = entry.Entity as ReservationResource;
+                var reservation = new ReservationService( dbContext as RockContext ).Get( reservationResource.ReservationId );
+                if ( reservation != null )
+                {
+                    reservation.ModifiedDateTime = RockDateTime.Now;
+                }
+            }
+            catch ( Exception ex )
+            {
+                ExceptionLogService.LogException( ex );
+            }
+
+            base.PreSaveChanges( dbContext, entry );
+        }
+
         #endregion
     }
 
@@ -151,6 +191,8 @@ namespace com.bemaservices.RoomManagement.Model
         {
             this.HasRequired( r => r.Reservation ).WithMany( r => r.ReservationResources ).HasForeignKey( r => r.ReservationId ).WillCascadeOnDelete( true );
             this.HasRequired( r => r.Resource ).WithMany().HasForeignKey( r => r.ResourceId ).WillCascadeOnDelete( true );
+            this.HasOptional( p => p.ReservationLocation ).WithMany( r => r.ReservationResources ).HasForeignKey( p => p.ReservationLocationId ).WillCascadeOnDelete( true );
+
 
             // IMPORTANT!!
             this.HasEntitySetName( "ReservationResource" );

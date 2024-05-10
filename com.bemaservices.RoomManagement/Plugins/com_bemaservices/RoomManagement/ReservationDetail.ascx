@@ -115,10 +115,13 @@
                                 <div class="grid">
                                     <Rock:Grid ID="gViewResources" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Resource" OnRowDataBound="gViewResources_RowDataBound" ShowWorkflowOrCustomActionButtons="false">
                                         <Columns>
-                                            <Rock:RockBoundField DataField="Resource.Name" HeaderText="Resource" />
-                                            <Rock:RockTemplateField>
-                                                <ItemTemplate><em class="text-muted"><%# Convert.ToString( Eval( "Resource.Location.Name") ) == string.Empty ? "" : "(attached to " +  Eval("Resource.Location.Name") + ")" %></em></ItemTemplate>
+                                            <Rock:RockTemplateField HeaderText="Resource">
+                                                <ItemTemplate>
+                                                    <%# Eval("Resource.Name") %>
+                                                    <em class="text-muted"><%# Convert.ToString( Eval( "Resource.Location.Name") ) == string.Empty ? "" : "<br>(attached to " +  Eval("Resource.Location.Name") + ")" %></em>
+                                                </ItemTemplate>
                                             </Rock:RockTemplateField>
+                                            <Rock:RockBoundField DataField="ReservationLocation.Location.Name" HeaderText="Location" />
                                             <Rock:RockBoundField DataField="Quantity" HeaderText="Qty" />
                                             <Rock:RockTemplateField HeaderText="Status">
                                                 <ItemTemplate>
@@ -259,10 +262,13 @@
                                     <Rock:ModalAlert ID="maResourceGridWarning" runat="server" />
                                     <Rock:Grid ID="gResources" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Resource" ShowConfirmDeleteDialog="false" ShowWorkflowOrCustomActionButtons="false">
                                         <Columns>
-                                            <Rock:RockBoundField DataField="Resource.Name" HeaderText="Resource" />
-                                            <Rock:RockTemplateField>
-                                                <ItemTemplate><em class="text-muted"><%# Convert.ToString( Eval( "Resource.Location.Name") ) == string.Empty ? "" : "(attached to " +  Eval("Resource.Location.Name") + ")" %></em></ItemTemplate>
+                                            <Rock:RockTemplateField HeaderText="Resource">
+                                                <ItemTemplate>
+                                                    <%# Eval("Resource.Name") %>
+                                                    <em class="text-muted"><%# Convert.ToString( Eval( "Resource.Location.Name") ) == string.Empty ? "" : "<br>(attached to " +  Eval("Resource.Location.Name") + ")" %></em>
+                                                </ItemTemplate>
                                             </Rock:RockTemplateField>
+                                            <Rock:RockBoundField DataField="ReservationLocation.Location.Name" HeaderText="Location" />
                                             <Rock:RockBoundField DataField="Quantity" HeaderText="Qty" />
                                             <Rock:RockBoundField DataField="ApprovalState" HeaderText="Approved?" />
                                             <Rock:EditField OnClick="gResources_Edit" />
@@ -336,6 +342,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <BEMA:ScheduledResourcePicker ID="srpResource" runat="server" Label="Resource" Required="false" Enabled="false" AllowMultiSelect="false" OnSelectItem="srpResource_SelectItem" ValidationGroup="ReservationResource" />
+                        <Rock:RockDropDownList ID="ddlReservationLocation" runat="server" Label="Location" Required="false" AutoPostBack="true" OnSelectedIndexChanged="ddlReservationLocation_SelectedIndexChanged"/>
                     </div>
                     <div class="col-md-6">
                         <Rock:NumberBox ID="nbQuantity" runat="server" NumberType="Integer" MinimumValue="1" ValidationGroup="ReservationResource" Label="Quantity" />

@@ -23,6 +23,8 @@ using Rock.Data;
 using System;
 using Rock;
 using Rock.Lava;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -88,6 +90,23 @@ namespace com.bemaservices.RoomManagement.Model
         [LavaVisibleAttribute]
         public virtual LocationLayout LocationLayout { get; set; }
 
+
+        /// <summary>
+        /// Gets or sets the reservation resources.
+        /// </summary>
+        /// <value>The reservation resources.</value>
+        [LavaVisibleAttribute]
+        public virtual ICollection<ReservationResource> ReservationResources
+        {
+            get { return _reservationResources ?? ( _reservationResources = new Collection<ReservationResource>() ); }
+            set { _reservationResources = value; }
+        }
+
+        /// <summary>
+        /// The reservation resources
+        /// </summary>
+        private ICollection<ReservationResource> _reservationResources;
+
         #endregion
 
         #region Methods
@@ -119,7 +138,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="person">The person.</param>
         /// <returns><c>true</c> if [has approval rights to state] [the specified person]; otherwise, <c>false</c>.</returns>
         public bool HasApprovalRightsToState( Person person )
-        {   
+        {
             bool hasApprovalRightsToState = false;
             if ( Reservation.ReservationType.HasApprovalRights( person, ApprovalGroupType.OverrideApprovalGroup, Reservation.CampusId ) )
             {
@@ -145,6 +164,34 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             return hasApprovalRightsToState;
+        }
+
+        /// <summary>
+        /// Method that will be called on an entity immediately before the item is saved by context
+        /// </summary>
+        /// <param name="dbContext">The database context.</param>
+        /// <param name="entry">The entry.</param>
+        public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
+        {
+            if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified || entry.State == System.Data.Entity.EntityState.Deleted )
+            {
+                try
+                {
+
+                    var reservationLocation = entry.Entity as ReservationLocation;
+                    var reservation = new ReservationService( dbContext as RockContext ).Get( reservationLocation.ReservationId );
+                    if ( reservation != null )
+                    {
+                        reservation.ModifiedDateTime = RockDateTime.Now;
+                    }
+                }
+                catch ( Exception ex )
+                {
+                    ExceptionLogService.LogException( ex );
+                }
+            }
+
+            base.PreSaveChanges( dbContext, entry );
         }
 
         #endregion

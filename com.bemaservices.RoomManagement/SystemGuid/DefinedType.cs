@@ -26,6 +26,6 @@ namespace com.bemaservices.RoomManagement.SystemGuid
         /// The ministry
         /// </summary>
         public const string MINISTRY = "B6DC9824-FA8C-4B0F-AD82-F720F4FCFF24";
-       
+
     }
 }

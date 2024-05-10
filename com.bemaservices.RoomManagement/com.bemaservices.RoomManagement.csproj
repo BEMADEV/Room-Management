@@ -83,6 +83,10 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="TimeZoneConverter, Version=6.0.1.0, Culture=neutral, PublicKeyToken=e20ab7d0d9479841, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(SolutionDir)RockWeb\Bin\TimeZoneConverter.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attribute\Helper.cs" />
@@ -121,6 +125,7 @@
     <Compile Include="Jobs\V247TemporarySetupPhotoFix.cs" />
     <Compile Include="Lava\Blocks\ReservationSummariesBlock.cs" />
     <Compile Include="Lava\Blocks\ReservationSummariesLavaDataSource.cs" />
+    <Compile Include="Migrations\019_ReservationTypes.cs" />
     <Compile Include="Migrations\040_Rollup243.cs" />
     <Compile Include="Migrations\039_RockWorkflowCompliance.cs" />
     <Compile Include="Migrations\038_Rollup240.cs" />
@@ -185,7 +190,7 @@
     <Compile Include="Migrations\003_SampleData.cs" />
     <Compile Include="Migrations\002_Pages.cs" />
     <Compile Include="Migrations\001_CreateDb.cs" />
-    <Compile Include="Migrations\019_ReservationTypes.cs" />
+    <Compile Include="Migrations\044_Rollup250.cs" />
     <Compile Include="Model\ReservationType\ReservationTypeService.cs" />
     <Compile Include="Model\ReservationType\ReservationType.cs" />
     <Compile Include="Model\ReservationWorkflow\ReservationWorkflowService.cs" />
@@ -303,6 +308,7 @@
     <ItemGroup>
       <CopyFiles Include="$(OutputPath)com.bemaservices.RoomManagement.dll;$(OutputPath)com.centralaz.RoomManagement.dll;$(OutputPath)itextsharp.dll;$(OutputPath)com.bemaservices.RoomManagement.xml" />
       <BlockCode Include="$(ProjectDir)Plugins\com_bemaservices\RoomManagement\**\*.*" />
+      <WebhookCode Include="$(ProjectDir)Webhooks\GetReservationCalendarFeed.ashx" />
       <VersionFile Include="builds\.version" />
       <InstallFile Include="builds\install\deletefile.lst" />
     </ItemGroup>
@@ -314,6 +320,7 @@
     <MakeDir Directories="$(BuildDir)\tmp\uninstall" Condition="!Exists('$(BuildDir)\tmp\uninstall')" />
     <Copy SourceFiles="@(CopyFiles)" DestinationFolder="$(BuildDir)\tmp\content\bin\" />
     <Copy SourceFiles="@(BlockCode)" DestinationFiles="@(BlockCode->'$(BuildDir)\tmp\content\Plugins\com_bemaservices\RoomManagement\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(WebhookCode)" DestinationFiles="@(WebhookCode->'$(BuildDir)\tmp\content\Webhooks\%(RecursiveDir)%(Filename)%(Extension)')" />
     <!-- Just put the .version file into the install and uninstall folder so that those folders are created in the zip -->
     <!--Copy SourceFiles="@(InstallFile)" DestinationFiles="@(BlockCode->'$(BuildDir)\tmp\install\%(RecursiveDir)%(Filename)%(Extension)')" -->
     <Copy SourceFiles="@(VersionFile)" DestinationFolder="$(BuildDir)\tmp\install" />
@@ -377,6 +384,7 @@
     <PostBuildEvent>xcopy /Y /R /E /I "$(ProjectDir)Plugins" "$(SolutionDir)RockWeb\Plugins"
 xcopy /Y /R "$(ProjectDir)bin\Debug\com.bemaservices.RoomManagement.dll" "$(SolutionDir)RockWeb\bin"
 xcopy /Y /R "$(ProjectDir)bin\Debug\com.centralaz.RoomManagement.dll" "$(SolutionDir)RockWeb\bin"
-xcopy /Y /R "$(ProjectDir)bin\Debug\itextsharp.dll" "$(SolutionDir)RockWeb\bin"</PostBuildEvent>
+xcopy /Y /R "$(ProjectDir)bin\Debug\itextsharp.dll" "$(SolutionDir)RockWeb\bin"
+xcopy /Y /R "$(ProjectDir)Webhooks\GetReservationCalendarFeed.ashx" "$(SolutionDir)RockWeb\Webhooks"</PostBuildEvent>
   </PropertyGroup>
 </Project>

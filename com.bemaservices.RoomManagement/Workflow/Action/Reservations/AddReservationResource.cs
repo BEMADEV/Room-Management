@@ -46,6 +46,10 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
         new string[] { "com.bemaservices.RoomManagement.Field.Types.ResourceFieldType" } )]
     [WorkflowTextOrAttribute( "Quantity", "Attribute Value", "The quantity or an attribute that contains the quantity of the resource. <span class='tip tip-lava'></span>",
         false, "", "", 0, "Quantity", new string[] { "Rock.Field.Types.IntegerFieldType" } )]
+
+    [WorkflowAttribute( "Location Attribute", "Rock will try to find a ReservationLocation with this location, and will ignore it if one is not found.", false, "", "", 1, null,
+        new string[] { "Rock.Field.Types.LocationFieldType" } )]
+
     public class AddReservationResource : ActionComponent
     {
         /// <summary>
@@ -91,6 +95,15 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                 return false;
             }
 
+            // Get the optional reservation location
+            ReservationLocation reservationLocation = null;
+            Guid locationGuid = action.GetWorkflowAttributeValue( GetAttributeValue( action, "LocationAttribute" ).AsGuid() ).AsGuid();
+            Location location = new LocationService( rockContext ).Get( locationGuid );
+            if ( location != null )
+            {
+                reservationLocation = reservation.ReservationLocations.Where( rl => rl.LocationId == location.Id ).FirstOrDefault();
+            }
+
             var oldValue = reservation.ApprovalState;
             var changes = new History.HistoryChangeList();
 
@@ -101,6 +114,12 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             reservationResource.Resource = resource;
             reservationResource.ResourceId = resource.Id;
             reservationResource.Quantity = quantity;
+
+            if ( reservationLocation != null )
+            {
+                reservationResource.ReservationLocation = reservationLocation;
+                reservationResource.ReservationLocationId = reservationLocation.Id;
+            }
 
             changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, String.Format( "[Resource] {0} {1}", reservationResource.Quantity, reservationResource.Resource.Name ) ) );
 

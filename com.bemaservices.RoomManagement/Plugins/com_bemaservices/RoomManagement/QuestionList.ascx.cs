@@ -273,7 +273,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             Rock.Model.Attribute savedAttribute = Helper.SaveAttributeEdits( newAttribute, entityTypeId, null, null, rockContext );
 
-            AttributeCache.RemoveEntityAttributes();
+            EntityTypeAttributesCache.Clear();
 
             question.AttributeId = savedAttribute.Id;
 
@@ -380,8 +380,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nextOrder = CopyQuestionAttributes( rockContext, questionService, attributeService, keyMap, nextOrder, sourceQuestionList );
                 }
 
-                AttributeCache.RemoveEntityAttributes();
-
+                EntityTypeAttributesCache.Clear();
 
                 BindGrid();
                 mdCopyQuestions.Hide();

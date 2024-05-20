@@ -83,6 +83,10 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="TimeZoneConverter, Version=6.0.1.0, Culture=neutral, PublicKeyToken=e20ab7d0d9479841, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(SolutionDir)RockWeb\Bin\TimeZoneConverter.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attribute\Helper.cs" />
@@ -119,6 +123,9 @@
     <Compile Include="Jobs\FireWorkflowFromReservationInDateRange.cs" />
     <Compile Include="Jobs\PopulateFirstLastOccurrenceDateTimes.cs" />
     <Compile Include="Jobs\V247TemporarySetupPhotoFix.cs" />
+    <Compile Include="Lava\Blocks\ReservationSummariesBlock.cs" />
+    <Compile Include="Lava\Blocks\ReservationSummariesLavaDataSource.cs" />
+    <Compile Include="Migrations\019_ReservationTypes.cs" />
     <Compile Include="Migrations\040_Rollup243.cs" />
     <Compile Include="Migrations\039_RockWorkflowCompliance.cs" />
     <Compile Include="Migrations\038_Rollup240.cs" />
@@ -146,14 +153,19 @@
     <Compile Include="Lava\LavaFilters.cs" />
     <Compile Include="Migrations\022_ReservationReports.cs" />
     <Compile Include="Migrations\021_LocationLayout.cs" />
-    <Compile Include="Model\LocationLayout.cs" />
-    <Compile Include="Model\LocationLayoutService.cs" />
-    <Compile Include="Model\ReservationLocationType.cs" />
-    <Compile Include="Model\ReservationApprovalGroupService.cs" />
-    <Compile Include="Model\ReservationLocationTypeService.cs" />
-    <Compile Include="Model\ReservationLinkage.cs" />
-    <Compile Include="Model\ReservationLinkageService.cs" />
-    <Compile Include="Model\ReservationApprovalGroup.cs" />
+    <Compile Include="Model\LocationLayout\LocationLayout.cs" />
+    <Compile Include="Model\LocationLayout\LocationLayoutService.cs" />
+    <Compile Include="Model\ReservationLocationType\ReservationLocationType.cs" />
+    <Compile Include="Model\ReservationApprovalGroup\ReservationApprovalGroupService.cs" />
+    <Compile Include="Model\ReservationLocationType\ReservationLocationTypeService.cs" />
+    <Compile Include="Model\ReservationLinkage\ReservationLinkage.cs" />
+    <Compile Include="Model\ReservationLinkage\ReservationLinkageService.cs" />
+    <Compile Include="Model\ReservationApprovalGroup\ReservationApprovalGroup.cs" />
+    <Compile Include="Model\Reservation\ReservationExtensionMethods.cs" />
+    <Compile Include="Model\Reservation\ReservationQueryOptions.cs" />
+    <Compile Include="Model\Reservation\ReservationSummary.cs" />
+    <Compile Include="Model\Reservation\ReservationDate.cs" />
+    <Compile Include="Model\Reservation\ReservationConflict.cs" />
     <Compile Include="ReportTemplates\AdvancedReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportLandscapeTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportTemplate.cs" />
@@ -178,25 +190,25 @@
     <Compile Include="Migrations\003_SampleData.cs" />
     <Compile Include="Migrations\002_Pages.cs" />
     <Compile Include="Migrations\001_CreateDb.cs" />
-    <Compile Include="Migrations\019_ReservationTypes.cs" />
-    <Compile Include="Model\ReservationTypeService.cs" />
-    <Compile Include="Model\ReservationType.cs" />
-    <Compile Include="Model\ReservationWorkflowService.cs" />
-    <Compile Include="Model\ReservationWorkflowTriggerService.cs" />
-    <Compile Include="Model\ReservationMinistryService.cs" />
-    <Compile Include="Model\ReservationMinistry.cs" />
-    <Compile Include="Model\ReservationWorkflow.cs" />
-    <Compile Include="Model\ReservationWorkflowTrigger.cs" />
-    <Compile Include="Model\ReservationLocation.cs" />
-    <Compile Include="Model\ReservationResource.cs" />
-    <Compile Include="Model\ReservationLocationService.cs" />
-    <Compile Include="Model\ReservationResourceService.cs" />
-    <Compile Include="Model\ReservationQuestion.cs" />
-    <Compile Include="Model\ReservationQuestionService.cs" />
-    <Compile Include="Model\ResourceService.cs" />
-    <Compile Include="Model\Resource.cs" />
-    <Compile Include="Model\Reservation.cs" />
-    <Compile Include="Model\ReservationService.cs" />
+    <Compile Include="Migrations\044_Rollup250.cs" />
+    <Compile Include="Model\ReservationType\ReservationTypeService.cs" />
+    <Compile Include="Model\ReservationType\ReservationType.cs" />
+    <Compile Include="Model\ReservationWorkflow\ReservationWorkflowService.cs" />
+    <Compile Include="Model\ReservationWorkflowTrigger\ReservationWorkflowTriggerService.cs" />
+    <Compile Include="Model\ReservationMinistry\ReservationMinistryService.cs" />
+    <Compile Include="Model\ReservationMinistry\ReservationMinistry.cs" />
+    <Compile Include="Model\ReservationWorkflow\ReservationWorkflow.cs" />
+    <Compile Include="Model\ReservationWorkflowTrigger\ReservationWorkflowTrigger.cs" />
+    <Compile Include="Model\ReservationLocation\ReservationLocation.cs" />
+    <Compile Include="Model\ReservationResource\ReservationResource.cs" />
+    <Compile Include="Model\ReservationLocation\ReservationLocationService.cs" />
+    <Compile Include="Model\ReservationResource\ReservationResourceService.cs" />
+    <Compile Include="Model\ReservationQuestion\ReservationQuestion.cs" />
+    <Compile Include="Model\ReservationQuestion\ReservationQuestionService.cs" />
+    <Compile Include="Model\Resource\ResourceService.cs" />
+    <Compile Include="Model\Resource\Resource.cs" />
+    <Compile Include="Model\Reservation\Reservation.cs" />
+    <Compile Include="Model\Reservation\ReservationService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SystemGuid\Category.cs" />
     <Compile Include="SystemGuid\DefinedType.cs" />
@@ -224,6 +236,10 @@
     <ProjectReference Include="$(SolutionDir)Rock.Enums\Rock.Enums.csproj">
       <Project>{61dece2b-0434-435e-8d65-49a4fdf98365}</Project>
       <Name>Rock.Enums</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\BemaRockV14\Rock.Lava\Rock.Lava.csproj">
+      <Project>{37E293DD-F282-4A34-91FA-5FB8503D5672}</Project>
+      <Name>Rock.Lava</Name>
     </ProjectReference>
     <ProjectReference Include="..\com.centralaz.RoomManagement\com.centralaz.RoomManagement.csproj">
       <Project>{7034b83c-c331-436c-aa16-e87ad280b0e9}</Project>
@@ -292,6 +308,7 @@
     <ItemGroup>
       <CopyFiles Include="$(OutputPath)com.bemaservices.RoomManagement.dll;$(OutputPath)com.centralaz.RoomManagement.dll;$(OutputPath)itextsharp.dll;$(OutputPath)com.bemaservices.RoomManagement.xml" />
       <BlockCode Include="$(ProjectDir)Plugins\com_bemaservices\RoomManagement\**\*.*" />
+      <WebhookCode Include="$(ProjectDir)Webhooks\GetReservationCalendarFeed.ashx" />
       <VersionFile Include="builds\.version" />
       <InstallFile Include="builds\install\deletefile.lst" />
     </ItemGroup>
@@ -303,6 +320,7 @@
     <MakeDir Directories="$(BuildDir)\tmp\uninstall" Condition="!Exists('$(BuildDir)\tmp\uninstall')" />
     <Copy SourceFiles="@(CopyFiles)" DestinationFolder="$(BuildDir)\tmp\content\bin\" />
     <Copy SourceFiles="@(BlockCode)" DestinationFiles="@(BlockCode->'$(BuildDir)\tmp\content\Plugins\com_bemaservices\RoomManagement\%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Copy SourceFiles="@(WebhookCode)" DestinationFiles="@(WebhookCode->'$(BuildDir)\tmp\content\Webhooks\%(RecursiveDir)%(Filename)%(Extension)')" />
     <!-- Just put the .version file into the install and uninstall folder so that those folders are created in the zip -->
     <!--Copy SourceFiles="@(InstallFile)" DestinationFiles="@(BlockCode->'$(BuildDir)\tmp\install\%(RecursiveDir)%(Filename)%(Extension)')" -->
     <Copy SourceFiles="@(VersionFile)" DestinationFolder="$(BuildDir)\tmp\install" />
@@ -366,6 +384,7 @@
     <PostBuildEvent>xcopy /Y /R /E /I "$(ProjectDir)Plugins" "$(SolutionDir)RockWeb\Plugins"
 xcopy /Y /R "$(ProjectDir)bin\Debug\com.bemaservices.RoomManagement.dll" "$(SolutionDir)RockWeb\bin"
 xcopy /Y /R "$(ProjectDir)bin\Debug\com.centralaz.RoomManagement.dll" "$(SolutionDir)RockWeb\bin"
-xcopy /Y /R "$(ProjectDir)bin\Debug\itextsharp.dll" "$(SolutionDir)RockWeb\bin"</PostBuildEvent>
+xcopy /Y /R "$(ProjectDir)bin\Debug\itextsharp.dll" "$(SolutionDir)RockWeb\bin"
+xcopy /Y /R "$(ProjectDir)Webhooks\GetReservationCalendarFeed.ashx" "$(SolutionDir)RockWeb\Webhooks"</PostBuildEvent>
   </PropertyGroup>
 </Project>

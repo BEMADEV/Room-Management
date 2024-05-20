@@ -57,7 +57,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
         /// <param name="filterEndDate">The filter end date.</param>
         /// <param name="lavaTemplate">The lava template.</param>
         /// <returns>System.Byte[].</returns>
-        public override byte[] GenerateReport( List<ReservationService.ReservationSummary> reservationSummaryList, string logoFileUrl, string font, DateTime? filterStartDate, DateTime? filterEndDate, string lavaTemplate = "" )
+        public override byte[] GenerateReport( List<ReservationSummary> reservationSummaryList, string logoFileUrl, string font, DateTime? filterStartDate, DateTime? filterEndDate, string lavaTemplate = "" )
         {
             //Fonts
             var titleFont = FontFactory.GetFont( font, 16, Font.BOLD );

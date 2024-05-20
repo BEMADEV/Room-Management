@@ -165,7 +165,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             mergeFields.Add( "CurrentPerson", CurrentPerson );
             mergeFields.Add( "Location", LocationName );
 
-            List<ReservationService.ReservationSummary> reservationSummaryList = GetReservationSummaries( locationId );
+            List<ReservationSummary> reservationSummaryList = GetReservationSummaries( locationId );
 
             // Bind to Grid
             var reservationSummaries = reservationSummaryList.Select( r => new
@@ -218,26 +218,23 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Gets the reservation summaries.
         /// </summary>
         /// <param name="locationId">The location identifier.</param>
-        /// <returns>List&lt;ReservationService.ReservationSummary&gt;.</returns>
-        private List<ReservationService.ReservationSummary> GetReservationSummaries( int locationId )
+        /// <returns>List&lt;ReservationSummary&gt;.</returns>
+        private List<ReservationSummary> GetReservationSummaries( int locationId )
         {
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
-            var qry = reservationService.Queryable();
+
+            var reservationQueryOptions = new ReservationQueryOptions();
 
             // Filter by Location
-            qry = qry
-                .Where( r =>
-                    r.ReservationLocations.Any( rl => rl.LocationId == locationId ) );
+            reservationQueryOptions.LocationIds = new List<int> { locationId };
 
             // Filter by Approval
             List<ReservationApprovalState> approvalValues = new List<ReservationApprovalState>();
             approvalValues.Add( ReservationApprovalState.Approved );
             if ( approvalValues.Any() )
             {
-                qry = qry
-                    .Where( r =>
-                        approvalValues.Contains( r.ApprovalState ) );
+                reservationQueryOptions.ApprovalStates = approvalValues;
             }
 
             // Filter by Time
@@ -245,7 +242,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var filterStartDateTime = today;
             var filterEndDateTime = today;
 
-            var reservationSummaryList = reservationService.GetReservationSummaries( qry, filterStartDateTime, filterEndDateTime, true );
+            var qry = reservationService.Queryable( reservationQueryOptions );
+
+            var reservationSummaryList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, true );
             return reservationSummaryList;
         }
 

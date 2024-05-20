@@ -20,12 +20,15 @@ using System.Data.Entity;
 using System.Linq;
 using System.Text;
 using Ical.Net;
+using Ical.Net.CalendarComponents;
+using Ical.Net.DataTypes;
 using Ical.Net.Serialization;
 using Rock;
 using Rock.Communication;
 using Rock.Data;
 using Rock.Model;
 using Rock.Web.UI.Controls;
+using TimeZoneConverter;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -44,53 +47,183 @@ namespace com.bemaservices.RoomManagement.Model
 
         #region Reservation Methods
 
-        public IQueryable<Reservation> FilterByMyApprovals( IQueryable<Reservation> qry, int personId )
+        /// <summary>
+        /// Gets an <see cref="T:System.Linq.IQueryable`1" /> list of all models
+        /// with eager loading of the comma-delimited properties specified in includes
+        /// </summary>
+        /// <param name="includes">The includes.</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
+        public override IQueryable<Reservation> Queryable( string includes )
         {
-            // NICK TODO: GetLocationsByApprovalGroupMembership is not returning the locations correctly, I'll probably will need to re-write it
-            var myLocationsToApproveIds = GetLocationIdsByApprovalGroupMembership( personId );
-
-            var myResourcesToApproveIds = GetResourceIdsByApprovalGroupMembership( personId );
-
-            qry = qry.Where( r => 
-                                (
-                                    r.ApprovalState == ReservationApprovalState.PendingInitialApproval &&
-                                    r.ReservationType.ReservationApprovalGroups
-                                        .Where( ag =>
-                                            ag.ApprovalGroupType == ApprovalGroupType.InitialApprovalGroup &&
-                                            ( ag.CampusId == null || ag.CampusId == r.CampusId )
-                                            )
-                                        .SelectMany( ag => ag.ApprovalGroup.Members )
-                                        .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
-                                ) ||
-                                (
-                                    r.ApprovalState == ReservationApprovalState.PendingFinalApproval &&
-                                    r.ReservationType.ReservationApprovalGroups
-                                        .Where( ag =>
-                                            ag.ApprovalGroupType == ApprovalGroupType.FinalApprovalGroup &&
-                                            ( ag.CampusId == null || ag.CampusId == r.CampusId )
-                                            )
-                                        .SelectMany( ag => ag.ApprovalGroup.Members )
-                                        .Any( m => m.PersonId == personId && m.GroupMemberStatus == GroupMemberStatus.Active )
-                                ) ||
-                                (
-                                    r.ApprovalState == ReservationApprovalState.PendingSpecialApproval &&
-                                    (
-                                        r.ReservationLocations
-                                            .Where( rl => rl.ApprovalState == ReservationLocationApprovalState.Unapproved )
-                                            .Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
-                                        r.ReservationResources
-                                            .Where( rr => rr.ApprovalState == ReservationResourceApprovalState.Unapproved )
-                                            .Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) )
-                                    )
-
-                                )
-                            );
-            return qry;
+            return Queryable( includes, new ReservationQueryOptions() );
         }
 
-        public IQueryable<Reservation> FilterByMyReservations( IQueryable<Reservation> qry, int personId )
+        /// <summary>
+        /// Gets an <see cref="T:System.Linq.IQueryable`1" /> list of all models
+        /// Note: You can sometimes improve performance by using Queryable().AsNoTracking(), but be careful. Lazy-Loading doesn't always work with AsNoTracking  https://stackoverflow.com/a/20290275/1755417
+        /// </summary>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
+        public override IQueryable<Reservation> Queryable()
         {
-            qry = qry.Where( r => r.AdministrativeContactPersonAlias.PersonId == personId || r.EventContactPersonAlias.PersonId == personId );
+            return Queryable( new ReservationQueryOptions() );
+        }
+
+        /// <summary>
+        /// Queryables the specified reservation query options.
+        /// </summary>
+        /// <param name="reservationQueryOptions">The reservation query options.</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
+        public IQueryable<Reservation> Queryable( ReservationQueryOptions reservationQueryOptions )
+        {
+            return this.Queryable( null, reservationQueryOptions );
+        }
+
+        /// <summary>
+        /// Queryables the specified includes.
+        /// </summary>
+        /// <param name="includes">The includes.</param>
+        /// <param name="reservationQueryOptions">The reservation query options.</param>
+        /// <returns>IQueryable&lt;Reservation&gt;.</returns>
+        private IQueryable<Reservation> Queryable( string includes, ReservationQueryOptions reservationQueryOptions )
+        {
+            var qry = base.Queryable( includes );
+
+            reservationQueryOptions = reservationQueryOptions ?? new ReservationQueryOptions();
+
+            if ( reservationQueryOptions.Name.IsNotNullOrWhiteSpace() )
+            {
+                qry = qry.Where( r => r.Name.Contains( reservationQueryOptions.Name ) );
+            }
+
+            if ( reservationQueryOptions.ReservationTypeIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry.Where( r => reservationQueryOptions.ReservationTypeIds.Contains( r.ReservationTypeId ) );
+            }
+
+            if ( reservationQueryOptions.ReservationIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry.Where( r => reservationQueryOptions.ReservationIds.Contains( r.Id ) );
+            }
+
+            if ( reservationQueryOptions.CampusIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry
+                   .Where( r =>
+                       !r.CampusId.HasValue ||    // All
+                       reservationQueryOptions.CampusIds.Contains( r.CampusId.Value ) );
+            }
+
+            if ( reservationQueryOptions.MinistryIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry
+                    .Where( r =>
+                        !r.ReservationMinistryId.HasValue ||    // All
+                        reservationQueryOptions.MinistryIds.Contains( r.ReservationMinistry.Id ) );
+            }
+
+            if ( reservationQueryOptions.MinistryNames.Any() )
+            {
+                qry = qry
+                    .Where( r =>
+                        !r.ReservationMinistryId.HasValue ||    // All
+                        reservationQueryOptions.MinistryNames.Contains( r.ReservationMinistry.Name ) );
+            }
+
+            if ( reservationQueryOptions.LocationIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry.Where( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && reservationQueryOptions.LocationIds.Contains( rl.LocationId ) ) );
+            }
+
+            if ( reservationQueryOptions.ResourceIds.Where( Id => Id != 0 ).Any() )
+            {
+                qry = qry.Where( r => r.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && reservationQueryOptions.ResourceIds.Contains( rr.ResourceId ) ) );
+            }
+
+            if ( reservationQueryOptions.ApprovalStates.Any() )
+            {
+                qry = qry.Where( r => reservationQueryOptions.ApprovalStates.Contains( r.ApprovalState ) );
+            }
+
+            if ( reservationQueryOptions.ApprovalsByPersonId != null )
+            {
+                var approvalPersonId = reservationQueryOptions.ApprovalsByPersonId.Value;
+
+                // NICK TODO: GetLocationsByApprovalGroupMembership is not returning the locations correctly, I'll probably will need to re-write it
+                var myLocationsToApproveIds = GetLocationIdsByApprovalGroupMembership( approvalPersonId );
+
+                var myResourcesToApproveIds = GetResourceIdsByApprovalGroupMembership( approvalPersonId );
+
+                qry = qry.Where( r =>
+                                    (
+                                        r.ApprovalState == ReservationApprovalState.PendingInitialApproval &&
+                                        r.ReservationType.ReservationApprovalGroups
+                                            .Where( ag =>
+                                                ag.ApprovalGroupType == ApprovalGroupType.InitialApprovalGroup &&
+                                                ( ag.CampusId == null || ag.CampusId == r.CampusId )
+                                                )
+                                            .SelectMany( ag => ag.ApprovalGroup.Members )
+                                            .Any( m => m.PersonId == approvalPersonId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                    ) ||
+                                    (
+                                        r.ApprovalState == ReservationApprovalState.PendingFinalApproval &&
+                                        r.ReservationType.ReservationApprovalGroups
+                                            .Where( ag =>
+                                                ag.ApprovalGroupType == ApprovalGroupType.FinalApprovalGroup &&
+                                                ( ag.CampusId == null || ag.CampusId == r.CampusId )
+                                                )
+                                            .SelectMany( ag => ag.ApprovalGroup.Members )
+                                            .Any( m => m.PersonId == approvalPersonId && m.GroupMemberStatus == GroupMemberStatus.Active )
+                                    ) ||
+                                    (
+                                        r.ApprovalState == ReservationApprovalState.PendingSpecialApproval &&
+                                        (
+                                            r.ReservationLocations
+                                                .Where( rl => rl.ApprovalState == ReservationLocationApprovalState.Unapproved )
+                                                .Any( rl => ( myLocationsToApproveIds.Contains( rl.LocationId ) ) ) ||
+                                            r.ReservationResources
+                                                .Where( rr => rr.ApprovalState == ReservationResourceApprovalState.Unapproved )
+                                                .Any( rr => ( myResourcesToApproveIds.Contains( rr.ResourceId ) ) )
+                                        )
+
+                                    )
+                                );
+            }
+
+            if ( reservationQueryOptions.CreatorPersonId.HasValue )
+            {
+                qry = qry
+                    .Where( r =>
+                        r.CreatedByPersonAlias != null &&
+                        r.CreatedByPersonAlias.PersonId != null &&
+                        r.CreatedByPersonAlias.PersonId == reservationQueryOptions.CreatorPersonId.Value );
+            }
+
+            if ( reservationQueryOptions.EventContactPersonId.HasValue )
+            {
+                qry = qry
+                    .Where( r =>
+                        r.EventContactPersonAlias != null &&
+                        r.EventContactPersonAlias.PersonId != null &&
+                        r.EventContactPersonAlias.PersonId == reservationQueryOptions.EventContactPersonId.Value );
+            }
+
+            if ( reservationQueryOptions.AdministrativeContactPersonId.HasValue )
+            {
+                qry = qry
+                    .Where( r =>
+                        r.AdministrativeContactPersonAlias != null &&
+                        r.AdministrativeContactPersonAlias.PersonId != null &&
+                        r.AdministrativeContactPersonAlias.PersonId == reservationQueryOptions.AdministrativeContactPersonId.Value );
+            }
+
+            if ( reservationQueryOptions.ReservationsByPersonId != null )
+            {
+                qry = qry.Where( r =>
+                    r.AdministrativeContactPersonAlias.PersonId == reservationQueryOptions.ReservationsByPersonId.Value ||
+                    r.EventContactPersonAlias.PersonId == reservationQueryOptions.ReservationsByPersonId.Value
+                    );
+            }
+
             return qry;
         }
 
@@ -101,82 +234,11 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="filterStartDateTime">The filter start date time.</param>
         /// <param name="filterEndDateTime">The filter end date time.</param>
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
-        /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public List<ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false )
+        /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
+        /// <returns>List&lt;Model.ReservationSummary&gt;.</returns>
+        public List<Model.ReservationSummary> GetReservationSummaries( IQueryable<Reservation> qry, DateTime filterStartDateTime, DateTime filterEndDateTime, bool roundToDay = false, bool includeAttributes = false )
         {
-            var reservationSummaryList = new List<ReservationSummary>();
-
-            if ( qry == null )
-            {
-                return reservationSummaryList;
-            }
-
-            var qryStartDateTime = filterStartDateTime.AddMonths( -1 );
-            var qryEndDateTime = filterEndDateTime.AddMonths( 1 );
-            if ( roundToDay )
-            {
-                filterEndDateTime = filterEndDateTime.AddDays( 1 ).AddMilliseconds( -1 );
-            }
-
-            var reservations = qry
-                .Where( r => r.FirstOccurrenceStartDateTime == null || r.FirstOccurrenceStartDateTime <= filterEndDateTime )
-                .Where( r => r.LastOccurrenceEndDateTime == null || r.LastOccurrenceEndDateTime >= filterStartDateTime )
-                .Where( r => r.Schedule.iCalendarContent.Contains( "RRULE" ) || r.Schedule.iCalendarContent.Contains( "RDATE" ) ||
-                        (
-                            r.Schedule.EffectiveStartDate >= qryStartDateTime &&
-                            r.Schedule.EffectiveEndDate <= qryEndDateTime )
-                        )
-                        .ToList();
-
-            var reservationsWithDates = reservations
-                .Select( r => new ReservationDate
-                {
-                    Reservation = r,
-                    ReservationDateTimes = r.GetReservationTimes( qryStartDateTime, qryEndDateTime )
-                } )
-                .Where( r => r.ReservationDateTimes.Any() )
-                .ToList();
-
-            foreach ( var reservationWithDates in reservationsWithDates )
-            {
-                var reservation = reservationWithDates.Reservation;
-                foreach ( var reservationDateTime in reservationWithDates.ReservationDateTimes )
-                {
-                    var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
-                    var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
-
-                    if (
-                        ( ( reservationStartDateTime >= filterStartDateTime ) || ( reservationEndDateTime >= filterStartDateTime ) ) &&
-                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) ) )
-                    {
-                        reservationSummaryList.Add( new ReservationSummary
-                        {
-                            Id = reservation.Id,
-                            ReservationType = reservation.ReservationType,
-                            ApprovalState = reservation.ApprovalState,
-                            ReservationName = reservation.Name,
-                            ReservationLocations = reservation.ReservationLocations.ToList(),
-                            ReservationResources = reservation.ReservationResources.ToList(),
-                            EventStartDateTime = reservationDateTime.StartDateTime,
-                            EventEndDateTime = reservationDateTime.EndDateTime,
-                            ReservationStartDateTime = reservationStartDateTime,
-                            ReservationEndDateTime = reservationEndDateTime,
-                            EventDateTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime, reservationDateTime.EndDateTime ),
-                            EventTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime, reservationDateTime.EndDateTime, false ),
-                            ReservationDateTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 ), reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 ) ),
-                            ReservationTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 ), reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 ), false ),
-                            ReservationMinistry = reservation.ReservationMinistry,
-                            EventContactPersonAlias = reservation.EventContactPersonAlias,
-                            EventContactEmail = reservation.EventContactEmail,
-                            EventContactPhoneNumber = reservation.EventContactPhone,
-                            SetupPhotoId = reservation.SetupPhotoId,
-                            Note = reservation.Note,
-                            RequesterAlias = reservation.RequesterAlias
-                        } );
-                    }
-                }
-            }
-            return reservationSummaryList;
+            return qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, roundToDay, includeAttributes );
         }
 
         /// <summary>
@@ -185,7 +247,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="newReservation">The new reservation.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
         /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private IEnumerable<ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, bool arePotentialConflictsReturned = false )
+        private IEnumerable<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, bool arePotentialConflictsReturned = false )
         {
             return GetConflictingReservationSummaries( newReservation, Queryable(), arePotentialConflictsReturned );
         }
@@ -197,49 +259,15 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="existingReservationQry">The existing reservation qry.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
         /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private IEnumerable<ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
+        private List<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
         {
-            var newReservationSummaries = GetReservationSummaries( new List<Reservation>() { newReservation }.AsQueryable(), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
-            var conflictingSummaryList = GetReservationSummaries( existingReservationQry.AsNoTracking().Where( r => r.Id != newReservation.Id
-                                                                    && r.ApprovalState != ReservationApprovalState.Denied
-                                                                    && r.ApprovalState != ReservationApprovalState.Draft
-                                                                    && r.ApprovalState != ReservationApprovalState.Cancelled
-                                                                    && (
-                                                                        ( arePotentialConflictsReturned == false && ( !r.ReservationType.IsReservationBookedOnApproval || r.ApprovalState == ReservationApprovalState.Approved ) ) ||
-                                                                        ( arePotentialConflictsReturned == true && r.ReservationType.IsReservationBookedOnApproval && r.ApprovalState != ReservationApprovalState.Approved )
-                                                                        )
-                                                        ), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) )
-                .Where( currentReservationSummary => newReservationSummaries.Any( newReservationSummary =>
-                 ( currentReservationSummary.ReservationStartDateTime > newReservationSummary.ReservationStartDateTime || currentReservationSummary.ReservationEndDateTime > newReservationSummary.ReservationStartDateTime ) &&
-                 ( currentReservationSummary.ReservationStartDateTime < newReservationSummary.ReservationEndDateTime || currentReservationSummary.ReservationEndDateTime < newReservationSummary.ReservationEndDateTime )
-                 ) );
-            return conflictingSummaryList;
-        }
+            var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
+            var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
 
-        /// <summary>
-        /// Gets the friendly schedule description.
-        /// </summary>
-        /// <param name="startDateTime">The start date time.</param>
-        /// <param name="endDateTime">The end date time.</param>
-        /// <param name="showDate">if set to <c>true</c> [show date].</param>
-        /// <returns>System.String.</returns>
-        public string GetFriendlyScheduleDescription( DateTime startDateTime, DateTime endDateTime, bool showDate = true )
-        {
-            if ( startDateTime.Date == endDateTime.Date )
-            {
-                if ( showDate )
-                {
-                    return String.Format( "{0} {1} - {2}", startDateTime.ToString( "MM/dd" ), startDateTime.ToString( "hh:mmt" ).ToLower(), endDateTime.ToString( "hh:mmt" ).ToLower() );
-                }
-                else
-                {
-                    return String.Format( "{0} - {1}", startDateTime.ToString( "hh:mmt" ).ToLower(), endDateTime.ToString( "hh:mmt" ).ToLower() );
-                }
-            }
-            else
-            {
-                return String.Format( "{0} {1} - {2} {3}", startDateTime.ToString( "MM/dd/yy" ), startDateTime.ToString( "hh:mmt" ).ToLower(), endDateTime.ToString( "MM/dd/yy" ), endDateTime.ToString( "hh:mmt" ).ToLower() );
-            }
+            var newReservationSummaries = newReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+
+            return existingReservationSummaries.WhereConflictsExist( newReservationSummaries );
         }
 
         /// <summary>
@@ -284,13 +312,15 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // Check resources...
-            foreach ( var resource in reservation.ReservationResources )
+            var resources = reservation.ReservationResources.Select( rr => rr.Resource ).Distinct().ToList();
+            foreach ( var resource in resources )
             {
-                var availableQuantity = GetAvailableResourceQuantity( resource.Resource, reservation, arePotentialConflictsReturned );
-                if ( availableQuantity.HasValue && availableQuantity - resource.Quantity < 0 )
+                var reservationQuantity = reservation.ReservationResources.Where( rr => rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );
+                var availableQuantity = GetAvailableResourceQuantity( resource, reservation, arePotentialConflictsReturned );
+                if ( availableQuantity.HasValue && availableQuantity - reservationQuantity < 0 )
                 {
-                    message = BuildResourceConflictHtmlList( reservation, resource.Resource.Id, detailPageRoute, arePotentialConflictsReturned );
-                    sb.AppendFormat( "<li>{0} [note: only {1} available] due to:<ul>{2}</ul></li>", resource.Resource.Name, availableQuantity, message );
+                    message = BuildResourceConflictHtmlList( reservation, resource.Id, detailPageRoute, arePotentialConflictsReturned );
+                    sb.AppendFormat( "<li>{0} [note: only {1} available] due to:<ul>{2}</ul></li>", resource.Name, availableQuantity, message );
                     hasConflict = true;
                 }
             }
@@ -708,7 +738,7 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // Check existing Reservations for conflicts
-            IEnumerable<ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
 
             // Grab any locations booked by conflicting Reservations
             var reservedLocationIds = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
@@ -750,7 +780,7 @@ namespace com.bemaservices.RoomManagement.Model
             var existingReservationQry = Queryable().Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
 
             // Check existing Reservations for conflicts
-            IEnumerable<ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
             var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
                     currentReservationSummary.ReservationLocations.Where( rl =>
                         rl.ApprovalState != ReservationLocationApprovalState.Denied &&
@@ -864,29 +894,15 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
                 // now) which have the given resource in them.
-                var existingReservationSummaries = GetReservationSummaries(
-                    Queryable().AsNoTracking()
-                    .Where( r => r.Id != reservation.Id
-                            && r.ApprovalState != ReservationApprovalState.Denied
-                            && r.ApprovalState != ReservationApprovalState.Cancelled
-                            && r.ApprovalState != ReservationApprovalState.Draft
-                            && (
-                                ( arePotentialConflictsReturned == false && ( !r.ReservationType.IsReservationBookedOnApproval || r.ApprovalState == ReservationApprovalState.Approved ) ) ||
-                                ( arePotentialConflictsReturned == true && r.ReservationType.IsReservationBookedOnApproval && r.ApprovalState != ReservationApprovalState.Approved )
-                                )
-                            && r.ReservationResources.Any( rr => resource.Id == rr.ResourceId )
-                            ),
-                    RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
+                var existingReservationSummaries = existingValidReservations.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
 
                 // Now narrow the reservations down to only the ones in the matching/overlapping time frame
-                var reservedQuantities = GetReservationSummaries( new List<Reservation>() { reservation }.AsQueryable(), RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) )
+                var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
+                var newReservationSummaries = newReservationList.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+                var reservedQuantities = newReservationSummaries
                     .Select( newReservationSummary =>
-                        existingReservationSummaries.Where( currentReservationSummary =>
-                         ( currentReservationSummary.ReservationStartDateTime > newReservationSummary.ReservationStartDateTime || currentReservationSummary.ReservationEndDateTime > newReservationSummary.ReservationStartDateTime ) &&
-                         ( currentReservationSummary.ReservationStartDateTime < newReservationSummary.ReservationEndDateTime || currentReservationSummary.ReservationEndDateTime < newReservationSummary.ReservationEndDateTime )
-                        )
-                        .DistinctBy( reservationSummary => reservationSummary.Id )
-                        .Sum( currentReservationSummary => currentReservationSummary.ReservationResources.Where( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resource.Id && rr.Quantity.HasValue ).Sum( rr => rr.Quantity.Value ) )
+                        newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )
                    );
 
                 var maxReservedQuantity = reservedQuantities.Count() > 0 ? reservedQuantities.Max() : 0;
@@ -907,7 +923,7 @@ namespace com.bemaservices.RoomManagement.Model
             var existingReservationQry = Queryable().Where( r => r.ReservationResources.Any( rl => rl.ResourceId == resourceId ) );
 
             // Check existing Reservations for conflicts
-            IEnumerable<ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
             var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
                     currentReservationSummary.ReservationResources.Where( rr =>
                         rr.ApprovalState != ReservationResourceApprovalState.Denied &&
@@ -976,6 +992,232 @@ namespace com.bemaservices.RoomManagement.Model
                 " ).ToList<int>();
 
             return results;
+        }
+
+        #endregion
+
+        #region GetReservationCalendarFeed
+
+        /// <summary>
+        /// Creates the i calendar.
+        /// </summary>
+        /// <param name="reservationCalendarOptions">The reservation calendar options.</param>
+        /// <returns>System.String.</returns>
+        public string CreateICalendar( ReservationCalendarOptions reservationCalendarOptions )
+        {
+            // Get a list of Rock Reservations that match the specified filter.
+            var reservations = this.Queryable( reservationCalendarOptions )
+                .Where( r => r.Schedule.EffectiveStartDate <= reservationCalendarOptions.EndDate && reservationCalendarOptions.StartDate <= r.Schedule.EffectiveEndDate )
+                .ToList();
+
+            // Create the iCalendar.
+            var icalendar = new Calendar();
+
+            // Specify the calendar timezone using the Internet Assigned Numbers Authority (IANA) identifier, because most third-party applications
+            // require this to interpret event times correctly.
+            var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
+            icalendar.AddTimeZone( VTimeZone.FromDateTimeZone( timeZoneId ) );
+
+            // Create each of the events for the calendar(s)
+            foreach ( var reservation in reservations )
+            {
+                if ( reservation.Schedule == null )
+                {
+                    continue;
+                }
+
+                string locations = null;
+                if ( reservation.ReservationLocations.Any() )
+                {
+                    locations = reservation.ReservationLocations.Select( x => x.Location.Name ).JoinStrings( ", " );
+                }
+
+                var ical = CalendarCollection.Load( reservation.Schedule.iCalendarContent.ToStreamReader() );
+                foreach ( var icalEvent in ical[0].Events )
+                {
+                    // We get all of the schedule info from Schedule.iCalendarContent
+                    var ievent = icalEvent.Copy<CalendarEvent>();
+                    ievent.Summary = !string.IsNullOrEmpty( reservation.Name ) ? reservation.Name : string.Empty;
+                    ievent.Location = !string.IsNullOrEmpty( locations ) ? locations : string.Empty;
+                    ievent.Uid = reservation.Guid.ToString();
+
+                    // Determine the start and end time for the event.
+                    // For an all-day event, omit the End date.
+                    // see https://stackoverflow.com/questions/1716237/single-day-all-day-appointments-in-ics-files
+                    ievent.Start = new CalDateTime( icalEvent.Start.Value, timeZoneId );
+
+                    if ( !ievent.Start.HasTime
+                        && ( ievent.End != null && !ievent.End.HasTime )
+                        && ievent.Duration == null || ievent.Duration.Ticks == 0 )
+                    {
+                        ievent.End = null;
+                    }
+                    else
+                    {
+                        ievent.End = new CalDateTime( icalEvent.End.Value, timeZoneId );
+                    }
+
+                    /*
+                        2022-10-19 - DL
+
+                        This code contains a number of workarounds for exporting recurring events in a format that can be processed by
+                        external calendar applications such as Microsoft Outlook, namely:
+                        1. The iCalendar PERIOD type is not recognized by some applications.
+                           We need to ensure that recurrence settings are always specified using the DATE type.
+                        2. Exception dates must have exactly the same start time and time zone as the template event, and the time zone
+                           must be expressed as an IANA name.
+                        3. Duplicate events may be imported if the template event date is also included in the list of recurrence dates.
+                           We need to remove the template event date (DTSTART) from the list of recurrences (RDATE).
+                        4. If a set of ad-hoc recurrence dates exist, events for these dates may not be created unless
+                           a recurrence rule also exists.
+
+                         Reason: To allow recurring events to be imported correctly to third-party calendar applications.
+                    */
+
+                    // Create the list of exceptions.
+                    // Exceptions must meet RFC 5545 iCalendar specifications to be correctly processed by third-party calendar applications
+                    // such as Microsoft Outlook and Google Calendar. Specifically, an exception must have exactly the same start time
+                    // and time zone as the template event, and the time zone must be expressed as an IANA name.
+                    // The most recent version of iCal.Net (v2.3.5) that supports .NET framework v4.5.2 has some inconsistencies in the
+                    // iCalendar serialization process, so we need to force the Start, End and Exception dates to render in exactly the same format.
+
+                    var eventStartTime = new TimeSpan( ievent.DtStart.Hour, ievent.DtStart.Minute, ievent.DtStart.Second );
+
+                    ievent.ExceptionDates = ConvertPeriodListElementsToDateType( ievent.ExceptionDates, timeZoneId, eventStartTime );
+
+                    // Microsoft Outlook does not import a recurrence date of type PERIOD, only DATE or DATETIME.
+                    // If the Recurrence Dates do not specify a Start Time, set the start time to the same as the event.
+                    // If this is an all day event, set the Start Time to 12:00am.
+                    ievent.RecurrenceDates = ConvertPeriodListElementsToDateType( ievent.RecurrenceDates, timeZoneId, eventStartTime );
+
+                    // If the recurrence dates include the calendar event start date, remove it.
+                    // If we don't, Microsoft Outlook will create a duplicate entry for that date.
+                    ievent.RecurrenceDates = RemoveDateFromPeriodList( ievent.RecurrenceDates, ievent.DtStart );
+
+                    // If one-time recurrence dates exist, create a placeholder recurrence rule to ensure that the iCalendar file
+                    // can be correctly imported by Outlook.
+                    // Fixes Issue #4112. Refer https://github.com/SparkDevNetwork/Rock/issues/4112
+                    if ( ievent.RecurrenceRules.Count == 0
+                        && ievent.RecurrenceDates.Count > 0 )
+                    {
+                        ievent.RecurrenceRules.Add( new RecurrencePattern( "FREQ=DAILY;COUNT=1" ) );
+                    }
+
+                    string description = reservation.Note;
+
+                    // Don't set the description prop for outlook to force it to use the X-ALT-DESC property which can have markup.
+                    if ( reservationCalendarOptions.ClientDeviceType != "Outlook" )
+                    {
+                        ievent.Description = description.ConvertBrToCrLf()
+                                                            .Replace( "</P>", "" )
+                                                            .Replace( "</p>", "" )
+                                                            .Replace( "<P>", Environment.NewLine )
+                                                            .Replace( "<p>", Environment.NewLine )
+                                                            .Replace( "&nbsp;", " " )
+                                                            .SanitizeHtml();
+                    }
+
+                    // HTML version of the description for outlook
+                    ievent.AddProperty( "X-ALT-DESC;FMTTYPE=text/html", "<html>" + description + "</html>" );
+
+                    // classification: "PUBLIC", "PRIVATE", "CONFIDENTIAL"
+                    ievent.Class = "PUBLIC";
+
+                    // add contact info if it exists
+                    if ( reservation.EventContactPersonAliasId != null )
+                    {
+                        ievent.Organizer = new Organizer( string.Format( "MAILTO:{0}", reservation.EventContactPersonAlias.Person.Email ) );
+                        ievent.Organizer.CommonName = reservation.EventContactPersonAlias.Person.FullName;
+
+                        // Outlook doesn't seems to use Contacts or Comments
+                        string contactName = !string.IsNullOrEmpty( reservation.EventContactPersonAlias.Person.FullName ) ? "Name: " + reservation.EventContactPersonAlias.Person.FullName : string.Empty;
+                        string contactEmail = !string.IsNullOrEmpty( reservation.EventContactEmail ) ? ", Email: " + reservation.EventContactEmail : string.Empty;
+                        string contactPhone = !string.IsNullOrEmpty( reservation.EventContactPhone ) ? ", Phone: " + reservation.EventContactPhone : string.Empty;
+                        string contactInfo = contactName + contactEmail + contactPhone;
+
+                        ievent.Contacts.Add( contactInfo );
+                        ievent.Comments.Add( contactInfo );
+                    }
+
+                    icalendar.Events.Add( ievent );
+                }
+            }
+
+            // Return a serialized iCalendar.
+            var serializer = new CalendarSerializer();
+            var calendarString = serializer.SerializeToString( icalendar );
+
+            return calendarString;
+        }
+
+        /// <summary>
+        /// Convert the elements of a PeriodList from the iCalendar PERIOD type to the DATE type.
+        /// </summary>
+        /// <param name="periodLists">The period lists.</param>
+        /// <param name="tzId">The tz identifier.</param>
+        /// <param name="eventStartTime">The event start time.</param>
+        /// <returns>IList&lt;PeriodList&gt;.</returns>
+        private IList<PeriodList> ConvertPeriodListElementsToDateType( IList<PeriodList> periodLists, string tzId, TimeSpan eventStartTime )
+        {
+            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
+            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
+            var newDatesList = new List<PeriodList>();
+
+            foreach ( var periodList in periodLists )
+            {
+                var newPeriodList = new PeriodList() { TzId = tzId };
+                foreach ( var period in periodList )
+                {
+                    var newDateTime = period.StartTime.HasTime
+                        ? period.StartTime.Value
+                        : period.StartTime.Value.Add( eventStartTime );
+                    newDateTime = new DateTime( newDateTime.Year, newDateTime.Month, newDateTime.Day, newDateTime.Hour, newDateTime.Minute, newDateTime.Second, newDateTime.Millisecond, DateTimeKind.Local );
+
+                    var newDate = new CalDateTime( newDateTime );
+
+                    // Set the HasTime property to ensure that iCal.Net serializes the date value as an iCalendar "DATE" rather than a "PERIOD".
+                    // Microsoft Outlook ignores date values that are expressed using the iCalendar "PERIOD" type.
+                    // (see: MS-STANOICAL - v20210817 - 2.2.86)
+                    newDate.HasTime = true;
+                    var newPeriod = new Period( newDate );
+
+                    newPeriodList.Add( newPeriod );
+                }
+
+                newDatesList.Add( newPeriodList );
+            }
+
+            return newDatesList;
+        }
+
+        /// <summary>
+        /// Removes instances of the specified date from a collection of PeriodList objects.
+        /// </summary>
+        /// <param name="periodLists">The period lists.</param>
+        /// <param name="removeDate">The remove date.</param>
+        /// <returns>IList&lt;PeriodList&gt;.</returns>
+        private IList<PeriodList> RemoveDateFromPeriodList( IList<PeriodList> periodLists, IDateTime removeDate )
+        {
+            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
+            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
+            var newPeriodLists = new List<PeriodList>();
+
+            foreach ( var periodList in periodLists )
+            {
+                var newPeriodList = new PeriodList() { TzId = periodList.TzId };
+                foreach ( var period in periodList )
+                {
+                    if ( period.StartTime.Ticks == removeDate.Ticks )
+                    {
+                        continue;
+                    }
+                    newPeriodList.Add( period );
+                }
+
+                newPeriodLists.Add( newPeriodList );
+            }
+
+            return newPeriodLists;
         }
 
         #endregion
@@ -1050,252 +1292,11 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Holds the view model for a Reservation Summary
         /// </summary>
-        public class ReservationSummary
+        public class ReservationSummary : com.bemaservices.RoomManagement.Model.ReservationSummary
         {
-            /// <summary>
-            /// Gets or sets the identifier.
-            /// </summary>
-            /// <value>The identifier.</value>
-            public int Id { get; set; }
-            /// <summary>
-            /// Gets or sets the type of the reservation.
-            /// </summary>
-            /// <value>The type of the reservation.</value>
-            public ReservationType ReservationType { get; set; }
-            /// <summary>
-            /// Gets or sets the state of the approval.
-            /// </summary>
-            /// <value>The state of the approval.</value>
-            public ReservationApprovalState ApprovalState { get; set; }
-            /// <summary>
-            /// Gets or sets the name of the reservation.
-            /// </summary>
-            /// <value>The name of the reservation.</value>
-            public String ReservationName { get; set; }
-            /// <summary>
-            /// Gets or sets the event date time description.
-            /// </summary>
-            /// <value>The event date time description.</value>
-            public String EventDateTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the event time description.
-            /// </summary>
-            /// <value>The event time description.</value>
-            public String EventTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation date time description.
-            /// </summary>
-            /// <value>The reservation date time description.</value>
-            public String ReservationDateTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation time description.
-            /// </summary>
-            /// <value>The reservation time description.</value>
-            public String ReservationTimeDescription { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation locations.
-            /// </summary>
-            /// <value>The reservation locations.</value>
-            public List<ReservationLocation> ReservationLocations { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation resources.
-            /// </summary>
-            /// <value>The reservation resources.</value>
-            public List<ReservationResource> ReservationResources { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation start date time.
-            /// </summary>
-            /// <value>The reservation start date time.</value>
-            public DateTime ReservationStartDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation end date time.
-            /// </summary>
-            /// <value>The reservation end date time.</value>
-            public DateTime ReservationEndDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the event start date time.
-            /// </summary>
-            /// <value>The event start date time.</value>
-            public DateTime EventStartDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the event end date time.
-            /// </summary>
-            /// <value>The event end date time.</value>
-            public DateTime EventEndDateTime { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation ministry.
-            /// </summary>
-            /// <value>The reservation ministry.</value>
-            public ReservationMinistry ReservationMinistry { get; set; }
-            /// <summary>
-            /// Gets or sets the event contact person alias.
-            /// </summary>
-            /// <value>The event contact person alias.</value>
-            public PersonAlias EventContactPersonAlias { get; set; }
-            /// <summary>
-            /// Gets or sets the event contact phone number.
-            /// </summary>
-            /// <value>The event contact phone number.</value>
-            public String EventContactPhoneNumber { get; set; }
-            /// <summary>
-            /// Gets or sets the event contact email.
-            /// </summary>
-            /// <value>The event contact email.</value>
-            public String EventContactEmail { get; set; }
-            /// <summary>
-            /// Gets or sets the setup photo identifier.
-            /// </summary>
-            /// <value>The setup photo identifier.</value>
-            public int? SetupPhotoId { get; set; }
-            /// <summary>
-            /// Gets or sets the note.
-            /// </summary>
-            /// <value>The note.</value>
-            public string Note { get; set; }
-            /// <summary>
-            /// Gets or sets the requester alias.
-            /// </summary>
-            /// <value>The requester alias.</value>
-            public PersonAlias RequesterAlias { get; set; }
         }
 
-        /// <summary>
-        /// The view model for a Reservation Date
-        /// </summary>
-        public class ReservationDate
-        {
-            /// <summary>
-            /// Gets or sets the reservation.
-            /// </summary>
-            /// <value>The reservation.</value>
-            public Reservation Reservation { get; set; }
-            /// <summary>
-            /// Gets or sets the reservation date times.
-            /// </summary>
-            /// <value>The reservation date times.</value>
-            public List<ReservationDateTime> ReservationDateTimes { get; set; }
-        }
 
-        /// <summary>
-        /// The view model for a Reservation Conflict
-        /// </summary>
-        public class ReservationConflict
-        {
-            /// <summary>
-            /// Gets or sets the location identifier.
-            /// </summary>
-            /// <value>The location identifier.</value>
-            public int LocationId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the location.
-            /// </summary>
-            /// <value>The location.</value>
-            public Location Location { get; set; }
-
-            /// <summary>
-            /// Gets or sets the resource identifier.
-            /// </summary>
-            /// <value>The resource identifier.</value>
-            public int ResourceId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the resource.
-            /// </summary>
-            /// <value>The resource.</value>
-            public Resource Resource { get; set; }
-
-            /// <summary>
-            /// Gets or sets the resource quantity.
-            /// </summary>
-            /// <value>The resource quantity.</value>
-            public int ResourceQuantity { get; set; }
-
-            /// <summary>
-            /// Gets or sets the reservation identifier.
-            /// </summary>
-            /// <value>The reservation identifier.</value>
-            public int ReservationId { get; set; }
-
-            /// <summary>
-            /// Gets or sets the reservation.
-            /// </summary>
-            /// <value>The reservation.</value>
-            public Reservation Reservation { get; set; }
-        }
         #endregion
-    }
-
-    /// <summary>
-    /// Extension Methods
-    /// </summary>
-    public static partial class ReservationExtensionMethods
-    {
-        /// <summary>
-        /// Clones this Reservation object to a new Reservation object
-        /// </summary>
-        /// <param name="source">The source.</param>
-        /// <param name="deepCopy">if set to <c>true</c> a deep copy is made. If false, only the basic entity properties are copied.</param>
-        /// <returns>Reservation.</returns>
-        public static Reservation Clone( this Reservation source, bool deepCopy )
-        {
-            if ( deepCopy )
-            {
-                return source.Clone() as Reservation;
-            }
-            else
-            {
-                var target = new Reservation();
-                target.CopyPropertiesFrom( source );
-                return target;
-            }
-        }
-
-        /// <summary>
-        /// Copies the properties from another Reservation object to this Reservation object
-        /// </summary>
-        /// <param name="target">The target.</param>
-        /// <param name="source">The source.</param>
-        public static void CopyPropertiesFrom( this Reservation target, Reservation source )
-        {
-            target.Id = source.Id;
-            target.Name = source.Name;
-
-            target.Schedule = source.Schedule;
-            target.ScheduleId = source.ScheduleId;
-
-            target.CampusId = source.CampusId;
-            target.EventItemOccurrenceId = source.EventItemOccurrenceId;
-            target.ReservationMinistryId = source.ReservationMinistryId;
-
-            //target.ApprovalState = source.ApprovalState;
-            target.RequesterAliasId = source.RequesterAliasId;
-            //target.ApproverAliasId = source.ApproverAliasId;
-            target.SetupTime = source.SetupTime;
-            target.CleanupTime = source.CleanupTime;
-            target.NumberAttending = source.NumberAttending;
-            target.Note = source.Note;
-            target.SetupPhotoId = source.SetupPhotoId;
-            target.EventContactPersonAlias = source.EventContactPersonAlias;
-            target.EventContactPersonAliasId = source.EventContactPersonAliasId;
-            target.EventContactPhone = source.EventContactPhone;
-            target.EventContactEmail = source.EventContactEmail;
-            target.AdministrativeContactPersonAlias = source.AdministrativeContactPersonAlias;
-            target.AdministrativeContactPersonAliasId = source.AdministrativeContactPersonAliasId;
-            target.AdministrativeContactPhone = source.AdministrativeContactPhone;
-            target.AdministrativeContactEmail = source.AdministrativeContactEmail;
-
-            target.ReservationLocations = source.ReservationLocations;
-            target.ReservationResources = source.ReservationResources;
-
-            target.CreatedDateTime = source.CreatedDateTime;
-            target.ModifiedDateTime = source.ModifiedDateTime;
-            target.CreatedByPersonAliasId = source.CreatedByPersonAliasId;
-            target.ModifiedByPersonAliasId = source.ModifiedByPersonAliasId;
-            target.Guid = source.Guid;
-            target.ForeignId = source.ForeignId;
-            target.ForeignGuid = source.ForeignGuid;
-            target.ForeignKey = source.ForeignKey;
-        }
     }
 }

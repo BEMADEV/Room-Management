@@ -14,18 +14,25 @@
 // limitations under the License.
 // </copyright>
 //
-namespace com.bemaservices.RoomManagement.SystemGuid
-{
+using System.Collections.Generic;
+using Rock.Model;
 
+namespace com.bemaservices.RoomManagement.Model
+{
     /// <summary>
-    /// Defined Types
+    /// The view model for a Reservation Date
     /// </summary>
-    public static class DefinedType
+    public class ReservationDate
     {
         /// <summary>
-        /// The ministry
+        /// Gets or sets the reservation.
         /// </summary>
-        public const string MINISTRY = "B6DC9824-FA8C-4B0F-AD82-F720F4FCFF24";
-
+        /// <value>The reservation.</value>
+        public Reservation Reservation { get; set; }
+        /// <summary>
+        /// Gets or sets the reservation date times.
+        /// </summary>
+        /// <value>The reservation date times.</value>
+        public List<ReservationDateTime> ReservationDateTimes { get; set; }
     }
 }

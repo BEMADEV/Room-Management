@@ -35,6 +35,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             UpdateSpecialApprovalAttributes();
         }
 
+        /// <summary>
+        /// Updates the special approval attributes.
+        /// </summary>
         private void UpdateSpecialApprovalAttributes()
         {
             Sql( @"
@@ -79,6 +82,9 @@ Notes: {{ reservation.Note }}<br/>
             
         }
 
+        /// <summary>
+        /// Updates the approval workflow lava.
+        /// </summary>
         private void UpdateApprovalWorkflowLava()
         {
             RockMigrationHelper.AddActionTypeAttributeValue( "DB6E99A9-D680-48B7-BCFF-5DDF88D3DEB5", "F1F6F9D6-FDC5-489C-8261-4B9F45B3EED4", @"{% assign groupsNotified = 0 %}

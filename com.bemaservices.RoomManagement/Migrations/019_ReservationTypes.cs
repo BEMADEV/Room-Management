@@ -253,13 +253,13 @@ namespace com.bemaservices.RoomManagement.Migrations
 
             Sql( @"
                 ALTER TABLE [dbo].[_com_bemaservices_RoomManagement_ReservationMinistry] DROP CONSTRAINT [FK__com_bemaservices_RoomManagement_Reservation_ReservationTypeId]
-                ALTER TABLE[dbo].[_com_bemaservices_RoomManagement_Reservation] DROP COLUMN[ReservationTypeId]
+                ALTER TABLE[dbo].[_com_bemaservices_RoomManagement_ReservationMinistry] DROP COLUMN[ReservationTypeId]
 
                 ALTER TABLE [dbo].[_com_bemaservices_RoomManagement_Reservation] DROP CONSTRAINT [FK__com_bemaservices_RoomManagement_ReservationMinistry_ReservationTypeId]
                 ALTER TABLE[dbo].[_com_bemaservices_RoomManagement_Reservation] DROP COLUMN[ReservationTypeId]
 
                 ALTER TABLE [dbo].[_com_bemaservices_RoomManagement_ReservationWorkflowTrigger] DROP CONSTRAINT [FK__com_bemaservices_RoomManagement_ReservationWorkflowTrigger_ReservationTypeId]
-                ALTER TABLE[dbo].[_com_bemaservices_RoomManagement_Reservation] DROP COLUMN[ReservationTypeId]
+                ALTER TABLE[dbo].[_com_bemaservices_RoomManagement_ReservationWorkflowTrigger] DROP COLUMN[ReservationTypeId]
 " );
             Sql( @"
                 ALTER TABLE [dbo].[_com_bemaservices_RoomManagement_ReservationType] DROP CONSTRAINT [FK__com_bemaservices_RoomManagement_ReservationType_FinalApprovalGroupId]

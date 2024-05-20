@@ -84,7 +84,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     {% endif %}
 </div>" )]
 
-    public partial class ReservationDetail : Rock.Web.UI.RockBlock, IDetailBlock
+    [BooleanField(
+        "Is Additional Info Expanded By Default"
+        , Key = "IsAdditionalInfoExpanded"
+        , DefaultBooleanValue = false
+		, Order = 2 )]
+
+    public partial class ReservationDetail : Rock.Web.UI.RockBlock
     {
         #region Fields
 
@@ -307,7 +313,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             };
 
             ViewState["ReservationType"] = JsonConvert.SerializeObject( ReservationType, Formatting.None, jsonSetting );
-            ViewState["ResourcesState"] = JsonConvert.SerializeObject( ResourcesState, Formatting.None, jsonSetting );
+            ViewState["ResourcesState"] = JsonConvert.SerializeObject( ResourcesState, typeof( List<ReservationResourceSummary> ), Formatting.None, jsonSetting );
             ViewState["LocationsState"] = JsonConvert.SerializeObject( LocationsState, Formatting.None, jsonSetting );
             ViewState["ModifiedDateTime"] = JsonConvert.SerializeObject( ModifiedDateTime, Formatting.None, jsonSetting );
 
@@ -492,6 +498,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservationResource.Reservation = reservationService.Get( reservation.Id );
                     reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
                     reservationResource.ReservationId = reservation.Id;
+
+                    if ( reservationResourceState.ReservationLocationGuid != null )
+                    {
+                        var reservationResourceLocation = reservation.ReservationLocations.Where( rl => reservationResourceState.ReservationLocationGuid == rl.Guid ).FirstOrDefault();
+                        if ( reservationResourceLocation != null )
+                        {
+                            reservationResource.ReservationLocation = reservationResourceLocation;
+                            reservationResource.ReservationLocationId = reservationResourceLocation.Id;
+                        }
+                    }
                 }
 
                 if ( reservation.ReservationType.ResourceRequirement == ReservationTypeRequirement.Require && !reservation.ReservationResources.Any() )
@@ -517,7 +533,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         return;
                     }
 
-                    if( newSchedule.iCalendarContent != oldIcalContent )
+                    if ( newSchedule.iCalendarContent != oldIcalContent )
                     {
                         reservation.Schedule = newSchedule;
                         History.EvaluateChange( changes, "Schedule", oldReservation.GetFriendlyReservationScheduleText(), reservation.GetFriendlyReservationScheduleText() );
@@ -649,7 +665,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         if ( phAttributes != null )
                         {
                             reservationResource.LoadReservationResourceAttributes();
-                            Rock.Attribute.Helper.GetEditValues( phAttributes, reservationResource );
+                            GetResourceEditValues( phAttributes, reservationResource );
                         }
                     }
                 }
@@ -891,11 +907,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             hfReservationId.Value = "0";
 
             LocationsState = new List<ReservationLocationSummary>();
+            Dictionary<Guid, Guid> locationMappings = new Dictionary<Guid, Guid>();
             foreach ( var reservationLocation in newItem.ReservationLocations.ToList() )
             {
                 var rlSummary = new ReservationLocationSummary();
                 rlSummary.CopyPropertiesFrom( reservationLocation );
-                rlSummary.Guid = Guid.NewGuid();
+
+                var newGuid = Guid.NewGuid();
+                locationMappings.Add( reservationLocation.Guid, newGuid );
+                rlSummary.Guid = newGuid;
+
                 LocationsState.Add( rlSummary );
             }
 
@@ -905,6 +926,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var rrSummary = new ReservationResourceSummary();
                 rrSummary.CopyPropertiesFrom( reservationResource );
                 rrSummary.Guid = Guid.NewGuid();
+
+                var oldLocationGuid = reservationResource?.ReservationLocation?.Guid;
+                if ( oldLocationGuid != null && locationMappings.ContainsKey( oldLocationGuid.Value ) )
+                {
+                    rrSummary.ReservationLocationGuid = locationMappings[oldLocationGuid.Value];
+                }
+
                 ResourcesState.Add( rrSummary );
             }
 
@@ -914,10 +942,34 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnDeny control.
+        /// Handles the Click event of the btnOverride control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void btnOverride_Click( object sender, EventArgs e )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var reservationService = new ReservationService( rockContext );
+
+                var reservation = reservationService.Get( hfReservationId.ValueAsInt() );
+                if ( reservation != null )
+                {
+                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
+
+                    reservation.ApprovalState = ReservationApprovalState.Approved;
+                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                }
+
+                ShowDetail( hfReservationId.ValueAsInt() );
+            }
+        }
+
+        /// <summary>
+        /// Handles the Click event of the btnDeny control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnDeny_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -941,7 +993,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnApprove control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnApprove_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -992,7 +1044,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnRequestChanges control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnRequestChanges_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1023,7 +1075,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnSubmit control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnSubmit_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1063,7 +1115,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnCancelReservation control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnCancelReservation_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1123,7 +1175,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ValueChanged event of the approval toggle. If the reservation is set to approved, it will iterate through each resource and location and approve the ones the user has access to approve.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void hfApprovalState_ValueChanged( object sender, EventArgs e )
         {
             if ( PageParameter( "ReservationId" ).AsIntegerOrNull() != null )
@@ -1188,52 +1240,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void srpResource_SelectItem( object sender, EventArgs e )
         {
-            // On Item selected, set maximum value on the quantity number box and display it somewhere
-            var rockContext = new RockContext();
-            var resource = new ResourceService( rockContext ).Get( srpResource.SelectedValueAsId() ?? 0 );
-            if ( resource != null )
-            {
-                var newReservation = new Reservation() { Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-                var availableQuantity = new ReservationService( rockContext ).GetAvailableResourceQuantity( resource, newReservation );
-                if ( availableQuantity.HasValue )
-                {
-                    nbQuantity.Visible = true;
-                    nbQuantity.MaximumValue = availableQuantity.ToString();
-                    nbQuantity.Label = String.Format( "Quantity ({0} of {1} Available)", availableQuantity, resource.Quantity );
-                    if ( availableQuantity >= 1 )
-                    {
-                        nbQuantity.Enabled = true;
-
-                        if ( string.IsNullOrWhiteSpace( nbQuantity.Text ) )
-                        {
-                            nbQuantity.Text = "1";
-                        }
-                    }
-                    else
-                    {
-                        nbQuantity.MinimumValue = "0";
-                        nbQuantity.Enabled = false;
-                    }
-                }
-                else
-                {
-                    nbQuantity.Required = false;
-                    nbQuantity.Visible = false;
-                }
-
-            }
-
-            LoadResourceConflictMessage();
-
-            if ( resource.Note.IsNotNullOrWhiteSpace() )
-            {
-                nbResourceNote.Text = resource.Note;
-                nbResourceNote.Visible = true;
-            }
-            else
-            {
-                nbResourceNote.Visible = false;
-            }
+            LoadResourcePopup();
+        }
+		
+        /// <summary>
+        /// Handles the SelectedIndexChanged event of the ddlReservationLocation control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void ddlReservationLocation_SelectedIndexChanged( object sender, EventArgs e )
+        {
+            LoadResourcePopup();
         }
 
         /// <summary>
@@ -1252,7 +1269,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SaveThenAddClick event of the dlgReservationResource control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dlgReservationResource_SaveThenAddClick( object sender, EventArgs e )
         {
             SaveReservationResource();
@@ -1303,11 +1320,31 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             nbError.Visible = false;
             nbQuantity.Label = "Quantity";
 
+            ddlReservationLocation.Items.Clear();
+            ddlReservationLocation.Items.Add( new ListItem( string.Empty, string.Empty ) );
+            foreach ( var reservationLocation in LocationsState )
+            {
+                ddlReservationLocation.Items.Add( new ListItem( reservationLocation.Location.Name, reservationLocation.Guid.ToString() ) );
+            }
+
             ReservationResourceSummary reservationResource = ResourcesState.FirstOrDefault( l => l.Guid.Equals( reservationResourceGuid ) );
             if ( reservationResource != null )
             {
                 nbQuantity.Text = reservationResource.Quantity.ToString();
                 srpResource.SetValue( reservationResource.ResourceId );
+
+                if ( reservationResource.Resource.Location != null )
+                {
+                    ddlReservationLocation.Visible = false;
+                }
+                else
+                {
+                    ddlReservationLocation.Visible = true;
+                    if ( reservationResource.ReservationLocationGuid != null )
+                    {
+                        ddlReservationLocation.SetValue( reservationResource.ReservationLocationGuid.ToStringSafe() );
+                    }
+                }
 
                 if ( reservationResource.Resource.Note.IsNotNullOrWhiteSpace() )
                 {
@@ -1327,7 +1364,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             hfAddReservationResourceGuid.Value = reservationResourceGuid.ToString();
             hfActiveDialog.Value = "dlgReservationResource";
-            LoadResourceConflictMessage();
+            LoadResourcePopup();
 
             dlgReservationResource.Show();
         }
@@ -1350,7 +1387,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             Hydrate( ResourcesState, new RockContext() );
             gResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
-            gResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.Resource.Name ) );
+            gResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.LocationName ).ThenBy( r => r.Resource.Name ) );
             gResources.DataBind();
         }
 
@@ -1485,7 +1522,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( reservationResource != null )
             {
                 var hlApprovalStatus = e.Row.FindControl( "hlApprovalStatus" ) as HighlightLabel;
-                if ( hlApprovalStatus != null && reservationResource.ApprovalState != null )
+                if ( hlApprovalStatus != null )
                 {
                     hlApprovalStatus.Text = reservationResource.ApprovalState.ConvertToString();
                     switch ( reservationResource.ApprovalState )
@@ -1864,14 +1901,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the RowDataBound event of the gViewLocations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
         protected void gViewLocations_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             var reservationLocation = e.Row.DataItem as ReservationLocationSummary;
             if ( reservationLocation != null )
             {
                 var hlApprovalStatus = e.Row.FindControl( "hlApprovalStatus" ) as HighlightLabel;
-                if ( hlApprovalStatus != null && reservationLocation.ApprovalState != null )
+                if ( hlApprovalStatus != null )
                 {
                     hlApprovalStatus.Text = reservationLocation.ApprovalState.ConvertToString();
                     switch ( reservationLocation.ApprovalState )
@@ -1946,7 +1983,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the RowDataBound event of the gLocationLayouts control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
         protected void gLocationLayouts_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             int? selectedLocationLayoutId = null;
@@ -1997,7 +2034,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the CheckedChanged event of the rbSelected control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void rbSelected_CheckedChanged( object sender, EventArgs e )
         {
             //Clear the existing selected row 
@@ -2137,6 +2174,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 var rrSummary = new ReservationResourceSummary();
                 rrSummary.CopyPropertiesFrom( reservationResource );
+                rrSummary.ReservationLocationGuid = reservationResource?.ReservationLocation?.Guid;
                 ResourcesState.Add( rrSummary );
             }
 
@@ -2238,6 +2276,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             btnDeny.Visible = hasApprovalRightsToState &&
                                 reservation.ApprovalState != ReservationApprovalState.Denied;
 
+            btnOverride.Visible = reservation.ReservationType.HasApprovalRights( CurrentPerson, ApprovalGroupType.OverrideApprovalGroup, reservation.CampusId );
+
             btnCancelReservation.Visible = hasStandardEditRights &&
                                             reservation.ApprovalState != ReservationApprovalState.Cancelled;
 
@@ -2287,14 +2327,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             hfApprovalState.Value = reservation.ApprovalState.ConvertToString();
             LoadAdditionalInfo( false, true );
 
-            divViewLocations.Visible = !(ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any());
+            divViewLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
             gViewLocations.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationLocation>().Id;
             gViewLocations.SetLinqDataSource( LocationsState.AsQueryable().OrderBy( l => l.Location.Name ) );
             gViewLocations.DataBind();
 
-            divViewResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any());
+            Hydrate( ResourcesState, new RockContext() );
+            divViewResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any() );
             gViewResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
-            gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.Resource.Name ) );
+            gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.LocationName ).ThenBy( r => r.Resource.Name ) );
             gViewResources.DataBind();
 
             if ( ReservationType != null )
@@ -2389,6 +2430,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 LoadAdditionalInfo( resetControls: true );
+                wpAdditionalInfo.Expanded = GetAttributeValue( "IsAdditionalInfoExpanded" ).AsBoolean();
+
 
                 ddlCampus.Items.Clear();
                 ddlCampus.Items.Add( new ListItem( string.Empty, string.Empty ) );
@@ -2409,7 +2452,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ddlMinistry.SetValue( reservation.ReservationMinistryId );
 
                 ddlReservationType.Items.Clear();
-                foreach ( var reservationType in new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where(m=> m.IsActive).OrderBy( m => m.Name ).ToList() )
+                foreach ( var reservationType in new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where( m => m.IsActive ).OrderBy( m => m.Name ).ToList() )
                 {
                     if ( reservationType.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
                     {
@@ -2557,31 +2600,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var rockContext = new RockContext();
             RequiredAdditionalInfoFieldCount = AdditionalInfoFieldCount = 0;
-            var locationService = new LocationService( rockContext );
-            var locationLayoutService = new LocationLayoutService( rockContext );
-            var resourceService = new ResourceService( rockContext );
-            var reservationService = new ReservationService( rockContext );
 
             if ( LocationsState == null || ResourcesState == null )
             {
                 return;
             }
 
-            foreach ( var reservationLocation in LocationsState )
-            {
-                reservationLocation.Reservation = reservationService.Get( reservationLocation.ReservationId );
-                reservationLocation.Location = locationService.Get( reservationLocation.LocationId );
-                if ( reservationLocation.LocationLayoutId.HasValue )
-                {
-                    reservationLocation.LocationLayout = locationLayoutService.Get( reservationLocation.LocationLayoutId.Value );
-                }
-            }
+            Hydrate( LocationsState, rockContext );
 
-            foreach ( var reservationResource in ResourcesState )
-            {
-                reservationResource.Reservation = reservationService.Get( reservationResource.ReservationId );
-                reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
-            }
+            Hydrate( ResourcesState, rockContext );
 
             BuildReservationQuestions( isEditMode, resetControls );
 
@@ -3310,7 +3337,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( slpLocation.SelectedValueAsId().HasValue )
             {
                 var location = new LocationService( new RockContext() ).Get( slpLocation.SelectedValueAsId().Value );
-                if ( location != null)
+                if ( location != null )
                 {
                     var lavaTemplate = GetAttributeValue( "LocationDetailTemplate" );
 
@@ -3490,16 +3517,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="rowGuid">The row unique identifier.</param>
         private void RemoveLocation( Guid rowGuid )
         {
-            // check for attached resources and remove them too
             var reservationLocation = LocationsState.FirstOrDefault( a => a.Guid == rowGuid );
             if ( reservationLocation != null )
             {
+                // check for attached resources and remove them too
                 var attachedResources = new ResourceService( new RockContext() ).Queryable().Where( r => r.Location.Id == reservationLocation.LocationId );
                 if ( attachedResources.Any() )
                 {
                     foreach ( var resource in attachedResources )
                     {
                         var item = ResourcesState.FirstOrDefault( a => a.ResourceId == resource.Id );
+                        if ( item != null )
+                        {
+                            ResourcesState.Remove( item );
+                            var headControlResource = phResourceAnswers.FindControl( "cReservationResource_" + item.Guid.ToString() ) as Control;
+                            if ( headControlResource != null )
+                            {
+                                phResourceAnswers.Controls.Remove( headControlResource );
+                            }
+                        }
+                    }
+                    BindReservationResourcesGrid();
+                }
+
+                // check for assigned resources and remove them too
+                var assignedReservationResourceGuids = ResourcesState.Where( r => r.ReservationLocationGuid == reservationLocation.Guid ).Select( r => r.Guid ).ToList();
+                if ( assignedReservationResourceGuids.Any() )
+                {
+                    foreach ( var assignedReservationResourceGuid in assignedReservationResourceGuids )
+                    {
+                        var item = ResourcesState.FirstOrDefault( a => a.Guid == assignedReservationResourceGuid );
                         if ( item != null )
                         {
                             ResourcesState.Remove( item );
@@ -3534,13 +3581,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var locationService = new LocationService( rockContext );
             var reservationService = new ReservationService( rockContext );
+            var locationLayoutService = new LocationLayoutService( rockContext );
+
             foreach ( var reservationLocation in locationsState )
             {
                 reservationLocation.Reservation = reservationService.Get( reservationLocation.ReservationId );
                 reservationLocation.Location = locationService.Get( reservationLocation.LocationId );
                 if ( reservationLocation.LocationLayoutId.HasValue )
                 {
-                    var locationLayoutService = new LocationLayoutService( rockContext );
                     reservationLocation.LocationLayout = locationLayoutService.Get( reservationLocation.LocationLayoutId.Value );
                 }
             }
@@ -3563,7 +3611,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 phViewResourceAnswers.Controls.Clear();
             }
 
-            foreach ( var reservationResource in ResourcesState )
+            foreach ( var reservationResource in ResourcesState.OrderBy( rr => rr.Resource.Name ).ThenBy( rr => rr.LocationName ) )
             {
                 reservationResource.LoadReservationResourceAttributes();
                 var editableAttributes = isEditMode ? reservationResource.Attributes.Where( a => a.Value.IsAuthorized( Authorization.EDIT, this.CurrentPerson ) ).Select( a => a.Key ).ToList() : new List<string>();
@@ -3596,7 +3644,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         PlaceHolder phAttributes = new PlaceHolder();
                         var headingTitle = new HtmlGenericControl( "h5" );
 
-                        headingTitle.InnerText = reservationResource.Resource.Name;
+
+                        headingTitle.InnerText = String.Format(
+                            "{0}{1}"
+                            , reservationResource.Resource.Name
+                            , reservationResource.LocationName.IsNotNullOrWhiteSpace() ? String.Format( " ({0})", reservationResource.LocationName ) : ""
+                            );
                         hfReservationResourceGuid.Value = reservationResource.Guid.ToString();
 
                         childControl.ID = "cReservationResource_" + reservationResource.Guid.ToString();
@@ -3607,7 +3660,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         if ( isEditMode )
                         {
                             var excludeKeys = reservationResource.Attributes.Where( a => !editableAttributes.Contains( a.Key ) ).Select( a => a.Key ).ToList();
-                            Rock.Attribute.Helper.AddEditControls( reservationResource, phAttributes, reservationResource.IsNew, BlockValidationGroup, excludeKeys );
+                            AddResourceEditControls( reservationResource, phAttributes, reservationResource.IsNew, BlockValidationGroup, excludeKeys );
                             reservationResource.IsNew = false;
                         }
                         else
@@ -3676,18 +3729,54 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <summary>
         /// Loads the resource conflict message when using the resource editor modal.
         /// </summary>
-        private void LoadResourceConflictMessage()
+        private void LoadResourcePopup()
         {
-            StringBuilder sb = new StringBuilder();
-
-            if ( srpResource.SelectedValueAsId().HasValue )
+            // On Item selected, set maximum value on the quantity number box and display it somewhere
+            var rockContext = new RockContext();
+            var resourceId = srpResource.SelectedValueAsId() ?? 0;
+            var resource = new ResourceService( rockContext ).Get( resourceId );
+            if ( resource != null )
             {
-                var rockContext = new RockContext();
-                var resourceId = srpResource.SelectedValueAsId().Value;
-                var resource = new ResourceService( rockContext ).Get( resourceId );
+                var newReservation = new Reservation() { Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
+                var availableQuantity = new ReservationService( rockContext ).GetAvailableResourceQuantity( resource, newReservation );
+                var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
+                Guid reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
+                var reservationQuantity = ResourcesState.Where( rr => rr.Guid != reservationResourceGuid && rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );
 
-                var reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
-                var existingResourceCount = ResourcesState.Where( rr => rr.Guid != reservationResourceGuid && rr.ResourceId == resourceId ).Count();
+                if ( availableQuantity.HasValue )
+                {
+                    availableQuantity = availableQuantity - reservationQuantity;
+                    nbQuantity.Visible = true;
+                    nbQuantity.MaximumValue = availableQuantity.ToString();
+                    nbQuantity.Label = String.Format( "Quantity ({0} of {1} Available)", availableQuantity, resource.Quantity );
+                    if ( availableQuantity >= 1 )
+                    {
+                        nbQuantity.Enabled = true;
+
+                        if ( string.IsNullOrWhiteSpace( nbQuantity.Text ) )
+                        {
+                            nbQuantity.Text = "1";
+                        }
+                    }
+                    else
+                    {
+                        nbQuantity.MinimumValue = "0";
+                        nbQuantity.Enabled = false;
+                    }
+                }
+                else
+                {
+                    nbQuantity.Required = false;
+                    nbQuantity.Visible = false;
+                }
+
+                StringBuilder sb = new StringBuilder();
+                var existingResourceCount = ResourcesState.Where( rr =>
+                        rr.Guid != reservationResourceGuid &&
+                        rr.ResourceId == resourceId &&
+                        rr.ReservationLocationGuid == reservationLocationGuid
+                    )
+                    .Count();
                 if ( existingResourceCount > 0 )
                 {
                     sb.AppendFormat( "{0} has already been added to this reservation", resource.Name );
@@ -3695,8 +3784,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 else
                 {
                     int reservationId = hfReservationId.ValueAsInt();
-                    var newReservation = new Reservation() { Id = reservationId, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-
                     var conflicts = new ReservationService( rockContext ).GetConflictsForResourceId( resource.Id, newReservation );
                     if ( conflicts.Any() )
                     {
@@ -3706,7 +3793,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         sb.AppendFormat( "{0} is already reserved for the scheduled times by the following reservations:<ul>", resource.Name );
                         foreach ( var conflict in conflicts )
                         {
-                            var duration = conflict.Reservation.Schedule.GetCalendarEvent().Duration;
+                            var duration = conflict.Reservation.Schedule.GetICalEvent().Duration;
                             int hours = duration.Hours;
                             int minutes = duration.Minutes;
 
@@ -3722,16 +3809,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         sb.Append( "</ul>" );
                     }
                 }
-            }
 
-            if ( !String.IsNullOrWhiteSpace( sb.ToString() ) )
-            {
-                nbResourceConflicts.Text = sb.ToString();
-                nbResourceConflicts.Visible = true;
-            }
-            else
-            {
-                nbResourceConflicts.Visible = false;
+                if ( !String.IsNullOrWhiteSpace( sb.ToString() ) )
+                {
+                    nbResourceConflicts.Text = sb.ToString();
+                    nbResourceConflicts.Visible = true;
+                }
+                else
+                {
+                    nbResourceConflicts.Visible = false;
+                }
+
+                if ( resource.Location != null )
+                {
+                    ddlReservationLocation.Visible = false;
+                }
+                else
+                {
+                    ddlReservationLocation.Visible = true;
+                }
+
+                if ( resource.Note.IsNotNullOrWhiteSpace() )
+                {
+                    nbResourceNote.Text = resource.Note;
+                    nbResourceNote.Visible = true;
+                }
+                else
+                {
+                    nbResourceNote.Visible = false;
+                }
+
             }
         }
 
@@ -3748,6 +3855,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationResourceSummary reservationResource = null;
                 Guid guid = hfAddReservationResourceGuid.Value.AsGuid();
                 var newQuantity = nbQuantity.Text.AsIntegerOrNull();
+                var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
 
                 if ( !guid.IsEmpty() )
                 {
@@ -3794,7 +3902,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationResource.Quantity = newQuantity;
                 reservationResource.ReservationId = 0;
 
-                var existingResourceCount = ResourcesState.Where( rr => rr.Guid != guid && rr.ResourceId == reservationResource.ResourceId ).Count();
+                ReservationLocation reservationLocation = null;
+                if ( resource.Location != null )
+                {
+                    reservationLocation = LocationsState.Where( rl => rl.LocationId == resource.LocationId ).FirstOrDefault();
+                }
+                else
+                {
+                    if ( reservationLocationGuid != null )
+                    {
+                        reservationLocation = LocationsState.Where( rl => rl.Guid == reservationLocationGuid.Value ).FirstOrDefault();
+                    }
+                }
+                reservationResource.ReservationLocation = reservationLocation;
+                reservationResource.ReservationLocationGuid = reservationLocation?.Guid;
+
+                var existingResourceCount = ResourcesState.Where( rr => rr.Guid != guid && rr.ResourceId == reservationResource.ResourceId && rr.ReservationLocationGuid == reservationResource.ReservationLocationGuid ).Count();
                 if ( existingResourceCount > 0 )
                 {
                     return;
@@ -3847,8 +3970,127 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 reservationResource.Reservation = reservationService.Get( reservationResource.ReservationId );
                 reservationResource.Resource = resourceService.Get( reservationResource.ResourceId );
+                reservationResource.ReservationLocation = LocationsState.Where( rl => rl.Guid == reservationResource.ReservationLocationGuid ).FirstOrDefault();
             }
         }
+
+        #region Custom Attribute Control Create / Parse Methods
+
+        // These are temporary custom methods used instead of the normal Rock.Attribute.Helper methods
+        // since we need to dictate distinct control ids in the format attribute_field_{AttributeId}_{ReservationResourceGuid}.
+        // Potential permanent options include moving questions into the popup modal, but we'll need to figure
+        // out how to display them in view mode. Info button with a popup maybe?
+
+        /// <summary>
+        /// Adds the resource edit controls.
+        /// </summary>
+        /// <param name="reservationResource">The reservation resource.</param>
+        /// <param name="parentControl">The parent control.</param>
+        /// <param name="setValue">if set to <c>true</c> [set value].</param>
+        /// <param name="validationGroup">The validation group.</param>
+        /// <param name="exclude">The exclude.</param>
+        private static void AddResourceEditControls( ReservationResourceSummary reservationResource, Control parentControl, bool setValue, string validationGroup, List<string> exclude )
+        {
+            if ( reservationResource != null && reservationResource.Attributes != null )
+            {
+                exclude = exclude ?? new List<string>();
+                foreach ( var attributeCategory in Rock.Attribute.Helper.GetAttributeCategories( reservationResource, false, false, false ) )
+                {
+                    if ( attributeCategory.Attributes.Where( a => a.IsActive ).Where( a => !exclude.Contains( a.Name ) && !exclude.Contains( a.Key ) ).Select( a => a.Key ).Count() > 0 )
+                    {
+                        var categoryName = attributeCategory.Category != null ? attributeCategory.Category.Name : string.Empty;
+                        var attributeKeys = attributeCategory.Attributes.Where( a => a.IsActive ).Select( a => a.Key ).ToList();
+
+                        AttributeAddEditControlsOptions attributeAddEditControlsOptions = new AttributeAddEditControlsOptions { };
+
+                        attributeAddEditControlsOptions.IncludedAttributes = attributeKeys != null ? reservationResource?.Attributes.Select( a => a.Value ).Where( a => attributeKeys.Contains( a.Key ) ).ToList() : null;
+                        attributeAddEditControlsOptions.ExcludedAttributes = exclude != null ? reservationResource?.Attributes.Select( a => a.Value ).Where( a => exclude.Contains( a.Key ) || exclude.Contains( a.Name ) ).ToList() : null;
+
+                        List<AttributeCache> excludedAttributes = attributeAddEditControlsOptions?.ExcludedAttributes ?? new List<AttributeCache>();
+                        List<AttributeCache> attributes = attributeAddEditControlsOptions?.IncludedAttributes ?? reservationResource.Attributes.Select( a => a.Value ).Where( a => a.Categories.Any( ( CategoryCache c ) => c.Name == categoryName ) ).ToList();
+                        bool showCategoryLabel = attributeAddEditControlsOptions?.ShowCategoryLabel ?? true;
+
+                        bool parentIsDynamic = parentControl is DynamicControlsPanel || parentControl is DynamicPlaceholder;
+                        HtmlGenericControl fieldSet = parentIsDynamic ? new DynamicControlsHtmlGenericControl( "fieldset" ) : new HtmlGenericControl( "fieldset" );
+
+                        parentControl.Controls.Add( fieldSet );
+                        fieldSet.Controls.Clear();
+                        if ( showCategoryLabel && !string.IsNullOrEmpty( categoryName ) )
+                        {
+                            HtmlGenericControl legend = new HtmlGenericControl( "h4" );
+                            fieldSet.Controls.Add( legend );
+
+                            legend.Controls.Clear();
+                            legend.InnerText = categoryName.Trim();
+                        }
+
+                        HtmlGenericControl attributeRow = parentIsDynamic ? new DynamicControlsHtmlGenericControl( "div" ) : new HtmlGenericControl( "div" );
+
+                        foreach ( AttributeCache attribute in attributes )
+                        {
+                            if ( attribute.IsActive && !excludedAttributes.Contains( attribute ) )
+                            {
+                                // Add the control for editing the attribute value
+                                AttributeControlOptions attributeControlOptions = new AttributeControlOptions
+                                {
+                                    SetValue = setValue,
+                                    SetId = true,
+                                    ValidationGroup = validationGroup,
+                                    Value = setValue ? reservationResource.AttributeValues?[attribute.Key]?.Value : null,
+                                    ShowPrePostHtml = ( attributeAddEditControlsOptions?.ShowPrePostHtml ?? true ),
+                                    AttributeControlId = String.Format( "attribute_field_{0}_{1}", attribute.Id, reservationResource.Guid )
+                                };
+
+                                if ( attributeAddEditControlsOptions.RequiredAttributes != null )
+                                {
+                                    attributeControlOptions.Required = attributeAddEditControlsOptions.RequiredAttributes.Any( a => a.Id == attribute.Id );
+                                }
+
+                                attribute.AddControl( fieldSet.Controls, attributeControlOptions );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the resource edit values.
+        /// </summary>
+        /// <param name="parentControl">The parent control.</param>
+        /// <param name="reservationResource">The reservation resource.</param>
+        private static void GetResourceEditValues( Control parentControl, ReservationResource reservationResource )
+        {
+            Dictionary<AttributeCache, Control> attributeEditControls = new Dictionary<AttributeCache, Control>();
+            if ( reservationResource?.Attributes != null )
+            {
+                foreach ( var attributeKeyValue in reservationResource.Attributes )
+                {
+
+                    Control control = parentControl?.FindControl( String.Format( "attribute_field_{0}_{1}", attributeKeyValue.Value.Id, reservationResource.Guid ) );
+                    if ( control != null )
+                    {
+                        attributeEditControls.AddOrIgnore( attributeKeyValue.Value, control );
+                    }
+                }
+            }
+
+            if ( attributeEditControls != null )
+            {
+                foreach ( var attributeEditControl in attributeEditControls )
+                {
+                    var attribute = attributeEditControl.Key;
+                    var control = attributeEditControl.Value;
+                    if ( control != null )
+                    {
+                        var editValue = attribute.FieldType.Field.GetEditValue( control, attribute.QualifierValues );
+                        reservationResource.AttributeValues[attribute.Key] = new AttributeValueCache { AttributeId = attribute.Id, EntityId = reservationResource.Id, Value = editValue };
+                    }
+                }
+            }
+        }
+
+        #endregion
 
         #endregion
 
@@ -3866,7 +4108,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// Gets or sets a value indicating whether this instance is new.
             /// </summary>
             /// <value><c>true</c> if this instance is new; otherwise, <c>false</c>.</value>
+            [JsonProperty]
             public bool IsNew { get; set; }
+
+            /// <summary>
+            /// Gets or sets the reservation location unique identifier.
+            /// </summary>
+            /// <value>The reservation location unique identifier.</value>
+            [JsonProperty]
+            public Guid? ReservationLocationGuid { get; set; }
+
+            /// <summary>
+            /// Gets the name of the location.
+            /// </summary>
+            /// <value>The name of the location.</value>
+            public string LocationName
+            {
+                get
+                {
+                    if ( ReservationLocation != null &&
+                        ReservationLocation.Location != null &&
+                        ReservationLocation.Location.Name.IsNotNullOrWhiteSpace() )
+                    {
+                        return ReservationLocation.Location.Name;
+                    }
+                    else
+                    {
+                        return string.Empty;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -3883,6 +4154,5 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             public bool IsNew { get; set; }
         }
         #endregion
-
     }
 }

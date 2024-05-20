@@ -449,7 +449,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectItem event of the lipLocation control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lipLocation_SelectItem( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "Locations", lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
@@ -460,7 +460,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectItem event of the rpResource control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void rpResource_SelectItem( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "Resources", rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
@@ -515,7 +515,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the TextChanged event of the dpStartDate control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dpStartDate_TextChanged( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "Start Date", dpStartDate.SelectedDate.ToString() );
@@ -527,7 +527,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the TextChanged event of the dpEndDate control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dpEndDate_TextChanged( object sender, EventArgs e )
         {
             this.SetUserPreference( PreferenceKey + "End Date", dpEndDate.SelectedDate.ToString() );
@@ -539,7 +539,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnViewMode control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnViewMode_Click( object sender, EventArgs e )
         {
             var btnViewMode = sender as BootstrapButton;
@@ -556,7 +556,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnAllReservations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnAllReservations_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.All ).ToString();
@@ -568,7 +568,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnMyReservations control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnMyReservations_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.MyReservations ).ToString();
@@ -580,7 +580,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the btnMyApprovals control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnMyApprovals_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.MyApprovals ).ToString();
@@ -592,7 +592,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ItemCommand event of the rptReports control.
         /// </summary>
         /// <param name="source">The source of the event.</param>
-        /// <param name="e">The <see cref="RepeaterCommandEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="RepeaterCommandEventArgs" /> instance containing the event data.</param>
         protected void rptReports_ItemCommand( object source, RepeaterCommandEventArgs e )
         {
             var definedValueId = e.CommandArgument.ToString().AsIntegerOrNull();
@@ -605,7 +605,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the ItemCommand event of the rptViews control.
         /// </summary>
         /// <param name="source">The source of the event.</param>
-        /// <param name="e">The <see cref="RepeaterCommandEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="RepeaterCommandEventArgs" /> instance containing the event data.</param>
         protected void rptViews_ItemCommand( object source, RepeaterCommandEventArgs e )
         {
             var definedValueId = e.CommandArgument.ToString().AsIntegerOrNull();
@@ -639,7 +639,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             HighlightActionButtons( showBy );
 
-            List<ReservationService.ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
+            List<ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
 
             // Bind to Grid
             var reservationSummaries = reservationSummaryList.Select( r => new
@@ -649,8 +649,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationType = r.ReservationType,
                 ApprovalState = r.ApprovalState.ConvertToString(),
                 ApprovalStateInt = r.ApprovalState.ConvertToInt(),
-                Locations = r.ReservationLocations.ToList(),
-                Resources = r.ReservationResources.ToList(),
+                Locations = r.ReservationLocations.OrderBy(rl=> rl.Location.Name).ToList(),
+                Resources = r.ReservationResources.OrderBy( rr => rr.Resource.Name ).ToList(),
+                UnassignedResources = r.UnassignedReservationResources.OrderBy( rr => rr.Resource.Name ).ToList(),
                 CalendarDate = r.EventStartDateTime.ToLongDateString(),
                 EventStartDateTime = r.EventStartDateTime,
                 EventEndDateTime = r.EventEndDateTime,
@@ -761,7 +762,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reportLava = definedValue.GetAttributeValue( "Lava" );
 
             var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
-            List<ReservationService.ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
+            List<ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
 
             if ( !logoFileUrl.ToLower().StartsWith( "http" ) )
             {
@@ -825,7 +826,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Gets the reservation summaries.
         /// </summary>
         /// <returns>List&lt;ReservationService.ReservationSummary&gt;.</returns>
-        private List<ReservationService.ReservationSummary> GetReservationSummaries()
+        private List<ReservationSummary> GetReservationSummaries()
         {
             return GetReservationSummaries( ShowBy.All );
         }
@@ -835,23 +836,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         /// <param name="showBy">The show by.</param>
         /// <returns>List&lt;ReservationService.ReservationSummary&gt;.</returns>
-        private List<ReservationService.ReservationSummary> GetReservationSummaries( ShowBy showBy )
+        private List<ReservationSummary> GetReservationSummaries( ShowBy showBy )
         {
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var locationService = new LocationService( rockContext );
-            var qry = reservationService.Queryable();
+
+            var reservationQueryOptions = new ReservationQueryOptions();
 
             // Do additional filtering based on the ShowBy selection (My Reservations, My Approvals)
             switch ( showBy )
             {
                 case ShowBy.MyReservations:
-                    qry = reservationService.FilterByMyReservations( qry, CurrentPerson.Id );
+                    reservationQueryOptions.ReservationsByPersonId = CurrentPerson.Id;
                     break;
                 case ShowBy.MyApprovals:
                     if ( CurrentPersonId.HasValue )
                     {
-                        qry = reservationService.FilterByMyApprovals( qry, CurrentPerson.Id );
+                        reservationQueryOptions.ApprovalsByPersonId = CurrentPerson.Id;
                     }
                     break;
                 default:
@@ -859,66 +861,54 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Filter by Resources
-            var resourceIdList = rpResource.SelectedValuesAsInt().ToList();
-            if ( resourceIdList.Where( r => r != 0 ).Any() && rpResource.Visible )
+            if ( rpResource.Visible )
             {
-                qry = qry.Where( r => r.ReservationResources.Any( rr => resourceIdList.Contains( rr.ResourceId ) ) );
+                reservationQueryOptions.ResourceIds = rpResource.SelectedValuesAsInt().ToList();
             }
 
             // Filter by Locations
-            var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
-            foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
+            if ( lipLocation.Visible )
             {
-                locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
-                locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
-            }
-            if ( locationIdList.Where( r => r != 0 ).Any() && lipLocation.Visible )
-            {
-                qry = qry.Where( r => r.ReservationLocations.Any( rr => locationIdList.Contains( rr.LocationId ) ) );
+                var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
+                foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
+                {
+                    locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
+                    locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
+                }
+                reservationQueryOptions.LocationIds = locationIdList;
             }
 
             // Filter by campus
-            List<int> campusIds = cblCampus.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
-            if ( campusIds.Any() && cblCampus.Visible )
+            if ( cblCampus.Visible )
             {
-                qry = qry
-                    .Where( r =>
-                        !r.CampusId.HasValue ||    // All
-                        campusIds.Contains( r.CampusId.Value ) );
+                reservationQueryOptions.CampusIds = cblCampus.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
             }
 
             // Filter by Ministry
-            List<String> ministryNames = cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Text ).ToList();
-            if ( ministryNames.Any() && cblMinistry.Visible )
+            if ( cblMinistry.Visible )
             {
-                qry = qry
-                    .Where( r =>
-                        !r.ReservationMinistryId.HasValue ||    // All
-                        ministryNames.Contains( r.ReservationMinistry.Name ) );
+                reservationQueryOptions.MinistryNames = cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Text ).ToList();
             }
 
             // Filter by Approval
-            List<ReservationApprovalState> approvalValues = cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>() ).ToList();
-            if ( approvalValues.Any() && cblApproval.Visible )
+            if ( cblApproval.Visible )
             {
-                qry = qry
-                    .Where( r =>
-                        approvalValues.Contains( r.ApprovalState ) );
+                reservationQueryOptions.ApprovalStates = cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>() ).ToList();
             }
 
             // Filter by Reservation Type
-            List<int> reservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
-            if ( reservationTypeIds.Any() && cblReservationType.Visible )
+            if ( cblReservationType.Visible )
             {
-                qry = qry
-                    .Where( r => reservationTypeIds.Contains( r.ReservationTypeId ) );
+                reservationQueryOptions.ReservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
             }
+
+            var qry = reservationService.Queryable( reservationQueryOptions );
 
             // Filter by Time
             var today = RockDateTime.Today;
             var filterStartDateTime = FilterStartDate.HasValue ? FilterStartDate.Value : today;
             var filterEndDateTime = FilterEndDate.HasValue ? FilterEndDate.Value : today.AddMonths( 1 );
-            var reservationSummaryList = reservationService.GetReservationSummaries( qry, filterStartDateTime, filterEndDateTime, true );
+            var reservationSummaryList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, true );
             return reservationSummaryList;
         }
 
@@ -1040,7 +1030,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             // Setup Reservation Type Filter
             rcwReservationType.Visible = GetAttributeValue( "ReservationTypeFilterDisplayMode" ).AsInteger() > 1;
-            cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where(rt=> rt.IsActive).ToList();
+            cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where( rt => rt.IsActive ).ToList();
             cblReservationType.DataBind();
 
             if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Reservation Type" ) ) )

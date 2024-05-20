@@ -89,7 +89,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the AddClick event of the gResources control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         private void gResources_AddClick( object sender, EventArgs e )
         {
             var parms = new Dictionary<string, string>();

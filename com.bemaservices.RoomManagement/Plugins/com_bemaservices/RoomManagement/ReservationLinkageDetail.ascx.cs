@@ -360,7 +360,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbEvent control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbEvent_Click( object sender, EventArgs e )
         {
             SetActiveWizardStep( ActiveWizardStep.Event );
@@ -370,7 +370,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbEventOccurrence control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbEventOccurrence_Click( object sender, EventArgs e )
         {
             SetActiveWizardStep( ActiveWizardStep.EventOccurrence );
@@ -380,7 +380,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbPrev_Event control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbPrev_Event_Click( object sender, EventArgs e )
         {
             ExitWizard();
@@ -400,7 +400,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbNext_Event control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbNext_Event_Click( object sender, EventArgs e )
         {
             if ( ( tglEventSelection.Checked ) || ( eipSelectedEvent.SelectedValueAsId() != null ) )
@@ -417,7 +417,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbPrev_EventOccurrence control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbPrev_EventOccurrence_Click( object sender, EventArgs e )
         {
             SetActiveWizardStep( ActiveWizardStep.Event );
@@ -427,7 +427,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbNext_EventOccurrence control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbNext_EventOccurrence_Click( object sender, EventArgs e )
         {
             SetActiveWizardStep( ActiveWizardStep.Summary );
@@ -437,7 +437,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbPrev_Summary control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbPrev_Summary_Click( object sender, EventArgs e )
         {
             if ( ( tglEventSelection.Checked ) || ( eipSelectedEvent.SelectedValueAsId() != null ) )
@@ -454,7 +454,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbNext_Summary control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbNext_Summary_Click( object sender, EventArgs e )
         {
             SetActiveWizardStep( ActiveWizardStep.Finished );
@@ -466,7 +466,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the CheckedChanged event of the tglEventSelection control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void tglEventSelection_CheckedChanged( object sender, EventArgs e )
         {
             if ( tglEventSelection.Checked )
@@ -481,6 +481,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Handles the SelectedIndexChanged event of the eipSelectedEvent control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void eipSelectedEvent_SelectedIndexChanged( object sender, EventArgs e )
         {
             pnlNewOccurrenceSelection.Visible = false;
@@ -515,6 +520,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Handles the CheckedChanged event of the tglOccurrenceSelection control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void tglOccurrenceSelection_CheckedChanged( object sender, EventArgs e )
         {
             if ( tglOccurrenceSelection.Checked )
@@ -533,7 +543,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SaveSchedule event of the sbEventOccurrenceSchedule control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void sbEventOccurrenceSchedule_SaveSchedule( object sender, EventArgs e )
         {
             var schedule = new Schedule { iCalendarContent = sbEventOccurrenceSchedule.iCalendarContent };
@@ -544,7 +554,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectedIndexChanged event of the cblCalendars control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void cblCalendars_SelectedIndexChanged( object sender, EventArgs e )
         {
             Session["CurrentCalendars"] = cblCalendars.SelectedValuesAsInt;
@@ -1155,8 +1165,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                             // Set Calendar.
                             string iCalendarContent = sbEventOccurrenceSchedule.iCalendarContent ?? string.Empty;
-                            var calEvent = ScheduleICalHelper.GetCalendarEvent( iCalendarContent );
-                            if ( calEvent != null && calEvent.DTStart != null )
+                            var calEvent = InetCalendarHelper.CreateCalendarEvent( iCalendarContent );
+                            if ( calEvent != null && calEvent.Start != null )
                             {
                                 if ( eventItemOccurrence.Schedule == null )
                                 {
@@ -1332,7 +1342,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// </summary>
             public string ReservationId, EventId, EventOccurrenceId, ReservationName;
             /// <summary>
-            /// Initializes a new instance of the <see cref="CommitResult"/> class.
+            /// Initializes a new instance of the <see cref="CommitResult" /> class.
             /// </summary>
             public CommitResult()
             {
@@ -1354,7 +1364,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbCreateNewEventLinkage control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbCreateNewEventLinkage_Click( object sender, EventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -1372,7 +1382,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Click event of the lbReturnToReservation control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbReturnToReservation_Click( object sender, EventArgs e )
         {
             ExitWizard();

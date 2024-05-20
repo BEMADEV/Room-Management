@@ -49,7 +49,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [DisplayName( "Reservation Type Detail" )]
     [Category( "BEMA Services > Room Management" )]
     [Description( "Displays the details of the given Reservation Type for editing." )]
-    public partial class ReservationTypeDetail : RockBlock, IDetailBlock
+    public partial class ReservationTypeDetail : RockBlock
     {
         #region Properties
         /// <summary>
@@ -746,7 +746,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the Delete event of the gApprovalGroups control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="RowEventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
         protected void gApprovalGroups_Delete( object sender, RowEventArgs e )
         {
             Guid rowGuid = ( Guid ) e.RowKeyValue;

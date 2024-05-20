@@ -47,7 +47,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Displays the details of the resource." )]
 
-    public partial class ResourceDetail : RockBlock, IDetailBlock
+    public partial class ResourceDetail : RockBlock
     {
         #region Control Methods
 

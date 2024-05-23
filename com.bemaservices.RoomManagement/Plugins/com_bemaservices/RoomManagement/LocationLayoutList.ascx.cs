@@ -126,9 +126,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             using ( var rockContext = new RockContext() )
             {
                 var locationLayoutService = new LocationLayoutService( rockContext );
+                var reservationLocationService = new ReservationLocationService( rockContext );
                 var locationLayout = locationLayoutService.Get( e.RowKeyId );
                 if ( locationLayout != null )
                 {
+                    var reservationLocations = reservationLocationService.Queryable().Where( rl => rl.LocationLayoutId == locationLayout.Id ).ToList();
+                    foreach(var reservationLocation in reservationLocations )
+                    {
+                        reservationLocation.LocationLayoutId = null;
+                        reservationLocation.LocationLayout = null;
+                    }
+
                     locationLayoutService.Delete( locationLayout );
                     rockContext.SaveChanges();
                 }

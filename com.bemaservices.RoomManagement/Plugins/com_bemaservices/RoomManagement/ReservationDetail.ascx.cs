@@ -679,6 +679,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 // Check to make sure there's no conflicts
+                reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
                 var conflictInfo = reservationService.GenerateConflictInfo( reservation, this.CurrentPageReference.Route );
 
                 if ( !string.IsNullOrWhiteSpace( conflictInfo ) )
@@ -687,8 +688,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbError.Visible = true;
                     return;
                 }
-
-                reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
 
                 changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
 

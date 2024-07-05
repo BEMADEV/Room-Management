@@ -264,8 +264,10 @@ namespace com.bemaservices.RoomManagement.Model
             var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
             var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
 
-            var newReservationSummaries = newReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
-            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+            var qryStartTime = newReservation.FirstOccurrenceStartDateTime ?? RockDateTime.Now.AddMonths( -1 );
+            var qryEndTime = newReservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
+            var newReservationSummaries = newReservationQry.GetReservationSummaries( qryStartTime, qryEndTime );
+            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( qryStartTime, qryEndTime );
 
             return existingReservationSummaries.WhereConflictsExist( newReservationSummaries );
         }
@@ -892,14 +894,17 @@ namespace com.bemaservices.RoomManagement.Model
             }
             else
             {
+                var qryStartTime = reservation.FirstOccurrenceStartDateTime ?? RockDateTime.Now.AddMonths( -1 );
+                var qryEndTime = reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
+
                 // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
                 // now) which have the given resource in them.
                 var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
-                var existingReservationSummaries = existingValidReservations.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+                var existingReservationSummaries = existingValidReservations.GetReservationSummaries( qryStartTime, qryEndTime );
 
                 // Now narrow the reservations down to only the ones in the matching/overlapping time frame
                 var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
-                var newReservationSummaries = newReservationList.GetReservationSummaries( RockDateTime.Now.AddMonths( -1 ), RockDateTime.Now.AddYears( 1 ) );
+                var newReservationSummaries = newReservationList.GetReservationSummaries( qryStartTime, qryEndTime );
                 var reservedQuantities = newReservationSummaries
                     .Select( newReservationSummary =>
                         newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )

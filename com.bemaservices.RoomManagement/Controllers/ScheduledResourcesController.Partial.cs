@@ -150,6 +150,7 @@ namespace Rock.Rest.Controllers
                 int parentItemId = id == 0 ? rootCategoryId : id;
 
                 var newReservation = new Reservation() { Id = reservationId ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarContent ), SetupTime = setupTime, CleanupTime = cleanupTime };
+                newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
 
                 var resourceQry = resourceService.Queryable().AsNoTracking();
 

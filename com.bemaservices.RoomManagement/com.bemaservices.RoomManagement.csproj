@@ -135,6 +135,7 @@
     <Compile Include="Migrations\043_Rollup247.cs" />
     <Compile Include="Migrations\042_ModificationFixes.cs" />
     <Compile Include="Migrations\041_RoomDetails.cs" />
+    <Compile Include="Migrations\045_Rollup258.cs" />
     <Compile Include="Migrations\RoomManagementMigration.cs" />
     <Compile Include="Migrations\RoomManagementMigrationHelper.cs" />
     <Compile Include="Migrations\034_Rollup230.cs" />

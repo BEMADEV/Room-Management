@@ -210,7 +210,7 @@ namespace com.bemaservices.RoomManagement.Model
         public ReservationLocationConfiguration()
         {
             this.HasRequired( r => r.Reservation ).WithMany( r => r.ReservationLocations ).HasForeignKey( r => r.ReservationId ).WillCascadeOnDelete( true );
-            this.HasRequired( r => r.Location ).WithMany().HasForeignKey( r => r.LocationId ).WillCascadeOnDelete( false );
+            this.HasRequired( r => r.Location ).WithMany().HasForeignKey( r => r.LocationId ).WillCascadeOnDelete( true );
             this.HasOptional( r => r.LocationLayout ).WithMany().HasForeignKey( r => r.LocationLayoutId ).WillCascadeOnDelete( false );
 
             // IMPORTANT!!

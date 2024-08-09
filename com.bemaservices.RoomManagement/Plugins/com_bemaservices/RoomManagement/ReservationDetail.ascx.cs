@@ -4043,7 +4043,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                                     ValidationGroup = validationGroup,
                                     Value = setValue ? reservationResource.AttributeValues?[attribute.Key]?.Value : null,
                                     ShowPrePostHtml = ( attributeAddEditControlsOptions?.ShowPrePostHtml ?? true ),
-                                    AttributeControlId = String.Format( "attribute_field_{0}_{1}", attribute.Id, reservationResource.Guid )
+                                    AttributeControlId = GetResourceAttributeFieldId( reservationResource.Guid, attribute )
                                 };
 
                                 if ( attributeAddEditControlsOptions.RequiredAttributes != null )
@@ -4059,6 +4059,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        private static string GetResourceAttributeFieldId( Guid reservationResourceGuid, AttributeCache attribute )
+        {
+            return String.Format( "attribute_field_{0}_resource_{1}", attribute.Id, reservationResourceGuid.ToString().Replace("-","_") );
+        }
+
         /// <summary>
         /// Gets the resource edit values.
         /// </summary>
@@ -4071,8 +4076,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 foreach ( var attributeKeyValue in reservationResource.Attributes )
                 {
-
-                    Control control = parentControl?.FindControl( String.Format( "attribute_field_{0}_{1}", attributeKeyValue.Value.Id, reservationResource.Guid ) );
+                    Control control = parentControl?.FindControl( GetResourceAttributeFieldId( reservationResource.Guid, attributeKeyValue.Value ) );
                     if ( control != null )
                     {
                         attributeEditControls.AddOrReplace( attributeKeyValue.Value, control );

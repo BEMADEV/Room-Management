@@ -656,54 +656,57 @@ namespace com.bemaservices.RoomManagement.Model
         /// <returns>Reservation.</returns>
         public Reservation SetFirstLastOccurrenceDateTimes( Reservation reservation )
         {
+
             var beginDateTime = DateTime.MinValue;
             var endDateTime = DateTime.MaxValue;
 
-            var maximumReservationDate = RockDateTime.Now.AddDays( reservation.ReservationType.DefaultReservationDuration );
+            var maximumReservationDate = RockDateTime.Now.AddDays( reservation?.ReservationType?.DefaultReservationDuration ?? 7305 );
 
             var calEvent = reservation.Schedule.GetICalEvent();
-            var countRules = calEvent.RecurrenceRules.Where( rule => rule.Count > 0 );
-
-            DateTime dt1 = new DateTime();
-
-            if ( !countRules.Any() && calEvent.RecurrenceRules.Count > 0 && calEvent.RecurrenceRules[0].Until.Date == dt1 )
+            if ( calEvent != null )
             {
-                calEvent.RecurrenceRules[0].Until = maximumReservationDate;
-                Ical.Net.Calendar calendar = new Calendar();
-                calendar.Events.Add( calEvent );
-                var iCalendarSerializer = new CalendarSerializer( calendar );
-                reservation.Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarSerializer.SerializeToString( calendar ) );
-            }
+                var countRules = calEvent.RecurrenceRules.Where( rule => rule.Count > 0 );
 
-            if ( !calEvent.RecurrenceRules.Any( r => ( r.Until != null && r.Until != DateTime.MinValue ) || ( r.Count != null && r.Count != -2147483648 ) ) )
-            {
-                endDateTime = maximumReservationDate;
-            }
+                DateTime dt1 = new DateTime();
 
-            var occurrences = reservation.GetReservationTimes( beginDateTime, endDateTime ).ToList();
-            if ( occurrences.Count > 0 )
-            {
-                var firstReservationOccurrence = occurrences.First();
-                var lastReservationOccurrence = occurrences.Last();
-
-                try
+                if ( !countRules.Any() && calEvent.RecurrenceRules.Count > 0 && calEvent.RecurrenceRules[0].Until.Date == dt1 )
                 {
-                    reservation.FirstOccurrenceStartDateTime = firstReservationOccurrence.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
-                }
-                catch
-                {
-                    reservation.FirstOccurrenceStartDateTime = firstReservationOccurrence.StartDateTime;
+                    calEvent.RecurrenceRules[0].Until = maximumReservationDate;
+                    Ical.Net.Calendar calendar = new Calendar();
+                    calendar.Events.Add( calEvent );
+                    var iCalendarSerializer = new CalendarSerializer( calendar );
+                    reservation.Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarSerializer.SerializeToString( calendar ) );
                 }
 
-                try
+                if ( !calEvent.RecurrenceRules.Any( r => ( r.Until != null && r.Until != DateTime.MinValue ) || ( r.Count != null && r.Count != -2147483648 ) ) )
                 {
-                    reservation.LastOccurrenceEndDateTime = lastReservationOccurrence.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
-                }
-                catch
-                {
-                    reservation.LastOccurrenceEndDateTime = lastReservationOccurrence.EndDateTime;
+                    endDateTime = maximumReservationDate;
                 }
 
+                var occurrences = reservation.GetReservationTimes( beginDateTime, endDateTime ).ToList();
+                if ( occurrences.Count > 0 )
+                {
+                    var firstReservationOccurrence = occurrences.First();
+                    var lastReservationOccurrence = occurrences.Last();
+
+                    try
+                    {
+                        reservation.FirstOccurrenceStartDateTime = firstReservationOccurrence.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
+                    }
+                    catch
+                    {
+                        reservation.FirstOccurrenceStartDateTime = firstReservationOccurrence.StartDateTime;
+                    }
+
+                    try
+                    {
+                        reservation.LastOccurrenceEndDateTime = lastReservationOccurrence.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
+                    }
+                    catch
+                    {
+                        reservation.LastOccurrenceEndDateTime = lastReservationOccurrence.EndDateTime;
+                    }
+                }
             }
 
             return reservation;
@@ -1016,213 +1019,406 @@ namespace com.bemaservices.RoomManagement.Model
                 .ToList();
 
             // Create the iCalendar.
-            var icalendar = new Calendar();
+            var iCalendar = new Calendar();
 
             // Specify the calendar timezone using the Internet Assigned Numbers Authority (IANA) identifier, because most third-party applications
             // require this to interpret event times correctly.
             var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
-            icalendar.AddTimeZone( VTimeZone.FromDateTimeZone( timeZoneId ) );
+
+            // If the client is Outlook, do not set the basic Event Description property.
+            var setEventDescription = ( reservationCalendarOptions.ClientDeviceType != "Outlook" );
+
+            var startDate = new CalDateTime( reservationCalendarOptions.StartDate, timeZoneId );
+            var endDate = new CalDateTime( reservationCalendarOptions.EndDate, timeZoneId );
 
             // Create each of the events for the calendar(s)
+            var earliestEventDateTime = RockDateTime.Now;
+
             foreach ( var reservation in reservations )
             {
+                var reservationSequenceNo = GetSequenceNumber( reservation.CreatedDateTime, reservation.ModifiedDateTime );
+
                 if ( reservation.Schedule == null )
                 {
                     continue;
                 }
 
-                string locations = null;
-                if ( reservation.ReservationLocations.Any() )
+                // Calculate a Sequence Number for the calendar event.
+                // The iCalendar.SEQUENCE represents the revision number of a specific event occurrence.
+                // Many calendaring applications will not update an existing event with the same iCalendar.Uid
+                // unless the sequence number is greater.
+                // We assign a Sequence Number based on the number of seconds difference between the dates on which the Rock
+                // event components were first created and last modified. The sequence number is an Int32, which allows a valid
+                // range of sequences for 60+ years from the date the event components were created.
+                // There are multiple Rock components that affect the final calendar entries, and the sequence number assigned
+                // to the iCalendar event should be the highest of the sequence numbers calculated for each of these components.
+                // For more information, refer https://icalendar.org/iCalendar-RFC-5545/3-8-7-4-sequence-number.html
+                //
+                var sequenceNo = reservationSequenceNo;
+
+                var occurrenceSequenceNo = GetSequenceNumber( reservation.CreatedDateTime, reservation.ModifiedDateTime );
+                if ( sequenceNo < occurrenceSequenceNo )
                 {
-                    locations = reservation.ReservationLocations.Select( x => x.Location.Name ).JoinStrings( ", " );
+                    sequenceNo = occurrenceSequenceNo;
+                }
+
+                var scheduleSequenceNo = GetSequenceNumber( reservation.Schedule.CreatedDateTime, reservation.Schedule.ModifiedDateTime );
+                if ( sequenceNo < scheduleSequenceNo )
+                {
+                    sequenceNo = scheduleSequenceNo;
+                }
+
+                var firstDateTime = reservation.FirstOccurrenceStartDateTime;
+                if ( earliestEventDateTime < firstDateTime )
+                {
+                    earliestEventDateTime = firstDateTime.Value;
                 }
 
                 var ical = CalendarCollection.Load( reservation.Schedule.iCalendarContent.ToStreamReader() );
-                foreach ( var icalEvent in ical[0].Events )
+                foreach ( var iCalEvent in ical[0].Events )
                 {
-                    // We get all of the schedule info from Schedule.iCalendarContent
-                    var ievent = icalEvent.Copy<CalendarEvent>();
-                    ievent.Summary = !string.IsNullOrEmpty( reservation.Name ) ? reservation.Name : string.Empty;
-                    ievent.Location = !string.IsNullOrEmpty( locations ) ? locations : string.Empty;
-                    ievent.Uid = reservation.Guid.ToString();
+                    var hasSpecificDates = iCalEvent.RecurrenceRules.Count == 0
+                            && iCalEvent.RecurrenceDates.Count > 0;
 
-                    // Determine the start and end time for the event.
-                    // For an all-day event, omit the End date.
-                    // see https://stackoverflow.com/questions/1716237/single-day-all-day-appointments-in-ics-files
-                    ievent.Start = new CalDateTime( icalEvent.Start.Value, timeZoneId );
-
-                    if ( !ievent.Start.HasTime
-                        && ( ievent.End != null && !ievent.End.HasTime )
-                        && ievent.Duration == null || ievent.Duration.Ticks == 0 )
+                    // If the event is not within the requested date range, discard it.
+                    // This may occur if the template event has date values that are not aligned with the recurrence schedule.
+                    if ( iCalEvent.Start.LessThan( startDate ) || iCalEvent.Start.GreaterThan( endDate ) )
                     {
-                        ievent.End = null;
+                        continue;
+                    }
+
+                    iCalEvent.Sequence = sequenceNo;
+
+                    if ( hasSpecificDates )
+                    {
+                        var iCalSpecificDateEvents = GetCalendarEventsForSpecificDates_RecurrenceId( iCalEvent, timeZoneId, reservation, setEventDescription );
+
+                        foreach ( var iCalSpecificDateEvent in iCalSpecificDateEvents )
+                        {
+                            iCalendar.Events.Add( iCalSpecificDateEvent );
+                        }
                     }
                     else
                     {
-                        ievent.End = new CalDateTime( icalEvent.End.Value, timeZoneId );
+                        var iCalEventNew = CopyCalendarEvent( iCalEvent );
+                        SetCalendarEventDetailsFromRockEvent( iCalEventNew, timeZoneId, reservation, setEventDescription );
+
+                        iCalendar.Events.Add( iCalEventNew );
                     }
-
-                    /*
-                        2022-10-19 - DL
-
-                        This code contains a number of workarounds for exporting recurring events in a format that can be processed by
-                        external calendar applications such as Microsoft Outlook, namely:
-                        1. The iCalendar PERIOD type is not recognized by some applications.
-                           We need to ensure that recurrence settings are always specified using the DATE type.
-                        2. Exception dates must have exactly the same start time and time zone as the template event, and the time zone
-                           must be expressed as an IANA name.
-                        3. Duplicate events may be imported if the template event date is also included in the list of recurrence dates.
-                           We need to remove the template event date (DTSTART) from the list of recurrences (RDATE).
-                        4. If a set of ad-hoc recurrence dates exist, events for these dates may not be created unless
-                           a recurrence rule also exists.
-
-                         Reason: To allow recurring events to be imported correctly to third-party calendar applications.
-                    */
-
-                    // Create the list of exceptions.
-                    // Exceptions must meet RFC 5545 iCalendar specifications to be correctly processed by third-party calendar applications
-                    // such as Microsoft Outlook and Google Calendar. Specifically, an exception must have exactly the same start time
-                    // and time zone as the template event, and the time zone must be expressed as an IANA name.
-                    // The most recent version of iCal.Net (v2.3.5) that supports .NET framework v4.5.2 has some inconsistencies in the
-                    // iCalendar serialization process, so we need to force the Start, End and Exception dates to render in exactly the same format.
-
-                    var eventStartTime = new TimeSpan( ievent.DtStart.Hour, ievent.DtStart.Minute, ievent.DtStart.Second );
-
-                    ievent.ExceptionDates = ConvertPeriodListElementsToDateType( ievent.ExceptionDates, timeZoneId, eventStartTime );
-
-                    // Microsoft Outlook does not import a recurrence date of type PERIOD, only DATE or DATETIME.
-                    // If the Recurrence Dates do not specify a Start Time, set the start time to the same as the event.
-                    // If this is an all day event, set the Start Time to 12:00am.
-                    ievent.RecurrenceDates = ConvertPeriodListElementsToDateType( ievent.RecurrenceDates, timeZoneId, eventStartTime );
-
-                    // If the recurrence dates include the calendar event start date, remove it.
-                    // If we don't, Microsoft Outlook will create a duplicate entry for that date.
-                    ievent.RecurrenceDates = RemoveDateFromPeriodList( ievent.RecurrenceDates, ievent.DtStart );
-
-                    // If one-time recurrence dates exist, create a placeholder recurrence rule to ensure that the iCalendar file
-                    // can be correctly imported by Outlook.
-                    // Fixes Issue #4112. Refer https://github.com/SparkDevNetwork/Rock/issues/4112
-                    if ( ievent.RecurrenceRules.Count == 0
-                        && ievent.RecurrenceDates.Count > 0 )
-                    {
-                        ievent.RecurrenceRules.Add( new RecurrencePattern( "FREQ=DAILY;COUNT=1" ) );
-                    }
-
-                    string description = reservation.Note;
-
-                    // Don't set the description prop for outlook to force it to use the X-ALT-DESC property which can have markup.
-                    if ( reservationCalendarOptions.ClientDeviceType != "Outlook" )
-                    {
-                        ievent.Description = description.ConvertBrToCrLf()
-                                                            .Replace( "</P>", "" )
-                                                            .Replace( "</p>", "" )
-                                                            .Replace( "<P>", Environment.NewLine )
-                                                            .Replace( "<p>", Environment.NewLine )
-                                                            .Replace( "&nbsp;", " " )
-                                                            .SanitizeHtml();
-                    }
-
-                    // HTML version of the description for outlook
-                    ievent.AddProperty( "X-ALT-DESC;FMTTYPE=text/html", "<html>" + description + "</html>" );
-
-                    // classification: "PUBLIC", "PRIVATE", "CONFIDENTIAL"
-                    ievent.Class = "PUBLIC";
-
-                    // add contact info if it exists
-                    if ( reservation.EventContactPersonAliasId != null )
-                    {
-                        ievent.Organizer = new Organizer( string.Format( "MAILTO:{0}", reservation.EventContactPersonAlias.Person.Email ) );
-                        ievent.Organizer.CommonName = reservation.EventContactPersonAlias.Person.FullName;
-
-                        // Outlook doesn't seems to use Contacts or Comments
-                        string contactName = !string.IsNullOrEmpty( reservation.EventContactPersonAlias.Person.FullName ) ? "Name: " + reservation.EventContactPersonAlias.Person.FullName : string.Empty;
-                        string contactEmail = !string.IsNullOrEmpty( reservation.EventContactEmail ) ? ", Email: " + reservation.EventContactEmail : string.Empty;
-                        string contactPhone = !string.IsNullOrEmpty( reservation.EventContactPhone ) ? ", Phone: " + reservation.EventContactPhone : string.Empty;
-                        string contactInfo = contactName + contactEmail + contactPhone;
-
-                        ievent.Contacts.Add( contactInfo );
-                        ievent.Comments.Add( contactInfo );
-                    }
-
-                    icalendar.Events.Add( ievent );
                 }
             }
 
+            // Find a non-DST date to use as the earliest supported timezone date, also ensuring that it is not a leap-day.
+            // This is necessary to work around a bug in the iCal.Net framework (v4.2.0).
+            // See https://github.com/rianjs/ical.net/issues/439.
+            var tzInfo = TZConvert.GetTimeZoneInfo( timeZoneId );
+            if ( tzInfo.SupportsDaylightSavingTime )
+            {
+                for ( var i = 0; i < 365; i++ )
+                {
+                    if ( !tzInfo.IsDaylightSavingTime( earliestEventDateTime ) )
+                    {
+                        break;
+                    }
+                    earliestEventDateTime = earliestEventDateTime.AddDays( -1 );
+                };
+            }
+
+            // Ensure that the target date is not a leap-day.
+            // This is necessary to work around a bug in the iCal.Net framework (v4.2.0).
+            if ( earliestEventDateTime.Month == 2 && earliestEventDateTime.Day == 29 )
+            {
+                earliestEventDateTime = earliestEventDateTime.AddDays( -1 );
+            }
+
+            iCalendar.AddTimeZone( VTimeZone.FromDateTimeZone( timeZoneId, earliestEventDateTime, includeHistoricalData: true ) );
+
             // Return a serialized iCalendar.
             var serializer = new CalendarSerializer();
-            var calendarString = serializer.SerializeToString( icalendar );
+            var calendarString = serializer.SerializeToString( iCalendar );
 
             return calendarString;
         }
 
-        /// <summary>
-        /// Convert the elements of a PeriodList from the iCalendar PERIOD type to the DATE type.
-        /// </summary>
-        /// <param name="periodLists">The period lists.</param>
-        /// <param name="tzId">The tz identifier.</param>
-        /// <param name="eventStartTime">The event start time.</param>
-        /// <returns>IList&lt;PeriodList&gt;.</returns>
-        private IList<PeriodList> ConvertPeriodListElementsToDateType( IList<PeriodList> periodLists, string tzId, TimeSpan eventStartTime )
+        private List<CalendarEvent> GetCalendarEventsForSpecificDates_RecurrenceId( CalendarEvent iCalEvent, string timeZoneId, Reservation reservation, bool setEventDescription )
         {
-            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
-            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
-            var newDatesList = new List<PeriodList>();
+            var events = new List<CalendarEvent>();
 
-            foreach ( var periodList in periodLists )
+            var eventStartTime = new TimeSpan( iCalEvent.DtStart.Hour, iCalEvent.DtStart.Minute, iCalEvent.DtStart.Second );
+            var hasDuration = iCalEvent.Duration.TotalMilliseconds > 0;
+
+            var specificDatePeriodList = iCalEvent.RecurrenceDates.FirstOrDefault();
+            if ( specificDatePeriodList.Count == 0 )
             {
-                var newPeriodList = new PeriodList() { TzId = tzId };
-                foreach ( var period in periodList )
-                {
-                    var newDateTime = period.StartTime.HasTime
-                        ? period.StartTime.Value
-                        : period.StartTime.Value.Add( eventStartTime );
-                    newDateTime = new DateTime( newDateTime.Year, newDateTime.Month, newDateTime.Day, newDateTime.Hour, newDateTime.Minute, newDateTime.Second, newDateTime.Millisecond, DateTimeKind.Local );
-
-                    var newDate = new CalDateTime( newDateTime );
-
-                    // Set the HasTime property to ensure that iCal.Net serializes the date value as an iCalendar "DATE" rather than a "PERIOD".
-                    // Microsoft Outlook ignores date values that are expressed using the iCalendar "PERIOD" type.
-                    // (see: MS-STANOICAL - v20210817 - 2.2.86)
-                    newDate.HasTime = true;
-                    var newPeriod = new Period( newDate );
-
-                    newPeriodList.Add( newPeriod );
-                }
-
-                newDatesList.Add( newPeriodList );
+                return events;
             }
 
-            return newDatesList;
+            var firstDateTime = ConvertToCalDateTime( specificDatePeriodList?.First(), eventStartTime );
+            var recurrenceDates = ConvertPeriodListElementsToDateType( specificDatePeriodList, timeZoneId, eventStartTime, iCalEvent.Duration );
+            var totalDateCount = recurrenceDates.Count;
+
+            int dateNo = 0;
+            int sequenceNo = iCalEvent.Sequence;
+
+            CalDateTime recurrenceId;
+
+            // Add the first calendar event to create a recurring daily schedule for the number of specific dates.
+            var iEvent = CopyCalendarEvent( iCalEvent );
+
+            iEvent.DtStart = ConvertToCalDateTime( firstDateTime, timeZoneId );
+
+            SetCalendarEventDetailsFromRockEvent( iEvent, timeZoneId, reservation, setEventDescription );
+
+            iEvent.RecurrenceDates = null;
+            iEvent.RecurrenceRules.Add( new RecurrencePattern( $"FREQ=DAILY;COUNT={totalDateCount}" ) );
+            iEvent.Sequence = sequenceNo;
+
+            events.Add( iEvent );
+
+            // Add subsequent calendar events to reschedule the daily recurrences to the specific dates.
+            // Order these variations to the recurrence schedule from latest to earliest.
+            // If they are not specified in this order, Outlook Web and Google Calendar fail to maintain the entries
+            // as a single recurring series.
+            recurrenceDates = SortPeriodListByStartDateDescending( recurrenceDates );
+
+            // Each of the rescheduled events must have a higher sequence number than the first calendar event.
+            sequenceNo++;
+
+            foreach ( var recurrenceDate in recurrenceDates )
+            {
+                iEvent = CopyCalendarEvent( iCalEvent );
+
+                SetCalendarEventDetailsFromRockEvent( iEvent, timeZoneId, reservation, setEventDescription );
+
+                iEvent.DtStart = ConvertToCalDateTime( recurrenceDate.StartTime, timeZoneId );
+
+                // Reset the All Day event flag, because it is reset by iCal.Net when the DtStart property is assigned.
+                iEvent.IsAllDay = iCalEvent.IsAllDay;
+
+                // Set the EndDateTime, unless this is flagged as an All Day event.
+                if ( !iEvent.IsAllDay && recurrenceDate.EndTime != null )
+                {
+                    iEvent.DtEnd = ConvertToCalDateTime( recurrenceDate.EndTime, timeZoneId );
+                }
+                iEvent.RecurrenceDates = null;
+
+                iEvent.Sequence = sequenceNo;
+
+                // The RecurrenceId should match the date in the daily recurrence pattern that is being rescheduled.
+                // The time component must be omitted, or Google Calendar will fail to match the rescheduled event correctly.
+                var recurrencePatternDate = firstDateTime.AddDays( totalDateCount - 1 ).AddDays( -1 * dateNo );
+                recurrenceId = ConvertToCalDateTime( recurrencePatternDate, null );
+
+                recurrenceId.HasTime = hasDuration;
+
+                iEvent.RecurrenceId = recurrenceId;
+
+                dateNo++;
+
+                events.Add( iEvent );
+            }
+
+            return events;
+        }
+
+        private CalendarEvent SetCalendarEventDetailsFromRockEvent( CalendarEvent iCalEvent, string timeZoneId, Reservation reservation, bool setEventDescription )
+        {
+            string locations = null;
+            if ( reservation.ReservationLocations.Any() )
+            {
+                locations = reservation.ReservationLocations.Select( x => x.Location.Name ).JoinStrings( ", " );
+            }
+
+            // We get all of the schedule info from Schedule.iCalendarContent
+            var ievent = iCalEvent.Copy<CalendarEvent>();
+            ievent.Summary = !string.IsNullOrEmpty( reservation.Name ) ? reservation.Name : string.Empty;
+            ievent.Location = !string.IsNullOrEmpty( locations ) ? locations : string.Empty;
+            ievent.Uid = reservation.Guid.ToString();
+
+            // Determine the start and end time for the event.
+            // For an all-day event, omit the End date.
+            // see https://stackoverflow.com/questions/1716237/single-day-all-day-appointments-in-ics-files
+            iCalEvent.Start = new CalDateTime( iCalEvent.Start.Value, timeZoneId );
+
+            if ( !iCalEvent.Start.HasTime
+                && ( iCalEvent.End != null && !iCalEvent.End.HasTime )
+                && iCalEvent.Duration == null || iCalEvent.Duration.Ticks == 0 )
+            {
+                iCalEvent.End = null;
+            }
+            else
+            {
+                iCalEvent.End = new CalDateTime( iCalEvent.End.Value, timeZoneId );
+            }
+
+            // Rock has more descriptions than iCal so lets concatenate them
+            string description = reservation.Note;
+
+            // Don't set the description prop for outlook to force it to use the X-ALT-DESC property which can have markup.
+            if ( setEventDescription )
+            {
+                iCalEvent.Description = description.ConvertBrToCrLf()
+                                                    .Replace( "</P>", "" )
+                                                    .Replace( "</p>", "" )
+                                                    .Replace( "<P>", Environment.NewLine )
+                                                    .Replace( "<p>", Environment.NewLine )
+                                                    .Replace( "&nbsp;", " " )
+                                                    .SanitizeHtml();
+            }
+
+            // HTML version of the description for outlook
+            iCalEvent.AddProperty( "X-ALT-DESC;FMTTYPE=text/html", "<html>" + description + "</html>" );
+
+            // classification: "PUBLIC", "PRIVATE", "CONFIDENTIAL"
+            iCalEvent.Class = "PUBLIC";
+
+            // add contact info if it exists
+            if ( reservation.EventContactPersonAliasId != null )
+            {
+                ievent.Organizer = new Organizer( string.Format( "MAILTO:{0}", reservation.EventContactPersonAlias.Person.Email ) );
+                ievent.Organizer.CommonName = reservation.EventContactPersonAlias.Person.FullName;
+
+                // Outlook doesn't seems to use Contacts or Comments
+                string contactName = !string.IsNullOrEmpty( reservation.EventContactPersonAlias.Person.FullName ) ? "Name: " + reservation.EventContactPersonAlias.Person.FullName : string.Empty;
+                string contactEmail = !string.IsNullOrEmpty( reservation.EventContactEmail ) ? ", Email: " + reservation.EventContactEmail : string.Empty;
+                string contactPhone = !string.IsNullOrEmpty( reservation.EventContactPhone ) ? ", Phone: " + reservation.EventContactPhone : string.Empty;
+                string contactInfo = contactName + contactEmail + contactPhone;
+
+                ievent.Contacts.Add( contactInfo );
+                ievent.Comments.Add( contactInfo );
+            }
+
+            return iCalEvent;
         }
 
         /// <summary>
-        /// Removes instances of the specified date from a collection of PeriodList objects.
+        /// Convert the elements of an iCal.PeriodList to ensure they use the CalDateTime type.
         /// </summary>
-        /// <param name="periodLists">The period lists.</param>
-        /// <param name="removeDate">The remove date.</param>
-        /// <returns>IList&lt;PeriodList&gt;.</returns>
-        private IList<PeriodList> RemoveDateFromPeriodList( IList<PeriodList> periodLists, IDateTime removeDate )
+        /// <param name="periodList"></param>
+        /// <param name="tzId"></param>
+        /// <param name="eventStartTime"></param>
+        /// <param name="eventDuration"></param>
+        /// <returns></returns>
+        private PeriodList ConvertPeriodListElementsToDateType( PeriodList periodList, string tzId, TimeSpan eventStartTime, TimeSpan? eventDuration )
         {
-            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
-            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
-            var newPeriodLists = new List<PeriodList>();
-
-            foreach ( var periodList in periodLists )
+            if ( eventDuration?.TotalMilliseconds < 1 )
             {
-                var newPeriodList = new PeriodList() { TzId = periodList.TzId };
-                foreach ( var period in periodList )
-                {
-                    if ( period.StartTime.Ticks == removeDate.Ticks )
-                    {
-                        continue;
-                    }
-                    newPeriodList.Add( period );
-                }
-
-                newPeriodLists.Add( newPeriodList );
+                eventDuration = null;
             }
 
-            return newPeriodLists;
+            // It's important to create and return a new PeriodList object here rather than simply removing elements of the existing collection,
+            // because iCal.Net has some issues with synchronising changes to PeriodList elements that cause problems downstream.
+            var newPeriodList = new PeriodList() { TzId = tzId };
+            foreach ( var period in periodList )
+            {
+                var newDateTime = ConvertToCalDateTime( period, eventStartTime );
+
+                Period newPeriod;
+                if ( eventDuration != null )
+                {
+                    newPeriod = new Period( newDateTime, eventDuration.Value );
+                }
+                else
+                {
+                    newPeriod = new Period( newDateTime );
+                }
+
+                newPeriodList.Add( newPeriod );
+            }
+
+            return newPeriodList;
+        }
+
+        private PeriodList SortPeriodListByStartDateDescending( PeriodList periodList )
+        {
+            var sortedPeriods = periodList.OrderByDescending( p => p.StartTime ).ToList();
+
+            var newPeriodList = new PeriodList() { TzId = periodList.TzId };
+            foreach ( var period in sortedPeriods )
+            {
+                newPeriodList.Add( period );
+            }
+
+            return newPeriodList;
+        }
+
+        private CalDateTime ConvertToCalDateTime( Period period, TimeSpan time )
+        {
+            var newDateTime = period.StartTime.HasTime
+                                ? period.StartTime.Value
+                                : period.StartTime.Value.Add( time );
+            newDateTime = new DateTime( newDateTime.Year, newDateTime.Month, newDateTime.Day, newDateTime.Hour, newDateTime.Minute, newDateTime.Second, newDateTime.Millisecond, DateTimeKind.Local );
+
+            var newDate = ConvertToCalDateTime( newDateTime, period.StartTime.TzId );
+
+            return newDate;
+        }
+
+        private CalDateTime ConvertToCalDateTime( IDateTime newDateTime, string tzId )
+        {
+            if ( newDateTime is CalDateTime cdt )
+            {
+                if ( tzId != null )
+                {
+                    cdt.TzId = tzId;
+                }
+                return cdt;
+            }
+
+            var dateTime = new DateTime( newDateTime.Year, newDateTime.Month, newDateTime.Day, newDateTime.Hour, newDateTime.Minute, newDateTime.Second, newDateTime.Millisecond, DateTimeKind.Local );
+
+            var newDate = ConvertToCalDateTime( dateTime, tzId );
+
+            return newDate;
+        }
+
+        private CalDateTime ConvertToCalDateTime( DateTime newDateTime, string tzId )
+        {
+            var newDate = new CalDateTime( newDateTime );
+            if ( tzId != null )
+            {
+                newDate.TzId = tzId;
+            }
+
+            // Set the HasTime property to ensure that iCal.Net serializes the date value as an iCalendar "DATE" rather than a "PERIOD".
+            // Microsoft Outlook ignores date values that are expressed using the iCalendar "PERIOD" type.
+            // (see: MS-STANOICAL - v20210817 - 2.2.86)
+            newDate.HasTime = true;
+
+            return newDate;
+        }
+
+        private int GetSequenceNumber( DateTime? createdDateTime, DateTime? modifiedDateTime )
+        {
+            var minCreatedDateTime = RockDateTime.New( 2020, 1, 1 ).Value;
+
+            createdDateTime = createdDateTime ?? minCreatedDateTime;
+            if ( createdDateTime < minCreatedDateTime )
+            {
+                createdDateTime = minCreatedDateTime;
+            }
+
+            modifiedDateTime = modifiedDateTime ?? createdDateTime;
+            if ( modifiedDateTime < createdDateTime )
+            {
+                modifiedDateTime = createdDateTime;
+            }
+
+            var sequenceNo = ( int ) modifiedDateTime.Value.Subtract( createdDateTime.Value ).TotalSeconds;
+            return sequenceNo;
+        }
+
+        private CalendarEvent CopyCalendarEvent( CalendarEvent iCalEvent )
+        {
+            // The iCal.Net serializer is not thread-safe, so we need to create a new instance for each serialization.
+            // See https://github.com/rianjs/ical.net/issues/553.
+            var serializer = new CalendarSerializer();
+            var iCalString = serializer.SerializeToString( iCalEvent );
+
+            var eventCopy = Calendar.Load<CalendarEvent>( iCalString )
+                .FirstOrDefault();
+
+            return eventCopy;
         }
 
         #endregion

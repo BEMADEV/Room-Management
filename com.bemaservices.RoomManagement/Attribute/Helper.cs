@@ -46,11 +46,11 @@ namespace com.bemaservices.RoomManagement.Attribute
 
             var attributeList = starterReservationLocation.Attributes.Where( kvp => questionAttributeIds.Contains( kvp.Value.Id ) ).ToList();
             reservationLocation.Attributes = new Dictionary<string, Rock.Web.Cache.AttributeCache>();
-            attributeList.ForEach( a => reservationLocation.Attributes.AddOrIgnore( a.Key, a.Value ) );
+            attributeList.ForEach( a => reservationLocation.Attributes.AddOrReplace( a.Key, a.Value ) );
 
             var attributeValueList = starterReservationLocation.AttributeValues.Where( kvp => questionAttributeIds.Contains( kvp.Value.AttributeId ) ).ToList();
             reservationLocation.AttributeValues = new Dictionary<string, Rock.Web.Cache.AttributeValueCache>();
-            attributeValueList.ForEach( a => reservationLocation.AttributeValues.AddOrIgnore( a.Key, a.Value ) );
+            attributeValueList.ForEach( a => reservationLocation.AttributeValues.AddOrReplace( a.Key, a.Value ) );
         }
 
         /// <summary>
@@ -70,11 +70,11 @@ namespace com.bemaservices.RoomManagement.Attribute
 
             var attributeList = starterReservationResource.Attributes.Where( kvp => questionAttributeIds.Contains( kvp.Value.Id ) ).ToList();
             reservationResource.Attributes = new Dictionary<string, Rock.Web.Cache.AttributeCache>();
-            attributeList.ForEach( a => reservationResource.Attributes.AddOrIgnore( a.Key, a.Value ) );
+            attributeList.ForEach( a => reservationResource.Attributes.AddOrReplace( a.Key, a.Value ) );
 
             var attributeValueList = starterReservationResource.AttributeValues.Where( kvp => questionAttributeIds.Contains( kvp.Value.AttributeId ) ).ToList();
             reservationResource.AttributeValues = new Dictionary<string, Rock.Web.Cache.AttributeValueCache>();
-            attributeValueList.ForEach( a => reservationResource.AttributeValues.AddOrIgnore( a.Key, a.Value ) );
+            attributeValueList.ForEach( a => reservationResource.AttributeValues.AddOrReplace( a.Key, a.Value ) );
         }
     }
 

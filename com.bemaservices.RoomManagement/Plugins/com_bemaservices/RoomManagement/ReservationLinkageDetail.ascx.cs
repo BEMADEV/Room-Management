@@ -473,6 +473,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 pnlExistingEvent.Visible = false;
                 pnlNewEvent.Visible = true;
+                pnlExistingOccurrence.Visible= false;
+                pnlNewOccurrence.Visible = true;
+                pnlNewOccurrenceSelection.Visible = false;
             }
             else
             {
@@ -1329,7 +1332,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         #endregion
 
-
         #region Helper Classes
 
         /// <summary>
@@ -1358,7 +1360,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         private enum ActiveWizardStep { ViewReservation, EditReservation, Event, EventOccurrence, Summary, Finished }
         #endregion
-
 
         /// <summary>
         /// Handles the Click event of the lbCreateNewEventLinkage control.

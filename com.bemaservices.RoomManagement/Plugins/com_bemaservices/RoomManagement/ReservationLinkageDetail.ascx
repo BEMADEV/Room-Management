@@ -164,23 +164,23 @@
                 <asp:Panel ID="pnlEventOccurrence" runat="server" Visible="false">
                     <asp:ValidationSummary ID="vsEventOccurrence" ValidationGroup="ReservationEventOccurrence" runat="server" HeaderText="Please correct the following:" CssClass="alert alert-warning" />
                     <fieldset>
-                        <asp:Panel ID="pnlNewOccurrenceSelection" runat="server" Visible="false">
+                        <asp:Panel ID="pnlNewOccurrenceSelection" runat="server">
                             <div class="row">
                                 <div class="col-md-12">
                                     <Rock:Toggle ID="tglOccurrenceSelection" runat="server" ActiveButtonCssClass="btn-primary" OnText="New Occurrence" OffText="Existing Occurrence"
-                                        OnCheckedChanged="tglOccurrenceSelection_CheckedChanged" Checked="false" />
+                                        OnCheckedChanged="tglOccurrenceSelection_CheckedChanged" Checked="true" />
                                     <hr />
                                 </div>
                             </div>
                         </asp:Panel>
-                        <asp:Panel ID="pnlExistingOccurrence" runat="server">
+                        <asp:Panel ID="pnlExistingOccurrence" runat="server" Visible="false">
                             <div class="row">
                                 <div class="col-md-6">
                                     <Rock:RockDropDownList ID="ddlSelectedOccurrence" runat="server" Label="Event" Required="true" ValidationGroup="ReservationEvent" />
                                 </div>
                             </div>
                         </asp:Panel>
-                        <asp:Panel ID="pnlNewOccurrence" runat="server" Visible="false">
+                        <asp:Panel ID="pnlNewOccurrence" runat="server">
                             <div class="row">
                                 <div class="col-md-6">
                                     <Rock:RockTextBox ID="tbLocationDescription" ValidationGroup="ReservationEventOccurrence" runat="server" Label="Location Description" />

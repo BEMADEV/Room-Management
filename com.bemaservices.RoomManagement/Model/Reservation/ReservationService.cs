@@ -1101,7 +1101,7 @@ namespace com.bemaservices.RoomManagement.Model
                     else
                     {
                         var iCalEventNew = CopyCalendarEvent( iCalEvent );
-                        SetCalendarEventDetailsFromRockEvent( iCalEventNew, timeZoneId, reservation, setEventDescription );
+                        SetCalendarEventDetailsFromReservation( iCalEventNew, timeZoneId, reservation, setEventDescription );
 
                         iCalendar.Events.Add( iCalEventNew );
                     }
@@ -1167,7 +1167,7 @@ namespace com.bemaservices.RoomManagement.Model
 
             iEvent.DtStart = ConvertToCalDateTime( firstDateTime, timeZoneId );
 
-            SetCalendarEventDetailsFromRockEvent( iEvent, timeZoneId, reservation, setEventDescription );
+            SetCalendarEventDetailsFromReservation( iEvent, timeZoneId, reservation, setEventDescription );
 
             iEvent.RecurrenceDates = null;
             iEvent.RecurrenceRules.Add( new RecurrencePattern( $"FREQ=DAILY;COUNT={totalDateCount}" ) );
@@ -1188,7 +1188,7 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 iEvent = CopyCalendarEvent( iCalEvent );
 
-                SetCalendarEventDetailsFromRockEvent( iEvent, timeZoneId, reservation, setEventDescription );
+                SetCalendarEventDetailsFromReservation( iEvent, timeZoneId, reservation, setEventDescription );
 
                 iEvent.DtStart = ConvertToCalDateTime( recurrenceDate.StartTime, timeZoneId );
 
@@ -1221,7 +1221,7 @@ namespace com.bemaservices.RoomManagement.Model
             return events;
         }
 
-        private CalendarEvent SetCalendarEventDetailsFromRockEvent( CalendarEvent iCalEvent, string timeZoneId, Reservation reservation, bool setEventDescription )
+        private CalendarEvent SetCalendarEventDetailsFromReservation( CalendarEvent iCalEvent, string timeZoneId, Reservation reservation, bool setEventDescription )
         {
             string locations = null;
             if ( reservation.ReservationLocations.Any() )
@@ -1230,10 +1230,9 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // We get all of the schedule info from Schedule.iCalendarContent
-            var ievent = iCalEvent.Copy<CalendarEvent>();
-            ievent.Summary = !string.IsNullOrEmpty( reservation.Name ) ? reservation.Name : string.Empty;
-            ievent.Location = !string.IsNullOrEmpty( locations ) ? locations : string.Empty;
-            ievent.Uid = reservation.Guid.ToString();
+            iCalEvent.Summary = !string.IsNullOrEmpty( reservation.Name ) ? reservation.Name : string.Empty;
+            iCalEvent.Location = !string.IsNullOrEmpty( locations ) ? locations : string.Empty;
+            iCalEvent.Uid = reservation.Guid.ToString();
 
             // Determine the start and end time for the event.
             // For an all-day event, omit the End date.
@@ -1275,8 +1274,10 @@ namespace com.bemaservices.RoomManagement.Model
             // add contact info if it exists
             if ( reservation.EventContactPersonAliasId != null )
             {
-                ievent.Organizer = new Organizer( string.Format( "MAILTO:{0}", reservation.EventContactPersonAlias.Person.Email ) );
-                ievent.Organizer.CommonName = reservation.EventContactPersonAlias.Person.FullName;
+                iCalEvent.Organizer = new Organizer( string.Format( "MAILTO:{0}", reservation.EventContactPersonAlias.Person.Email ) )
+                {
+                    CommonName = reservation.EventContactPersonAlias.Person.FullName
+                };
 
                 // Outlook doesn't seems to use Contacts or Comments
                 string contactName = !string.IsNullOrEmpty( reservation.EventContactPersonAlias.Person.FullName ) ? "Name: " + reservation.EventContactPersonAlias.Person.FullName : string.Empty;
@@ -1284,8 +1285,8 @@ namespace com.bemaservices.RoomManagement.Model
                 string contactPhone = !string.IsNullOrEmpty( reservation.EventContactPhone ) ? ", Phone: " + reservation.EventContactPhone : string.Empty;
                 string contactInfo = contactName + contactEmail + contactPhone;
 
-                ievent.Contacts.Add( contactInfo );
-                ievent.Comments.Add( contactInfo );
+                iCalEvent.Contacts.Add( contactInfo );
+                iCalEvent.Comments.Add( contactInfo );
             }
 
             return iCalEvent;

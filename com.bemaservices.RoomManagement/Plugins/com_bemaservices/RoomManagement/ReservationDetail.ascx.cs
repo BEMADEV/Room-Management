@@ -3797,7 +3797,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 else
                 {
                     int reservationId = hfReservationId.ValueAsInt();
-                    var conflicts = new ReservationService( rockContext ).GetConflictsForResourceId( resource.Id, newReservation );
+                    var conflicts = reservationService.GetConflictsForResourceId( resource.Id, newReservation );
                     if ( conflicts.Any() )
                     {
                         var route = this.CurrentPageReference.Route; // is either "/page/123" or "ReservationDetail"

@@ -3740,10 +3740,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var resourceId = srpResource.SelectedValueAsId() ?? 0;
             var resource = new ResourceService( rockContext ).Get( resourceId );
+            var reservationService = new ReservationService( rockContext );
             if ( resource != null )
             {
-                var newReservation = new Reservation() { Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-                var availableQuantity = new ReservationService( rockContext ).GetAvailableResourceQuantity( resource, newReservation );
+                var newReservation = new Reservation() {
+                    Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0,
+                    Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ),
+                    SetupTime = nbSetupTime.Text.AsInteger(),
+                    CleanupTime = nbCleanupTime.Text.AsInteger()
+                };
+                newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+
+                var availableQuantity = reservationService.GetAvailableResourceQuantity( resource, newReservation );
                 var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
                 Guid reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
                 var reservationQuantity = ResourcesState.Where( rr => rr.Guid != reservationResourceGuid && rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );

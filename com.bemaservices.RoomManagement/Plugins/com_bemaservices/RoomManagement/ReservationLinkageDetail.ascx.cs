@@ -476,6 +476,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 pnlExistingOccurrence.Visible= false;
                 pnlNewOccurrence.Visible = true;
                 pnlNewOccurrenceSelection.Visible = false;
+                tglOccurrenceSelection.Checked = true;
             }
             else
             {
@@ -501,6 +502,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 if ( eventItemOccurrences.Any() )
                 {
                     pnlNewOccurrenceSelection.Visible = true;
+                    pnlNewOccurrence.Visible = false;
+                    pnlExistingOccurrence.Visible = true;
+                    tglOccurrenceSelection.Checked = false;
+
                     ddlSelectedOccurrence.Items.Clear();
                     foreach ( var eventItemOccurrence in eventItemOccurrences.OrderBy( eio => eio.NextStartDateTime ) )
                     {
@@ -518,7 +523,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         }
 
                         ddlSelectedOccurrence.Items.Add( new ListItem( description.ToString(), eventItemOccurrence.Id.ToString() ) );
-                    }                        
+                    }
+                }
+                else
+                {
+                    pnlExistingOccurrence.Visible = false;
+                    pnlNewOccurrence.Visible = true;
+                    pnlNewOccurrenceSelection.Visible = false;
+                    tglOccurrenceSelection.Checked = true;
                 }
             }
         }

@@ -95,10 +95,11 @@ namespace Rock.Rest.Controllers
             List<TreeViewItem> locationNameList = new List<TreeViewItem>();
 
             var person = GetPerson();
+            var reservationService = new ReservationService( rockContext );
 
             var newReservation = new Reservation() { Id = reservationId ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarContent ), SetupTime = setupTime, CleanupTime = cleanupTime };
-
-            var reservationService = new ReservationService( rockContext );
+            newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+            
             List<int> reservedLocationIds = reservationService.GetReservedLocationIds( newReservation, false, false, false );
             List<int> conflictedLocationIds = reservationService.GetReservedLocationIds( newReservation, false, true, false );
 

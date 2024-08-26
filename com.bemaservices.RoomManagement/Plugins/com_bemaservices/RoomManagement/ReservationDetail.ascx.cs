@@ -123,7 +123,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 if ( baseResourceRestUrl == null )
                 {
                     srpResource.CampusId = ddlCampus.SelectedValueAsInt();
-                    srpResource.SetExtraRestParams( srpResource.ShowAllResources );
+                    srpResource.SetExtraRestParams();
 
                     ViewState["BaseResourceRestUrl"] = srpResource.ItemRestUrlExtraParams;
                     baseResourceRestUrl = srpResource.ItemRestUrlExtraParams;
@@ -679,6 +679,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 // Check to make sure there's no conflicts
+                reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
                 var conflictInfo = reservationService.GenerateConflictInfo( reservation, this.CurrentPageReference.Route );
 
                 if ( !string.IsNullOrWhiteSpace( conflictInfo ) )
@@ -687,8 +688,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbError.Visible = true;
                     return;
                 }
-
-                reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
 
                 changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
 
@@ -817,7 +816,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void ddlCampus_SelectedIndexChanged( object sender, EventArgs e )
         {
             srpResource.CampusId = ddlCampus.SelectedValueAsInt();
-            srpResource.SetExtraRestParams( srpResource.ShowAllResources );
+            srpResource.SetExtraRestParams();
 
             BaseResourceRestUrl = srpResource.ItemRestUrlExtraParams;
             ddlCampus.Focus();
@@ -2454,7 +2453,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ddlReservationType.Items.Clear();
                 foreach ( var reservationType in new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where( m => m.IsActive ).OrderBy( m => m.Name ).ToList() )
                 {
-                    if ( reservationType.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
+                    if ( reservationType.IsAuthorized( Authorization.EDIT, CurrentPerson ) )
                     {
                         ddlReservationType.Items.Add( new ListItem( reservationType.Name, reservationType.Id.ToString().ToUpper() ) );
                     }
@@ -2806,7 +2805,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             string encodedCalendarContent = Uri.EscapeUriString( sbSchedule.iCalendarContent );
             srpResource.CampusId = ddlCampus.SelectedValueAsInt();
-            srpResource.ItemRestUrlExtraParams = BaseResourceRestUrl + String.Format( "&reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}{4}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), string.IsNullOrWhiteSpace( locationIds ) ? "" : "&locationIds=" + locationIds );
+            //srpResource.ItemRestUrlExtraParams = BaseResourceRestUrl + String.Format( "&reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}{4}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), string.IsNullOrWhiteSpace( locationIds ) ? "" : "&locationIds=" + locationIds );
+            srpResource.ReservationId = reservationId;
+            srpResource.LocationIds = locationIds;
+            srpResource.ICalendarContent = sbSchedule.iCalendarContent;
+            srpResource.SetupTime = nbSetupTime.Text.AsInteger();
+            srpResource.CleanupTime = nbCleanupTime.Text.AsInteger();
+            srpResource.SetExtraRestParams();
             slpLocation.ItemRestUrlExtraParams = BaseLocationRestUrl + String.Format( "?reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}&attendeeCount={4}&reservationTypeId={5}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), nbAttending.Text.AsInteger(), ddlReservationType.SelectedValueAsId() );
         }
 
@@ -2842,9 +2847,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( ReservationType == null )
             {
                 var reservationTypes = reservationTypeService.Queryable().ToList();
-                var authorizedReservationTypes = reservationTypes.Where( rt => rt.IsAuthorized( Authorization.EDIT, CurrentPerson ) ).ToList();
+                var authorizedReservationTypes = reservationTypes.Where( m => m.IsActive ).Where( rt => rt.IsAuthorized( Authorization.EDIT, CurrentPerson ) ).ToList();
 
-                ReservationType = authorizedReservationTypes.OrderBy( rt => rt.Id ).FirstOrDefault();
+                ReservationType = authorizedReservationTypes.OrderBy( m => m.Name ).FirstOrDefault();
             }
 
             reservation.ReservationType = ReservationType;
@@ -3356,6 +3361,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( slpLocation.SelectedValueAsId().HasValue )
             {
                 var rockContext = new RockContext();
+                var reservationService = new ReservationService( rockContext );
 
                 var locationId = slpLocation.SelectedValueAsId().Value;
                 var location = new LocationService( rockContext ).Get( locationId );
@@ -3381,7 +3387,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     {
                         int reservationId = hfReservationId.ValueAsInt();
                         var newReservation = new Reservation() { Id = reservationId, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-                        var message = new ReservationService( rockContext ).BuildLocationConflictHtmlList( newReservation, locationId, this.CurrentPageReference.Route );
+                        newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+
+                        var message = reservationService.BuildLocationConflictHtmlList( newReservation, locationId, this.CurrentPageReference.Route );
 
                         if ( message != null )
                         {
@@ -3735,10 +3743,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var resourceId = srpResource.SelectedValueAsId() ?? 0;
             var resource = new ResourceService( rockContext ).Get( resourceId );
+            var reservationService = new ReservationService( rockContext );
             if ( resource != null )
             {
-                var newReservation = new Reservation() { Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-                var availableQuantity = new ReservationService( rockContext ).GetAvailableResourceQuantity( resource, newReservation );
+                var newReservation = new Reservation() {
+                    Id = hfReservationId.ValueAsInt(),
+                    Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ),
+                    SetupTime = nbSetupTime.Text.AsInteger(),
+                    CleanupTime = nbCleanupTime.Text.AsInteger()
+                };
+                newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+
+                var availableQuantity = reservationService.GetAvailableResourceQuantity( resource, newReservation );
                 var reservationLocationGuid = ddlReservationLocation.SelectedValue.AsGuidOrNull();
                 Guid reservationResourceGuid = hfAddReservationResourceGuid.Value.AsGuid();
                 var reservationQuantity = ResourcesState.Where( rr => rr.Guid != reservationResourceGuid && rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );
@@ -3770,7 +3786,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbQuantity.Visible = false;
                 }
 
-                StringBuilder sb = new StringBuilder();
                 var existingResourceCount = ResourcesState.Where( rr =>
                         rr.Guid != reservationResourceGuid &&
                         rr.ResourceId == resourceId &&
@@ -3779,45 +3794,23 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     .Count();
                 if ( existingResourceCount > 0 )
                 {
-                    sb.AppendFormat( "{0} has already been added to this reservation", resource.Name );
-                }
-                else
-                {
-                    int reservationId = hfReservationId.ValueAsInt();
-                    var conflicts = new ReservationService( rockContext ).GetConflictsForResourceId( resource.Id, newReservation );
-                    if ( conflicts.Any() )
-                    {
-                        var route = this.CurrentPageReference.Route; // is either "/page/123" or "ReservationDetail"
-                        route = route.StartsWith( "/" ) ? route : "/" + route;
-
-                        sb.AppendFormat( "{0} is already reserved for the scheduled times by the following reservations:<ul>", resource.Name );
-                        foreach ( var conflict in conflicts )
-                        {
-                            var duration = conflict.Reservation.Schedule.GetICalEvent().Duration;
-                            int hours = duration.Hours;
-                            int minutes = duration.Minutes;
-
-                            sb.AppendFormat( "<li>{0} reserved on {1} {4} via <a href='{5}?ReservationId={2}' target='_blank'>'{3}'</a></li>",
-                                conflict.ResourceQuantity,
-                                conflict.Reservation.Schedule.ToFriendlyScheduleText(),
-                                conflict.ReservationId,
-                                conflict.Reservation.Name,
-                                ( ( hours <= 0 ) ? string.Empty : hours + ( ( hours == 1 ) ? " hr " : " hrs " ) ) + ( ( minutes == 0 ) ? string.Empty : minutes + " min " ),
-                                route
-                                );
-                        }
-                        sb.Append( "</ul>" );
-                    }
-                }
-
-                if ( !String.IsNullOrWhiteSpace( sb.ToString() ) )
-                {
-                    nbResourceConflicts.Text = sb.ToString();
+                    nbResourceConflicts.Text = string.Format( "{0} has already been added to this reservation", resource.Name );
                     nbResourceConflicts.Visible = true;
                 }
                 else
                 {
-                    nbResourceConflicts.Visible = false;
+                    int reservationId = hfReservationId.ValueAsInt();
+                    var message = reservationService.BuildResourceConflictHtmlList( newReservation, resource.Id, this.CurrentPageReference.Route );
+
+                    if ( message != null )
+                    {
+                        nbResourceConflicts.Text = string.Format( "{0} is already reserved for the scheduled times by the following reservations:<ul>{1}</ul>", resource.Name, message );
+                        nbResourceConflicts.Visible = true;
+                    }
+                    else
+                    {
+                        nbResourceConflicts.Visible = false;
+                    }
                 }
 
                 if ( resource.Location != null )
@@ -4038,7 +4031,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                                     ValidationGroup = validationGroup,
                                     Value = setValue ? reservationResource.AttributeValues?[attribute.Key]?.Value : null,
                                     ShowPrePostHtml = ( attributeAddEditControlsOptions?.ShowPrePostHtml ?? true ),
-                                    AttributeControlId = String.Format( "attribute_field_{0}_{1}", attribute.Id, reservationResource.Guid )
+                                    AttributeControlId = GetResourceAttributeFieldId( reservationResource.Guid, attribute )
                                 };
 
                                 if ( attributeAddEditControlsOptions.RequiredAttributes != null )
@@ -4054,6 +4047,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        private static string GetResourceAttributeFieldId( Guid reservationResourceGuid, AttributeCache attribute )
+        {
+            return String.Format( "attribute_field_{0}_resource_{1}", attribute.Id, reservationResourceGuid.ToString().Replace("-","_") );
+        }
+
         /// <summary>
         /// Gets the resource edit values.
         /// </summary>
@@ -4066,11 +4064,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 foreach ( var attributeKeyValue in reservationResource.Attributes )
                 {
-
-                    Control control = parentControl?.FindControl( String.Format( "attribute_field_{0}_{1}", attributeKeyValue.Value.Id, reservationResource.Guid ) );
+                    Control control = parentControl?.FindControl( GetResourceAttributeFieldId( reservationResource.Guid, attributeKeyValue.Value ) );
                     if ( control != null )
                     {
-                        attributeEditControls.AddOrIgnore( attributeKeyValue.Value, control );
+                        attributeEditControls.AddOrReplace( attributeKeyValue.Value, control );
                     }
                 }
             }

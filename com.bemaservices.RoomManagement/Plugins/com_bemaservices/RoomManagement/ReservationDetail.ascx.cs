@@ -3361,6 +3361,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( slpLocation.SelectedValueAsId().HasValue )
             {
                 var rockContext = new RockContext();
+                var reservationService = new ReservationService( rockContext );
 
                 var locationId = slpLocation.SelectedValueAsId().Value;
                 var location = new LocationService( rockContext ).Get( locationId );
@@ -3386,7 +3387,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     {
                         int reservationId = hfReservationId.ValueAsInt();
                         var newReservation = new Reservation() { Id = reservationId, Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ), SetupTime = nbSetupTime.Text.AsInteger(), CleanupTime = nbCleanupTime.Text.AsInteger() };
-                        var message = new ReservationService( rockContext ).BuildLocationConflictHtmlList( newReservation, locationId, this.CurrentPageReference.Route );
+                        newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+
+                        var message = reservationService.BuildLocationConflictHtmlList( newReservation, locationId, this.CurrentPageReference.Route );
 
                         if ( message != null )
                         {
@@ -3744,7 +3747,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( resource != null )
             {
                 var newReservation = new Reservation() {
-                    Id = PageParameter( "ReservationId" ).AsIntegerOrNull() ?? 0,
+                    Id = hfReservationId.ValueAsInt(),
                     Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ),
                     SetupTime = nbSetupTime.Text.AsInteger(),
                     CleanupTime = nbCleanupTime.Text.AsInteger()
@@ -3783,7 +3786,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbQuantity.Visible = false;
                 }
 
-                StringBuilder sb = new StringBuilder();
                 var existingResourceCount = ResourcesState.Where( rr =>
                         rr.Guid != reservationResourceGuid &&
                         rr.ResourceId == resourceId &&
@@ -3792,45 +3794,23 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     .Count();
                 if ( existingResourceCount > 0 )
                 {
-                    sb.AppendFormat( "{0} has already been added to this reservation", resource.Name );
-                }
-                else
-                {
-                    int reservationId = hfReservationId.ValueAsInt();
-                    var conflicts = reservationService.GetConflictsForResourceId( resource.Id, newReservation );
-                    if ( conflicts.Any() )
-                    {
-                        var route = this.CurrentPageReference.Route; // is either "/page/123" or "ReservationDetail"
-                        route = route.StartsWith( "/" ) ? route : "/" + route;
-
-                        sb.AppendFormat( "{0} is already reserved for the scheduled times by the following reservations:<ul>", resource.Name );
-                        foreach ( var conflict in conflicts )
-                        {
-                            var duration = conflict.Reservation.Schedule.GetICalEvent().Duration;
-                            int hours = duration.Hours;
-                            int minutes = duration.Minutes;
-
-                            sb.AppendFormat( "<li>{0} reserved on {1} {4} via <a href='{5}?ReservationId={2}' target='_blank'>'{3}'</a></li>",
-                                conflict.ResourceQuantity,
-                                conflict.Reservation.Schedule.ToFriendlyScheduleText(),
-                                conflict.ReservationId,
-                                conflict.Reservation.Name,
-                                ( ( hours <= 0 ) ? string.Empty : hours + ( ( hours == 1 ) ? " hr " : " hrs " ) ) + ( ( minutes == 0 ) ? string.Empty : minutes + " min " ),
-                                route
-                                );
-                        }
-                        sb.Append( "</ul>" );
-                    }
-                }
-
-                if ( !String.IsNullOrWhiteSpace( sb.ToString() ) )
-                {
-                    nbResourceConflicts.Text = sb.ToString();
+                    nbResourceConflicts.Text = string.Format( "{0} has already been added to this reservation", resource.Name );
                     nbResourceConflicts.Visible = true;
                 }
                 else
                 {
-                    nbResourceConflicts.Visible = false;
+                    int reservationId = hfReservationId.ValueAsInt();
+                    var message = reservationService.BuildResourceConflictHtmlList( newReservation, resource.Id, this.CurrentPageReference.Route );
+
+                    if ( message != null )
+                    {
+                        nbResourceConflicts.Text = string.Format( "{0} is already reserved for the scheduled times by the following reservations:<ul>{1}</ul>", resource.Name, message );
+                        nbResourceConflicts.Visible = true;
+                    }
+                    else
+                    {
+                        nbResourceConflicts.Visible = false;
+                    }
                 }
 
                 if ( resource.Location != null )

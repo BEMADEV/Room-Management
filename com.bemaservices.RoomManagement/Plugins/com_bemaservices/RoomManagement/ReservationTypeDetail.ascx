@@ -79,6 +79,18 @@
                         </div>
                     </Rock:PanelWidget>
 
+                    <Rock:PanelWidget ID="wpDoorLockSettings" runat="server" Title="Door Lock Settings">
+                        <Rock:NotificationBox ID="nbDoorLockWarning" runat="server" Visible="true" NotificationBoxType="Warning" Text="Rock and the Room Management plugin do not perform any logic to handle overlapping door lock times. Handling of any overlap should be performed by your door lock provider or handled internally." />
+                        <div class="row">
+                            <div class="col-md-4">
+                                <Rock:RockCheckBox ID="cbDisplayDoorLock" runat="server" Label="Display Door Lock Schedules?" SourceTypeName="com.bemaservices.RoomManagement.Model.ReservationType, com.bemaservices.RoomManagement" PropertyName="DisplayReservationDoorLockSchedules" />
+                            </div>
+                            <div class="col-md-4">
+                                <Rock:DataTextBox ID="tbDoorLockInstructions" runat="server" Label="Door Lock Instructions" SourceTypeName="com.bemaservices.RoomManagement.Model.ReservationType, com.bemaservices.RoomManagement" PropertyName="DoorLockInstructions" TextMode="MultiLine" Rows="5" />
+                            </div>
+                        </div>
+                    </Rock:PanelWidget>
+
                     <Rock:PanelWidget ID="wpAttributes" runat="server" Title="Reservation Attributes">
                         <div class="grid">
                             <Rock:Grid ID="gAttributes" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Reservation Attribute" ShowConfirmDeleteDialog="false">

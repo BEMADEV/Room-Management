@@ -66,6 +66,7 @@ namespace Rock.Rest.Controllers
             string locationIds = null,
             string resourceIds = null,
             string approvalStates = null,
+            string filterTimeBy = null,
             bool includeAttributes = false
             )
         {
@@ -90,6 +91,8 @@ namespace Rock.Rest.Controllers
                 approvalStateList.Add( ReservationApprovalState.Approved );
             }
 
+            var filterTimeByEnum = filterTimeBy.ConvertToEnum<ReservationExtensionMethods.FilterTimeBy>( ReservationExtensionMethods.FilterTimeBy.Reservation );
+
             var reservationQueryOptions = new ReservationQueryOptions();
             reservationQueryOptions.ReservationTypeIds = reservationTypeIds.SplitDelimitedValues().AsIntegerList();
             reservationQueryOptions.ReservationIds = reservationIds.SplitDelimitedValues().AsIntegerList();
@@ -98,7 +101,7 @@ namespace Rock.Rest.Controllers
             reservationQueryOptions.ApprovalStates = approvalStateList;
 
             var reservationSummaryList = reservationService.Queryable( reservationQueryOptions )
-                .GetReservationSummaries( startDateTime, endDateTime, false, includeAttributes );
+                .GetReservationSummaries( startDateTime, endDateTime, false, includeAttributes, null, filterTimeByEnum );
 
             return reservationSummaryList.AsQueryable();
         }

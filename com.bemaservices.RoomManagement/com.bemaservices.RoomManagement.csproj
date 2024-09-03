@@ -133,6 +133,7 @@
     <Compile Include="Migrations\043_Rollup247.cs" />
     <Compile Include="Migrations\042_ModificationFixes.cs" />
     <Compile Include="Migrations\041_RoomDetails.cs" />
+    <Compile Include="Migrations\046_DoorLocks.cs" />
     <Compile Include="Migrations\045_Rollup258.cs" />
     <Compile Include="Migrations\RoomManagementMigration.cs" />
     <Compile Include="Migrations\RoomManagementMigrationHelper.cs" />
@@ -152,8 +153,11 @@
     <Compile Include="Lava\LavaFilters.cs" />
     <Compile Include="Migrations\022_ReservationReports.cs" />
     <Compile Include="Migrations\021_LocationLayout.cs" />
+    <Compile Include="Model\ReservationDoorLockSchedule\ReservationDoorLockSchedule.cs" />
+    <Compile Include="Model\ReservationDoorLockSchedule\ReservationDoorLockScheduleService.cs" />
     <Compile Include="Model\LocationLayout\LocationLayout.cs" />
     <Compile Include="Model\LocationLayout\LocationLayoutService.cs" />
+    <Compile Include="Model\ReservationDoorLockSchedule\ReservationDoorLockTime.cs" />
     <Compile Include="Model\ReservationLocationType\ReservationLocationType.cs" />
     <Compile Include="Model\ReservationApprovalGroup\ReservationApprovalGroupService.cs" />
     <Compile Include="Model\ReservationLocationType\ReservationLocationTypeService.cs" />

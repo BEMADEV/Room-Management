@@ -1,8 +1,9 @@
 ﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="ReservationDetail.ascx.cs" Inherits="RockWeb.Plugins.com_bemaservices.RoomManagement.ReservationDetail" %>
 <%@ Register TagPrefix="BEMA" Assembly="com.bemaservices.RoomManagement" Namespace="com.bemaservices.RoomManagement.Web.UI.Controls" %>
 <script type="text/javascript">
-    function clearActiveDialog() {
-        $('#<%=hfActiveDialog.ClientID %>').val('');
+    function clearActiveDialog ()
+    {
+        $('#<%=hfActiveDialog.ClientID %>' ).val( '' );
     }
 </script>
 <asp:UpdatePanel ID="upnlContent" runat="server">
@@ -109,7 +110,7 @@
                                     </Rock:Grid>
                                 </div>
                             </div>
-                            
+
                             <div id="divViewResources" runat="server">
                                 <h4>Resources</h4>
                                 <div class="grid">
@@ -130,6 +131,19 @@
                                             </Rock:RockTemplateField>
                                             <Rock:LinkButtonField CssClass="btn btn-sm btn-success" OnClick="gViewResources_ApproveClick" ToolTip="Approve" Text="<i class='fa fa-check'></i>" Visible="true" />
                                             <Rock:LinkButtonField CssClass="btn btn-sm btn-danger" OnClick="gViewResources_DenyClick" ToolTip="Deny" Text="<i class='fa fa-ban'></i>" Visible="true" />
+                                        </Columns>
+                                    </Rock:Grid>
+                                </div>
+                            </div>
+
+                            <div id="divViewDoorLockSchedules" runat="server">
+                                <h4>Door Lock Schedules</h4>
+                                <div class="grid">
+                                    <Rock:Grid ID="gViewDoorLockSchedules" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Location" ShowWorkflowOrCustomActionButtons="false">
+                                        <Columns>
+                                            <Rock:RockBoundField DataField="StartTimeOffset" HeaderText="Start Time Offset" />
+                                            <Rock:RockBoundField DataField="EndTimeOffset" HeaderText="End Time Offset" />
+                                            <Rock:RockBoundField DataField="Note" HeaderText="Note" />
                                         </Columns>
                                     </Rock:Grid>
                                 </div>
@@ -277,11 +291,29 @@
                                     </Rock:Grid>
                                 </div>
                             </Rock:PanelWidget>
+
+                            <Rock:PanelWidget ID="wpDoorLockSchedules" runat="server" Title="Door Lock Schedules">
+                                <div class="grid">
+                                    <Rock:ModalAlert ID="maDoorLockScheduleGridWarning" runat="server" />
+                                    <Rock:NotificationBox ID="nbReservationDoorLockScheduleInstructions" Visible="true" NotificationBoxType="Info" runat="server" />
+                                    <Rock:Grid ID="gDoorLockSchedules" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Door Lock Schedules" ShowConfirmDeleteDialog="false" ShowWorkflowOrCustomActionButtons="false">
+                                        <Columns>
+                                            <Rock:RockBoundField DataField="StartTimeOffset" HeaderText="Start Time Offset" />
+                                            <Rock:RockBoundField DataField="EndTimeOffset" HeaderText="End Time Offset" />
+                                            <Rock:RockBoundField DataField="Note" HeaderText="Note" />
+                                            <Rock:EditField OnClick="gDoorLockSchedules_Edit" />
+                                            <Rock:DeleteField OnClick="gDoorLockSchedules_Delete" />
+                                        </Columns>
+                                    </Rock:Grid>
+                                </div>
+                            </Rock:PanelWidget>
+
                             <Rock:PanelWidget ID="wpAdditionalInfo" runat="server" Title="Additional Info">
                                 <Rock:DynamicPlaceholder ID="phAttributeEdits" runat="server" />
                                 <asp:PlaceHolder ID="phLocationAnswers" runat="server" EnableViewState="false" />
                                 <asp:PlaceHolder ID="phResourceAnswers" runat="server" EnableViewState="false" />
                             </Rock:PanelWidget>
+
                             <Rock:DataTextBox ID="rtbNote" runat="server" Label="Notes" TextMode="MultiLine" Rows="4" MaxLength="2500" SourceTypeName="com.bemaservices.RoomManagement.Model.Reservation, com.bemaservices.RoomManagement" PropertyName="Note" />
 
                         </div>
@@ -342,11 +374,29 @@
                 <div class="row">
                     <div class="col-md-6">
                         <BEMA:ScheduledResourcePicker ID="srpResource" runat="server" Label="Resource" Required="false" Enabled="false" AllowMultiSelect="false" OnSelectItem="srpResource_SelectItem" ValidationGroup="ReservationResource" />
-                        <Rock:RockDropDownList ID="ddlReservationLocation" runat="server" Label="Location" Required="false" AutoPostBack="true" OnSelectedIndexChanged="ddlReservationLocation_SelectedIndexChanged"/>
+                        <Rock:RockDropDownList ID="ddlReservationLocation" runat="server" Label="Location" Required="false" AutoPostBack="true" OnSelectedIndexChanged="ddlReservationLocation_SelectedIndexChanged" />
                     </div>
                     <div class="col-md-6">
                         <Rock:NumberBox ID="nbQuantity" runat="server" NumberType="Integer" MinimumValue="1" ValidationGroup="ReservationResource" Label="Quantity" />
                         <Rock:NotificationBox ID="nbResourceConflicts" Visible="false" NotificationBoxType="Warning" runat="server" />
+                    </div>
+                </div>
+            </Content>
+        </Rock:ModalDialog>
+
+        <Rock:ModalDialog ID="dlgReservationDoorLockSchedule" runat="server" Title="Add Door Lock Schedule" OnSaveThenAddClick="dlgReservationDoorLockSchedule_SaveThenAddClick" OnSaveClick="dlgReservationDoorLockSchedule_SaveClick" OnCancelScript="clearActiveDialog();" ValidationGroup="ReservationDoorLockSchedule">
+            <Content>
+                <asp:HiddenField ID="hfAddReservationDoorLockScheduleGuid" runat="server" />
+                <asp:ValidationSummary ID="valReservationDoorLockScheduleSummary" runat="server" HeaderText="Please Correct the Following" CssClass="alert alert-danger" ValidationGroup="ReservationDoorLockSchedule" />
+                <div class="row">
+                    <div class="col-md-4">
+                        <Rock:NumberBox ID="nbStartTimeOffset" runat="server" Required="true" NumberType="Integer" ValidationGroup="ReservationDoorLockSchedule" Label="Start Time Offset" Help="How many minutes offset from the scheduled start time should the configured door lock period start?" />
+                    </div>
+                    <div class="col-md-4">
+                        <Rock:NumberBox ID="nbEndTimeOffset" runat="server" Required="true" NumberType="Integer" ValidationGroup="ReservationDoorLockSchedule" Label="End Time Offset" Help="How many minutes offset from the scheduled start time should the configured door lock period end?" />
+                    </div>
+                    <div class="col-md-4">
+                        <Rock:RockTextBox ID="tbReservationDoorLockScheduleNote" runat="server" Label="Note" Required="false" />
                     </div>
                 </div>
             </Content>

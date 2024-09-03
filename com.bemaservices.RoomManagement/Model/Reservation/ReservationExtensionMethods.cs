@@ -38,7 +38,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
         /// <param name="maxOccurrences">The maximum occurrences.</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false, int? maxOccurrences = null )
+        public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false, int? maxOccurrences = null, FilterTimeBy filterTimeBy = FilterTimeBy.Reservation )
         {
             var reservationSummaryList = new List<Model.ReservationSummary>();
 
@@ -106,9 +106,42 @@ namespace com.bemaservices.RoomManagement.Model
                     var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
                     var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
 
+                    var validReservationTime = false;
                     if (
+                        ( filterTimeBy == FilterTimeBy.Reservation || filterTimeBy == FilterTimeBy.Both ) &&
                         ( ( reservationStartDateTime >= filterStartDateTime ) || ( reservationEndDateTime >= filterStartDateTime ) ) &&
-                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) ) )
+                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) )
+                       )
+                    {
+                        validReservationTime = true;
+                    }
+
+                    var validDoorLockTime = false;
+                    List<ReservationDoorLockTime> reservationDoorLockTimes = new List<ReservationDoorLockTime>();
+                    foreach ( var reservationDoorLockSchedule in reservation.ReservationDoorLockSchedules )
+                    {
+                        var reservationDoorLockTime = new ReservationDoorLockTime(
+                                reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.StartTimeOffset ),
+                                reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.EndTimeOffset )
+                                );
+                        reservationDoorLockTimes.Add( reservationDoorLockTime );
+
+                        if (
+                            ( filterTimeBy == FilterTimeBy.DoorLock || filterTimeBy == FilterTimeBy.Both ) &&
+                            ( ( reservationDoorLockTime.StartDateTime >= filterStartDateTime ) || ( reservationDoorLockTime.EndDateTime >= filterStartDateTime ) ) &&
+                            ( ( reservationDoorLockTime.StartDateTime < filterEndDateTime ) || ( reservationDoorLockTime.EndDateTime < filterEndDateTime ) )
+                           )
+                        {
+                            validDoorLockTime = true;
+                        }
+                    }
+
+                    if ( !reservationDoorLockTimes.Any() )
+                    {
+                        reservationDoorLockTimes.Add( new ReservationDoorLockTime( reservationStartDateTime, reservationEndDateTime ) );
+                    }
+
+                    if ( validReservationTime || validDoorLockTime )
                     {
                         var reservationSummary = new Model.ReservationSummary
                         {
@@ -119,6 +152,7 @@ namespace com.bemaservices.RoomManagement.Model
                             ReservationLocations = reservation.ReservationLocations.ToList(),
                             ReservationResources = reservation.ReservationResources.ToList(),
                             UnassignedReservationResources = reservation.UnassignedReservationResources.ToList(),
+                            ReservationDoorLockTimes = reservationDoorLockTimes,
                             EventStartDateTime = reservationDateTime.StartDateTime,
                             EventEndDateTime = reservationDateTime.EndDateTime,
                             ReservationStartDateTime = reservationStartDateTime,
@@ -170,7 +204,7 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // Pass 2: Sort all of the event occurrences by date, and then apply the occurrence limit.
-            if(maxOccurrences != null )
+            if ( maxOccurrences != null )
             {
                 reservationSummaryList = reservationSummaryList
                     .OrderBy( x => x.ReservationStartDateTime )
@@ -345,6 +379,15 @@ namespace com.bemaservices.RoomManagement.Model
             target.ForeignId = source.ForeignId;
             target.ForeignGuid = source.ForeignGuid;
             target.ForeignKey = source.ForeignKey;
+        }
+
+        public enum FilterTimeBy
+        {
+            Reservation = 0,
+
+            DoorLock = 1,
+
+            Both = 2
         }
 
     }

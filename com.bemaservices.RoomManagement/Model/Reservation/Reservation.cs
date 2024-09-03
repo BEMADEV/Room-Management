@@ -351,6 +351,15 @@ namespace com.bemaservices.RoomManagement.Model
             get { return _reservationLocations ?? ( _reservationLocations = new Collection<ReservationLocation>() ); }
             set { _reservationLocations = value; }
         }
+
+        private ICollection<ReservationDoorLockSchedule> _reservationDoorLockSchedules;
+
+        [LavaVisibleAttribute]
+        public virtual ICollection<ReservationDoorLockSchedule> ReservationDoorLockSchedules
+        {
+            get { return _reservationDoorLockSchedules ?? ( _reservationDoorLockSchedules = new Collection<ReservationDoorLockSchedule>() ); }
+            set { _reservationDoorLockSchedules = value; }
+        }
         /// <summary>
         /// The reservation locations
         /// </summary>
@@ -865,7 +874,7 @@ namespace com.bemaservices.RoomManagement.Model
             if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified )
             {
                 var transaction = new com.bemaservices.RoomManagement.Transactions.ReservationChangeTransaction( entry );
-                Rock.Transactions.RockQueue.TransactionQueue.Enqueue( transaction );
+                transaction.Enqueue();
             }
 
             base.PreSaveChanges( dbContext, entry );

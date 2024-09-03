@@ -24,6 +24,7 @@ using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
+using Rock.Jobs;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Jobs
@@ -34,7 +35,7 @@ namespace com.bemaservices.RoomManagement.Jobs
     /// <seealso cref="Quartz.IJob" />
     [DisallowConcurrentExecution]
     [IntegerField( "Command Timeout", "Maximum amount of time (in seconds) to wait for the SQL Query to complete. Leave blank to use the default for this job (3600). Note, it could take several minutes, so you might want to set it at 3600 (60 minutes) or higher", false, 60 * 60, "General", 1, "CommandTimeout" )]
-    public class PopulateFirstLastOccurrenceDateTimes : IJob
+    public class PopulateFirstLastOccurrenceDateTimes : RockJob
     {
         /// <summary>
         /// The command timeout
@@ -64,11 +65,9 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// <param name="context">The context.</param>
         /// <exception cref="System.NotImplementedException"></exception>
 
-        public void Execute( IJobExecutionContext context )
+        public override void Execute()
         {
-            JobDataMap dataMap = context.JobDetail.JobDataMap;
-
-            _commandTimeout = dataMap.GetString( "CommandTimeout" ).AsIntegerOrNull() ?? 3600;
+            _commandTimeout = GetAttributeValue( "CommandTimeout" ).AsIntegerOrNull() ?? 3600;
 
             using ( var rockContext = new RockContext() )
             {
@@ -80,7 +79,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                 if ( _remainingReservationRecords == 0 )
                 {
                     // delete job if there are no unlined attendance records
-                    var jobId = context.GetJobId();
+                    var jobId = this.ServiceJobId;
                     var jobService = new ServiceJobService( rockContext );
                     var job = jobService.Get( jobId );
                     if ( job != null )
@@ -92,9 +91,9 @@ namespace com.bemaservices.RoomManagement.Jobs
                 }
             }
 
-            PopulateOccurrenceData( context );
+            PopulateOccurrenceData();
 
-            context.UpdateLastStatusMessage( $@"Remaining Reservation Records: {_remainingReservationRecords},
+            this.UpdateLastStatusMessage( $@"Remaining Reservation Records: {_remainingReservationRecords},
                     Reservation Records Loaded: {_reservationRecordsLoaded}, 
                     Reservation Records Read: {_reservationRecordsRead}, 
                     Reservation Records Updated: { _reservationRecordsUpdated}
@@ -105,7 +104,7 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// Migrates the page views data.
         /// </summary>
         /// <param name="context">The context.</param>
-        private void PopulateOccurrenceData( IJobExecutionContext context )
+        private void PopulateOccurrenceData( )
         {
             List<int> reservationIdList = new List<int>();
             _reservationRecordsUpdated = 0;

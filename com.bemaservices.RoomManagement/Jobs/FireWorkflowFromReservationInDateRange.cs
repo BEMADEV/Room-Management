@@ -28,6 +28,7 @@ using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
+using Rock.Jobs;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
 
@@ -43,7 +44,7 @@ namespace com.bemaservices.RoomManagement.Jobs
     [WorkflowTypeField( "Workflow Type", "The workflow type to fire for eligible reservations.  The type MUST have a 'ReservationId' attribute that will be set by this job.", required: true )]
     [EnumsField( "Reservation Statuses", "The reservation statuses to filter by", typeof( ReservationApprovalState ), false, "", "", key: "Status" )]
     [DisallowConcurrentExecution]
-    public class FireWorkflowFromReservationInDateRange : IJob
+    public class FireWorkflowFromReservationInDateRange : RockJob
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="FireWorkflowFromReservationInDateRange" /> class.
@@ -56,11 +57,10 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// Executes the specified context.
         /// </summary>
         /// <param name="context">The context.</param>
-        public virtual void Execute( IJobExecutionContext context )
+        public override void Execute()
         {
-            JobDataMap dataMap = context.JobDetail.JobDataMap;
-            var dateRange = SlidingDateRangePicker.CalculateDateRangeFromDelimitedValues( dataMap.Get( "DateRange" ) != null ? dataMap.Get( "DateRange" ).ToString() : "-1||" );
-            var startsInDateRange = dataMap.Get( "StartsInDateRange" ).ToStringSafe().AsBoolean();
+            var dateRange = SlidingDateRangePicker.CalculateDateRangeFromDelimitedValues( GetAttributeValue( "DateRange" ) != null ? GetAttributeValue( "DateRange" ).ToString() : "-1||" );
+            var startsInDateRange = GetAttributeValue( "StartsInDateRange" ).ToStringSafe().AsBoolean();
 
             int reservationsProcessed = 0;
             List<string> workflowErrors = new List<string>();
@@ -68,7 +68,7 @@ namespace com.bemaservices.RoomManagement.Jobs
             // Check for the configured states and limit query to those
             var states = new List<ReservationApprovalState>();
 
-            foreach ( string stateVal in ( dataMap.Get( "Status" ).ToStringSafe() ?? "2" ).Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ) )
+            foreach ( string stateVal in ( GetAttributeValue( "Status" ).ToStringSafe() ?? "2" ).Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ) )
             {
                 var state = stateVal.ConvertToEnumOrNull<ReservationApprovalState>();
                 if ( state != null )
@@ -79,7 +79,7 @@ namespace com.bemaservices.RoomManagement.Jobs
 
             var rockContext = new RockContext();
             WorkflowTypeCache workflowType = null;
-            Guid? workflowTypeGuid = dataMap.Get( "WorkflowType" ).ToStringSafe().AsGuidOrNull();
+            Guid? workflowTypeGuid = GetAttributeValue( "WorkflowType" ).ToStringSafe().AsGuidOrNull();
             if ( workflowTypeGuid.HasValue )
             {
                 var workflowTypeService = new WorkflowTypeService( rockContext );
@@ -145,12 +145,12 @@ namespace com.bemaservices.RoomManagement.Jobs
                     catch ( Exception ex )
                     {
                         ExceptionLogService.LogException( ex, System.Web.HttpContext.Current );
-                        context.Result += "Exception(s) occurred trying to launch a workflow. ";
+                        this.Result += "Exception(s) occurred trying to launch a workflow. ";
                     }
                 }
             }
 
-            context.Result += string.Format( "{0} workflows launched{1}", reservationsProcessed, ( workflowErrors.Count > 0 ) ? ", but " + workflowErrors.Count + " workflow errors were reported" : string.Empty );
+            this.Result += string.Format( "{0} workflows launched{1}", reservationsProcessed, ( workflowErrors.Count > 0 ) ? ", but " + workflowErrors.Count + " workflow errors were reported" : string.Empty );
         }
     }
 }

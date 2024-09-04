@@ -118,11 +118,13 @@ namespace com.bemaservices.RoomManagement.Model
 
                     var validDoorLockTime = false;
                     List<ReservationDoorLockTime> reservationDoorLockTimes = new List<ReservationDoorLockTime>();
-                    foreach ( var reservationDoorLockSchedule in reservation.ReservationDoorLockSchedules )
+                    var orderedReservationDoorLockSchedules = reservation.ReservationDoorLockSchedules.OrderBy( rdls => rdls.StartTimeOffset ).ToList();
+                    foreach ( var reservationDoorLockSchedule in orderedReservationDoorLockSchedules )
                     {
                         var reservationDoorLockTime = new ReservationDoorLockTime(
                                 reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.StartTimeOffset ),
-                                reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.EndTimeOffset )
+                                reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.EndTimeOffset ),
+                                reservationDoorLockSchedule.Note
                                 );
                         reservationDoorLockTimes.Add( reservationDoorLockTime );
 
@@ -138,7 +140,7 @@ namespace com.bemaservices.RoomManagement.Model
 
                     if ( !reservationDoorLockTimes.Any() )
                     {
-                        reservationDoorLockTimes.Add( new ReservationDoorLockTime( reservationStartDateTime, reservationEndDateTime ) );
+                        reservationDoorLockTimes.Add( new ReservationDoorLockTime( reservationStartDateTime, reservationEndDateTime,"Default" ) );
                     }
 
                     if ( validReservationTime || validDoorLockTime )

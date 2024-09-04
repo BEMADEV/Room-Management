@@ -32,11 +32,14 @@ namespace com.bemaservices.RoomManagement.Model
 
         public DateTime EndDateTime { get; set; }
 
+        public string Note { get; set; }
 
-        public ReservationDoorLockTime( DateTime startDateTime, DateTime endDateTime )
+
+        public ReservationDoorLockTime( DateTime startDateTime, DateTime endDateTime, string note )
         {
             StartDateTime = startDateTime;
             EndDateTime = endDateTime;
+            Note = note;
         }
     }
 }

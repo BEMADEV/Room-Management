@@ -79,7 +79,7 @@ namespace com.bemaservices.RoomManagement.Migrations
             {
                 RoomManagementMigrationHelper.UpdateEntityAttributeByGuid( "Rock.Model.Location", "F4399CEF-827B-48B2-A735-F7806FCFE8E8", "", "", "Approval Group", "If this resource requires special approval, select the group in charge of approving it here.", 100, null, "96C07909-E34A-4379-854F-C05E79F772E4" );
 
-                RockMigrationHelper.AddPageRoute( "4CBD2B96-E076-46DF-A576-356BCA5E577F", "ReservationDetail" );
+                RockMigrationHelper.AddOrUpdatePageRoute( "4CBD2B96-E076-46DF-A576-356BCA5E577F", "ReservationDetail" );
 
                 #region FieldTypes
                 RoomManagementMigrationHelper.UpdateFieldTypeByGuid( "Reservation Approval State", "", "com.bemaservices.RoomManagement", "com.bemaservices.RoomManagement.Field.Types.ReservationApprovalStateFieldType", "F4ACC5B8-98BB-4611-B6B7-065BBC47503B" );

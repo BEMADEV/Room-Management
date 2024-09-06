@@ -160,6 +160,12 @@ namespace com.bemaservices.RoomManagement.Model
         [DataMember]
         public ReservationTypeRequirement? ResourceRequirement { get; set; }
 
+        [DataMember]
+        public bool DisplayReservationDoorLockSchedules { get; set; }
+
+        [DataMember]
+        public string DoorLockInstructions { get; set; }
+
         #endregion
 
         #region Virtual Properties

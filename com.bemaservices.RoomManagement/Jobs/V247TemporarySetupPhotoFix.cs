@@ -20,6 +20,7 @@ using Quartz;
 using Rock;
 using Rock.Data;
 using Rock.Model;
+using Rock.Jobs;
 using System.ComponentModel;
 using System.Linq;
 
@@ -30,14 +31,9 @@ namespace com.bemaservices.RoomManagement.Jobs
     /// </summary>
     [DisallowConcurrentExecution]
 
-    public class V247TemporarySetupPhotoFix : IJob
+    public class V247TemporarySetupPhotoFix : RockJob
     {
-
-        /// <summary>
-        /// Executes the specified context.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        public void Execute( IJobExecutionContext context )
+        public override void Execute()
         {
 
             var rockContext = new RockContext();
@@ -56,7 +52,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                 rockContext.SaveChanges();
             }
 
-            DeleteJob( context.GetJobId() );
+            DeleteJob( this.ServiceJobId );
         }
 
         /// <summary>

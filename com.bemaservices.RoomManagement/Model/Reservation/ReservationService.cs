@@ -793,9 +793,10 @@ namespace com.bemaservices.RoomManagement.Model
                      .Select( rl => new ReservationConflict
                      {
                          LocationId = rl.LocationId,
-                         Location = rl.Location,
+                         LocationName = rl.Location.Name,
                          ReservationId = rl.ReservationId,
-                         Reservation = rl.Reservation
+                         ReservationName = rl.Reservation.Name,
+                         ReservationSchedule = rl.Reservation.Schedule.ToFriendlyScheduleText()
                      } ) )
                  .Distinct()
                  .ToList();
@@ -823,10 +824,10 @@ namespace com.bemaservices.RoomManagement.Model
                 foreach ( var conflict in conflicts )
                 {
                     sb.AppendFormat( "<li>{0} [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
-                        conflict.Location.Name,
-                        conflict.Reservation.Schedule.ToFriendlyScheduleText(),
+                        conflict.LocationName,
+                        conflict.ReservationSchedule,
                         conflict.ReservationId,
-                        conflict.Reservation.Name,
+                        conflict.ReservationName,
                         detailPageRoute
                         );
                 }
@@ -858,10 +859,10 @@ namespace com.bemaservices.RoomManagement.Model
                 foreach ( var conflict in conflicts )
                 {
                     sb.AppendFormat( "<li>{0} ({5}) [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
-                        conflict.Resource.Name,
-                        conflict.Reservation.Schedule.ToFriendlyScheduleText(),
+                        conflict.ResourceName,
+                        conflict.ReservationSchedule,
                         conflict.ReservationId,
-                        conflict.Reservation.Name,
+                        conflict.ReservationName,
                         detailPageRoute,
                         conflict.ResourceQuantity
                         );
@@ -940,10 +941,11 @@ namespace com.bemaservices.RoomManagement.Model
                      .Select( rr => new ReservationConflict
                      {
                          ResourceId = rr.ResourceId,
-                         Resource = rr.Resource,
+                         ResourceName = rr.Resource.Name,
                          ResourceQuantity = rr.Quantity.Value,
                          ReservationId = rr.ReservationId,
-                         Reservation = rr.Reservation
+                         ReservationName = rr.Reservation.Name,
+                         ReservationSchedule = rr.Reservation.Schedule.ToFriendlyScheduleText()
                      } ) )
                  .Distinct()
                  .ToList();

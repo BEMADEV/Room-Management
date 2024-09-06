@@ -54,6 +54,7 @@ namespace Rock.Rest.Controllers
         /// <param name="locationIds">An optional parameter to filter occurrences by locations. Should be a list of integers separated by commas.</param>
         /// <param name="resourceIds">An optional parameter to filter occurrences by resources. Should be a list of integers separated by commas.</param>
         /// <param name="approvalStates">An optional parameter to filter occurrences by approval state. Should be a list of strings separated by commas. If this value is null, the method will only return approved reservations.</param>
+        /// <param name="filterTimeBy">The filter time by.</param>
         /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
         /// <returns>IQueryable&lt;ReservationOccurrence&gt;.</returns>
         [Authenticate, Secured]

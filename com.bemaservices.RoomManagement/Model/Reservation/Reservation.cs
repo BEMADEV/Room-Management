@@ -352,8 +352,15 @@ namespace com.bemaservices.RoomManagement.Model
             set { _reservationLocations = value; }
         }
 
+        /// <summary>
+        /// The reservation door lock schedules
+        /// </summary>
         private ICollection<ReservationDoorLockSchedule> _reservationDoorLockSchedules;
 
+        /// <summary>
+        /// Gets or sets the reservation door lock schedules.
+        /// </summary>
+        /// <value>The reservation door lock schedules.</value>
         [LavaVisibleAttribute]
         public virtual ICollection<ReservationDoorLockSchedule> ReservationDoorLockSchedules
         {

@@ -37,6 +37,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
         /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
         /// <param name="maxOccurrences">The maximum occurrences.</param>
+        /// <param name="filterTimeBy">The filter time by.</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
         public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false, int? maxOccurrences = null, FilterTimeBy filterTimeBy = FilterTimeBy.Reservation )
         {
@@ -383,12 +384,24 @@ namespace com.bemaservices.RoomManagement.Model
             target.ForeignKey = source.ForeignKey;
         }
 
+        /// <summary>
+        /// Enum FilterTimeBy
+        /// </summary>
         public enum FilterTimeBy
         {
+            /// <summary>
+            /// The reservation
+            /// </summary>
             Reservation = 0,
 
+            /// <summary>
+            /// The door lock
+            /// </summary>
             DoorLock = 1,
 
+            /// <summary>
+            /// The both
+            /// </summary>
             Both = 2
         }
 

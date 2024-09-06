@@ -44,12 +44,24 @@ namespace com.bemaservices.RoomManagement.Model
         [DataMember]
         public int ReservationId { get; set; }
 
+        /// <summary>
+        /// Gets or sets the start time offset.
+        /// </summary>
+        /// <value>The start time offset.</value>
         [DataMember]
         public int StartTimeOffset { get; set; }
 
+        /// <summary>
+        /// Gets or sets the end time offset.
+        /// </summary>
+        /// <value>The end time offset.</value>
         [DataMember]
         public int EndTimeOffset { get; set; }
 
+        /// <summary>
+        /// Gets or sets the note.
+        /// </summary>
+        /// <value>The note.</value>
         [DataMember]
         public string Note { get; set; }
 

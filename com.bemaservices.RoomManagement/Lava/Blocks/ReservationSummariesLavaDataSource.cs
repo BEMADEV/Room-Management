@@ -144,6 +144,8 @@ namespace com.bemaservices.RoomManagement.Lava.Blocks
         /// <param name="settings">The settings.</param>
         /// <param name="rockContext">The rock context.</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
+        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception">Invalid configuration setting \"{unknownNames.AsDelimited( "," )}\".</exception>
+        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception">Invalid configuration setting \"maxoccurrences\".</exception>
         /// <exception cref="System.Exception">Invalid configuration setting \"{unknownNames.AsDelimited( "," )}\".</exception>
         /// <exception cref="System.Exception">Invalid configuration setting \"maxoccurrences\".</exception>
         public List<ReservationSummary> GetReservationSummaries( LavaElementAttributes settings, RockContext rockContext )

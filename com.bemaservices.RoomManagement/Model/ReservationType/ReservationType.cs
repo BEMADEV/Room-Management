@@ -160,9 +160,17 @@ namespace com.bemaservices.RoomManagement.Model
         [DataMember]
         public ReservationTypeRequirement? ResourceRequirement { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether [display reservation door lock schedules].
+        /// </summary>
+        /// <value><c>true</c> if [display reservation door lock schedules]; otherwise, <c>false</c>.</value>
         [DataMember]
         public bool DisplayReservationDoorLockSchedules { get; set; }
 
+        /// <summary>
+        /// Gets or sets the door lock instructions.
+        /// </summary>
+        /// <value>The door lock instructions.</value>
         [DataMember]
         public string DoorLockInstructions { get; set; }
 

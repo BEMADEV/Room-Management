@@ -28,13 +28,31 @@ namespace com.bemaservices.RoomManagement.Model
     public class ReservationDoorLockTime : RockDynamic
     {
 
+        /// <summary>
+        /// Gets or sets the start date time.
+        /// </summary>
+        /// <value>The start date time.</value>
         public DateTime StartDateTime { get; set; }
 
+        /// <summary>
+        /// Gets or sets the end date time.
+        /// </summary>
+        /// <value>The end date time.</value>
         public DateTime EndDateTime { get; set; }
 
+        /// <summary>
+        /// Gets or sets the note.
+        /// </summary>
+        /// <value>The note.</value>
         public string Note { get; set; }
 
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ReservationDoorLockTime"/> class.
+        /// </summary>
+        /// <param name="startDateTime">The start date time.</param>
+        /// <param name="endDateTime">The end date time.</param>
+        /// <param name="note">The note.</param>
         public ReservationDoorLockTime( DateTime startDateTime, DateTime endDateTime, string note )
         {
             StartDateTime = startDateTime;

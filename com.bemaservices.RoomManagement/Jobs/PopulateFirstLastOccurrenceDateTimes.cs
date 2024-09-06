@@ -62,7 +62,6 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// <summary>
         /// Executes the specified context.
         /// </summary>
-        /// <param name="context">The context.</param>
         /// <exception cref="System.NotImplementedException"></exception>
 
         public override void Execute()
@@ -103,7 +102,6 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// <summary>
         /// Migrates the page views data.
         /// </summary>
-        /// <param name="context">The context.</param>
         private void PopulateOccurrenceData( )
         {
             List<int> reservationIdList = new List<int>();

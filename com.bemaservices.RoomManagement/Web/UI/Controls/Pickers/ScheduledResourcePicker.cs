@@ -51,6 +51,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             }
         }
 
+        /// <summary>
+        /// Gets or sets the reservation identifier.
+        /// </summary>
+        /// <value>The reservation identifier.</value>
         public int? ReservationId
         {
             get { return ViewState["ReservationId"] as int? ?? 0; }
@@ -60,6 +64,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             }
         }
 
+        /// <summary>
+        /// Gets or sets the setup time.
+        /// </summary>
+        /// <value>The setup time.</value>
         public int? SetupTime
         {
             get { return ViewState["SetupTime"] as int? ?? 0; }
@@ -70,6 +78,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
         }
 
 
+        /// <summary>
+        /// Gets or sets the cleanup time.
+        /// </summary>
+        /// <value>The cleanup time.</value>
         public int? CleanupTime
         {
             get { return ViewState["CleanupTime"] as int? ?? 0; }
@@ -80,6 +92,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
         }
 
 
+        /// <summary>
+        /// Gets or sets the content of the i calendar.
+        /// </summary>
+        /// <value>The content of the i calendar.</value>
         public string ICalendarContent
         {
             get { return ViewState["ICalendarContent"] as string ?? string.Empty; }
@@ -90,6 +106,10 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
         }
 
 
+        /// <summary>
+        /// Gets or sets the location ids.
+        /// </summary>
+        /// <value>The location ids.</value>
         public string LocationIds
         {
             get { return ViewState["LocationIds"] as string ?? string.Empty; }
@@ -265,6 +285,9 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             SetExtraRestParams();
         }
 
+        /// <summary>
+        /// Sets the extra rest parameters.
+        /// </summary>
         public void SetExtraRestParams()
         {
             StringBuilder additionalParams = new StringBuilder();

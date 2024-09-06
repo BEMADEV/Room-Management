@@ -531,18 +531,62 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             EventItemOccurrenceId
         }
 
+        /// <summary>
+        /// Class ConflictedReservation.
+        /// </summary>
         public class ConflictedReservation
         {
+            /// <summary>
+            /// Gets or sets the identifier.
+            /// </summary>
+            /// <value>The identifier.</value>
             public int Id { get; set; }
+            /// <summary>
+            /// Gets or sets the type of the reservation.
+            /// </summary>
+            /// <value>The type of the reservation.</value>
             public string ReservationType { get; set; }
+            /// <summary>
+            /// Gets or sets the name of the reservation.
+            /// </summary>
+            /// <value>The name of the reservation.</value>
             public string ReservationName { get; set; }
+            /// <summary>
+            /// Gets or sets the locations.
+            /// </summary>
+            /// <value>The locations.</value>
             public string Locations { get; set; }
+            /// <summary>
+            /// Gets or sets the resources.
+            /// </summary>
+            /// <value>The resources.</value>
             public string Resources { get; set; }
+            /// <summary>
+            /// Gets or sets the start date.
+            /// </summary>
+            /// <value>The start date.</value>
             public DateTime? StartDate { get; set; }
+            /// <summary>
+            /// Gets or sets the schedule.
+            /// </summary>
+            /// <value>The schedule.</value>
             public string Schedule { get; set; }
+            /// <summary>
+            /// Gets or sets the state of the approval.
+            /// </summary>
+            /// <value>The state of the approval.</value>
             public string ApprovalState { get; set; }
+            /// <summary>
+            /// Gets or sets the conflicts.
+            /// </summary>
+            /// <value>The conflicts.</value>
             public string Conflicts { get; set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ConflictedReservation"/> class.
+            /// </summary>
+            /// <param name="reservation">The reservation.</param>
+            /// <param name="conflictSummary">The conflict summary.</param>
             public ConflictedReservation( Reservation reservation, string conflictSummary )
             {
                 // debug here

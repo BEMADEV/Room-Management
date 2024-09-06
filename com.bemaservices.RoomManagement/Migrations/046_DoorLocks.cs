@@ -40,6 +40,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             UpdateReservationTypeModel();
         }
 
+        /// <summary>
+        /// Adds the reservation door lock schedules model.
+        /// </summary>
         private void AddReservationDoorLockSchedulesModel()
         {
             Sql( @"
@@ -81,6 +84,9 @@ namespace com.bemaservices.RoomManagement.Migrations
 " );
         }
 
+        /// <summary>
+        /// Updates the reservation type model.
+        /// </summary>
         private void UpdateReservationTypeModel()
         {
             Sql( @"ALTER TABLE [_com_bemaservices_RoomManagement_ReservationType] ADD [DisplayReservationDoorLockSchedules] [bit] NOT NULL DEFAULT 0;" );

@@ -56,7 +56,6 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// <summary>
         /// Executes the specified context.
         /// </summary>
-        /// <param name="context">The context.</param>
         public override void Execute()
         {
             var dateRange = SlidingDateRangePicker.CalculateDateRangeFromDelimitedValues( GetAttributeValue( "DateRange" ) != null ? GetAttributeValue( "DateRange" ).ToString() : "-1||" );

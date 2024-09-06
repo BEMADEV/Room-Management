@@ -1140,6 +1140,14 @@ namespace com.bemaservices.RoomManagement.Model
             return calendarString;
         }
 
+        /// <summary>
+        /// Gets the calendar events for specific dates recurrence identifier.
+        /// </summary>
+        /// <param name="iCalEvent">The i cal event.</param>
+        /// <param name="timeZoneId">The time zone identifier.</param>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="setEventDescription">if set to <c>true</c> [set event description].</param>
+        /// <returns>List&lt;CalendarEvent&gt;.</returns>
         private List<CalendarEvent> GetCalendarEventsForSpecificDates_RecurrenceId( CalendarEvent iCalEvent, string timeZoneId, Reservation reservation, bool setEventDescription )
         {
             var events = new List<CalendarEvent>();
@@ -1221,6 +1229,14 @@ namespace com.bemaservices.RoomManagement.Model
             return events;
         }
 
+        /// <summary>
+        /// Sets the calendar event details from reservation.
+        /// </summary>
+        /// <param name="iCalEvent">The i cal event.</param>
+        /// <param name="timeZoneId">The time zone identifier.</param>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="setEventDescription">if set to <c>true</c> [set event description].</param>
+        /// <returns>CalendarEvent.</returns>
         private CalendarEvent SetCalendarEventDetailsFromReservation( CalendarEvent iCalEvent, string timeZoneId, Reservation reservation, bool setEventDescription )
         {
             string locations = null;
@@ -1295,11 +1311,11 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Convert the elements of an iCal.PeriodList to ensure they use the CalDateTime type.
         /// </summary>
-        /// <param name="periodList"></param>
-        /// <param name="tzId"></param>
-        /// <param name="eventStartTime"></param>
-        /// <param name="eventDuration"></param>
-        /// <returns></returns>
+        /// <param name="periodList">The period list.</param>
+        /// <param name="tzId">The tz identifier.</param>
+        /// <param name="eventStartTime">The event start time.</param>
+        /// <param name="eventDuration">Duration of the event.</param>
+        /// <returns>PeriodList.</returns>
         private PeriodList ConvertPeriodListElementsToDateType( PeriodList periodList, string tzId, TimeSpan eventStartTime, TimeSpan? eventDuration )
         {
             if ( eventDuration?.TotalMilliseconds < 1 )
@@ -1330,6 +1346,11 @@ namespace com.bemaservices.RoomManagement.Model
             return newPeriodList;
         }
 
+        /// <summary>
+        /// Sorts the period list by start date descending.
+        /// </summary>
+        /// <param name="periodList">The period list.</param>
+        /// <returns>PeriodList.</returns>
         private PeriodList SortPeriodListByStartDateDescending( PeriodList periodList )
         {
             var sortedPeriods = periodList.OrderByDescending( p => p.StartTime ).ToList();
@@ -1343,6 +1364,12 @@ namespace com.bemaservices.RoomManagement.Model
             return newPeriodList;
         }
 
+        /// <summary>
+        /// Converts to cal date time.
+        /// </summary>
+        /// <param name="period">The period.</param>
+        /// <param name="time">The time.</param>
+        /// <returns>CalDateTime.</returns>
         private CalDateTime ConvertToCalDateTime( Period period, TimeSpan time )
         {
             var newDateTime = period.StartTime.HasTime
@@ -1355,6 +1382,12 @@ namespace com.bemaservices.RoomManagement.Model
             return newDate;
         }
 
+        /// <summary>
+        /// Converts to cal date time.
+        /// </summary>
+        /// <param name="newDateTime">The new date time.</param>
+        /// <param name="tzId">The tz identifier.</param>
+        /// <returns>CalDateTime.</returns>
         private CalDateTime ConvertToCalDateTime( IDateTime newDateTime, string tzId )
         {
             if ( newDateTime is CalDateTime cdt )
@@ -1373,6 +1406,12 @@ namespace com.bemaservices.RoomManagement.Model
             return newDate;
         }
 
+        /// <summary>
+        /// Converts to cal date time.
+        /// </summary>
+        /// <param name="newDateTime">The new date time.</param>
+        /// <param name="tzId">The tz identifier.</param>
+        /// <returns>CalDateTime.</returns>
         private CalDateTime ConvertToCalDateTime( DateTime newDateTime, string tzId )
         {
             var newDate = new CalDateTime( newDateTime );
@@ -1389,6 +1428,12 @@ namespace com.bemaservices.RoomManagement.Model
             return newDate;
         }
 
+        /// <summary>
+        /// Gets the sequence number.
+        /// </summary>
+        /// <param name="createdDateTime">The created date time.</param>
+        /// <param name="modifiedDateTime">The modified date time.</param>
+        /// <returns>System.Int32.</returns>
         private int GetSequenceNumber( DateTime? createdDateTime, DateTime? modifiedDateTime )
         {
             var minCreatedDateTime = RockDateTime.New( 2020, 1, 1 ).Value;
@@ -1409,6 +1454,11 @@ namespace com.bemaservices.RoomManagement.Model
             return sequenceNo;
         }
 
+        /// <summary>
+        /// Copies the calendar event.
+        /// </summary>
+        /// <param name="iCalEvent">The i cal event.</param>
+        /// <returns>CalendarEvent.</returns>
         private CalendarEvent CopyCalendarEvent( CalendarEvent iCalEvent )
         {
             // The iCal.Net serializer is not thread-safe, so we need to create a new instance for each serialization.
@@ -1429,6 +1479,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <param name="reservationId">The identifier of a reservation to use as a template for the new reservation.</param>
         /// <returns>Reservation.</returns>
+        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception"></exception>
         /// <exception cref="System.Exception"></exception>
         public Reservation GetNewFromTemplate( int reservationId )
         {

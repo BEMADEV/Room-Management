@@ -33,6 +33,9 @@ namespace com.bemaservices.RoomManagement.Jobs
 
     public class V247TemporarySetupPhotoFix : RockJob
     {
+        /// <summary>
+        /// Executes this instance.
+        /// </summary>
         public override void Execute()
         {
 

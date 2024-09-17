@@ -139,10 +139,12 @@ namespace com.bemaservices.RoomManagement.Model
                         }
                     }
 
-                    if ( !reservationDoorLockTimes.Any() )
-                    {
-                        reservationDoorLockTimes.Add( new ReservationDoorLockTime( reservationStartDateTime, reservationEndDateTime,"Default" ) );
-                    }
+                    // Removed 9/17/2024: If no custom ones are set, we want to leave it up to the HVAC provider whether to
+                    // use the default times or ignore the reservation.
+                    //if ( !reservationDoorLockTimes.Any() )
+                    //{
+                    //    reservationDoorLockTimes.Add( new ReservationDoorLockTime( reservationStartDateTime, reservationEndDateTime,"Default" ) );
+                    //}
 
                     if ( validReservationTime || validDoorLockTime )
                     {

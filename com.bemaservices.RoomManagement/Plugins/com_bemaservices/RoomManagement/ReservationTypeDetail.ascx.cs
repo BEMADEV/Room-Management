@@ -61,7 +61,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// <summary>
             /// The default door lock instruction text
             /// </summary>
-            public const string DefaultDoorLockInstructionText = @"By default, Rock will provide the Reservation Time to your door lock provider. If you would like to create alternate times to forward to your provider, enter them here in the form of minutes offset from your start time.";
+            public const string DefaultDoorLockInstructionText = @"If you would like to create custom door lock times to forward to your provider, enter them here in the form of minutes offset from your start time. Otherwise, the default handling for reservations will be used, which may differ per provider.";
         }
 
         #endregion Attribute Keys and Values

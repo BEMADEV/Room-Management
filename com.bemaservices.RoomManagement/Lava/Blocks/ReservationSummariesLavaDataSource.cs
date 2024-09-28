@@ -213,7 +213,7 @@ namespace com.bemaservices.RoomManagement.Lava.Blocks
 
             // Get the Date Range.
             var startDate = settings.GetDateTimeValue( ParameterStartDateTime );
-            var endDate = settings.GetDateTimeValue( ParameterStartDateTime );
+            var endDate = settings.GetDateTimeValue( ParameterEndDateTime );
 
             var reservationService = new ReservationService( rockContext );
             var qry = reservationService.Queryable( reservationQueryOptions );

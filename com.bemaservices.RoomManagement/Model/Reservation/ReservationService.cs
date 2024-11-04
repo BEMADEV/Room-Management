@@ -264,7 +264,12 @@ namespace com.bemaservices.RoomManagement.Model
             var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
             var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
 
-            var qryStartTime = newReservation.FirstOccurrenceStartDateTime ?? RockDateTime.Now.AddMonths( -1 );
+            var qryStartTime = RockDateTime.Now;
+            if ( newReservation.FirstOccurrenceStartDateTime.HasValue && newReservation.FirstOccurrenceStartDateTime > qryStartTime )
+            {
+                qryStartTime = newReservation.FirstOccurrenceStartDateTime.Value;
+            }
+
             var qryEndTime = newReservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
             var newReservationSummaries = newReservationQry.GetReservationSummaries( qryStartTime, qryEndTime );
             var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( qryStartTime, qryEndTime );

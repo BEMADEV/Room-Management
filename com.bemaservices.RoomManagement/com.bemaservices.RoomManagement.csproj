@@ -119,6 +119,7 @@
     <Compile Include="Field\Types\ReportTemplateFieldType.cs" />
     <Compile Include="Field\Types\ReservationFieldType.cs" />
     <Compile Include="Jobs\FireWorkflowFromReservationInDateRange.cs" />
+    <Compile Include="Jobs\KickstartReservationsWithRemovedApprovalGroups.cs" />
     <Compile Include="Jobs\PopulateFirstLastOccurrenceDateTimes.cs" />
     <Compile Include="Jobs\V247TemporarySetupPhotoFix.cs" />
     <Compile Include="Lava\Blocks\ReservationSummariesBlock.cs" />

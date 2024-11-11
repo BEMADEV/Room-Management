@@ -14,6 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
 using Rock.Model;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -21,7 +22,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// <summary>
     /// The view model for a Reservation Conflict
     /// </summary>
-    public class ReservationConflict
+    public class ReservationConflict : IEquatable<ReservationConflict>
     {
         /// <summary>
         /// Gets or sets the location identifier.
@@ -33,7 +34,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the location.
         /// </summary>
         /// <value>The location.</value>
-        public Location Location { get; set; }
+        public string LocationName { get; set; }
 
         /// <summary>
         /// Gets or sets the resource identifier.
@@ -45,7 +46,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the resource.
         /// </summary>
         /// <value>The resource.</value>
-        public Resource Resource { get; set; }
+        public string ResourceName { get; set; }
 
         /// <summary>
         /// Gets or sets the resource quantity.
@@ -63,6 +64,32 @@ namespace com.bemaservices.RoomManagement.Model
         /// Gets or sets the reservation.
         /// </summary>
         /// <value>The reservation.</value>
-        public Reservation Reservation { get; set; }
+        public string ReservationName { get; set; }
+
+        public string ReservationSchedule { get; set; }
+
+        public bool Equals( ReservationConflict other )
+        {
+            if(
+                ReservationId == other.ReservationId &&
+                LocationId == other.LocationId &&
+                ResourceId == other.ResourceId &&
+                ResourceQuantity == other.ResourceQuantity &&
+                ReservationSchedule == other.ReservationSchedule )
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            int reservationIdHash = ReservationId == null ? 0 : ReservationId.GetHashCode();
+            int locationIdHash = LocationId == null ? 0 : LocationId.GetHashCode();
+            int resourceIdHash = ResourceId == null ? 0 : ResourceId.GetHashCode();
+            int resourceQuantityHash = ResourceQuantity == null ? 0 : ResourceQuantity.GetHashCode();
+            int reservationScheduleHash = ReservationSchedule == null ? 0 : ReservationSchedule.GetHashCode();
+            return reservationIdHash^locationIdHash^resourceIdHash^resourceQuantityHash^reservationScheduleHash;
+        }
     }
 }

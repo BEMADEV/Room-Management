@@ -17,11 +17,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using com.bemaservices.RoomManagement.Model;
 using Rock;
 using Rock.Data;
+using Rock.Model;
 using Rock.Web.UI.Controls;
 
 namespace com.bemaservices.RoomManagement.Web.UI.Controls
@@ -48,6 +50,76 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
                 ViewState["CampusId"] = value;
             }
         }
+
+        /// <summary>
+        /// Gets or sets the reservation identifier.
+        /// </summary>
+        /// <value>The reservation identifier.</value>
+        public int? ReservationId
+        {
+            get { return ViewState["ReservationId"] as int? ?? 0; }
+            set
+            {
+                ViewState["ReservationId"] = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the setup time.
+        /// </summary>
+        /// <value>The setup time.</value>
+        public int? SetupTime
+        {
+            get { return ViewState["SetupTime"] as int? ?? 0; }
+            set
+            {
+                ViewState["SetupTime"] = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Gets or sets the cleanup time.
+        /// </summary>
+        /// <value>The cleanup time.</value>
+        public int? CleanupTime
+        {
+            get { return ViewState["CleanupTime"] as int? ?? 0; }
+            set
+            {
+                ViewState["CleanupTime"] = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Gets or sets the content of the i calendar.
+        /// </summary>
+        /// <value>The content of the i calendar.</value>
+        public string ICalendarContent
+        {
+            get { return ViewState["ICalendarContent"] as string ?? string.Empty; }
+            set
+            {
+                ViewState["ICalendarContent"] = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Gets or sets the location ids.
+        /// </summary>
+        /// <value>The location ids.</value>
+        public string LocationIds
+        {
+            get { return ViewState["LocationIds"] as string ?? string.Empty; }
+            set
+            {
+                ViewState["LocationIds"] = value;
+            }
+        }
+
+
 
         /// <summary>
         /// The checkbox to show inactive groups
@@ -92,7 +164,7 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
         /// <param name="e">An <see cref="T:System.EventArgs" /> object that contains the event data.</param>
         protected override void OnInit( EventArgs e )
         {
-            ItemRestUrlExtraParams = "?includeAllCampuses=false&campusId=" + ( CampusId != null ? CampusId.ToString() : "0" );
+            SetExtraRestParams();
             this.IconCssClass = "fa fa-cogs";
             base.OnInit( e );
         }
@@ -208,9 +280,53 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
         /// Sets the extra rest parameters.
         /// </summary>
         /// <param name="includeAllCampuses">if set to <c>true</c> [include all campuses].</param>
-        public void SetExtraRestParams( bool includeAllCampuses = false )
+        public void SetExtraRestParams( bool includeAllCampuses )
         {
-            ItemRestUrlExtraParams = "?includeAllCampuses=" + includeAllCampuses.ToTrueFalse() + "&campusId=" + ( CampusId != null ? CampusId.ToString() : "0" ) + "&getCategorizedItems=true&showUnnamedEntityItems=true&showCategoriesThatHaveNoChildren=true";
+            SetExtraRestParams();
+        }
+
+        /// <summary>
+        /// Sets the extra rest parameters.
+        /// </summary>
+        public void SetExtraRestParams()
+        {
+            StringBuilder additionalParams = new StringBuilder();
+            additionalParams.Append( "?getCategorizedItems=true" );
+            additionalParams.Append( "&showUnnamedEntityItems=true" );
+            additionalParams.Append( "&showCategoriesThatHaveNoChildren=true" );
+            additionalParams.AppendFormat( "&includeAllCampuses={0}", _cbShowAllResources.Checked.ToTrueFalse() );
+
+            if ( CampusId.HasValue )
+            {
+                additionalParams.AppendFormat( "&CampusId={0}", CampusId );
+            }
+
+            if ( ReservationId.HasValue )
+            {
+                additionalParams.AppendFormat( "&ReservationId={0}", ReservationId );
+            }
+
+            if ( ICalendarContent.IsNotNullOrWhiteSpace() )
+            {
+                additionalParams.AppendFormat( "&iCalendarContent={0}", Uri.EscapeUriString( ICalendarContent ) );
+            }
+
+            if ( SetupTime.HasValue )
+            {
+                additionalParams.AppendFormat( "&SetupTime={0}", SetupTime.Value );
+            }
+
+            if ( CleanupTime.HasValue )
+            {
+                additionalParams.AppendFormat( "&CleanupTime={0}", CleanupTime.Value );
+            }
+
+            if ( LocationIds.IsNotNullOrWhiteSpace() )
+            {
+                additionalParams.AppendFormat( "&LocationIds={0}", LocationIds );
+            }
+
+            ItemRestUrlExtraParams = additionalParams.ToString();
         }
 
         /// <summary>
@@ -221,7 +337,7 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
         public void _cbShowAllResources_CheckedChanged( object sender, EventArgs e )
         {
             ShowDropDown = true;
-            SetExtraRestParams( _cbShowAllResources.Checked );
+            SetExtraRestParams();
         }
     }
 }

@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using Rock;
 using Rock.Model;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -113,15 +114,47 @@ namespace com.bemaservices.RoomManagement.Model
     public class ReservationCalendarOptions : ReservationQueryOptions
     {
         /// <summary>
-        /// Gets or sets the start date.
+        /// The start date
+        /// </summary>
+        private DateTime? _startDate;
+        /// <summary>
+        /// The end date
+        /// </summary>
+        private DateTime? _endDate;
+
+        /// <summary>
+        /// Gets or sets the start date. if not explicitly set returns 3 months prior to the current date.
         /// </summary>
         /// <value>The start date.</value>
-        public DateTime? StartDate { get; set; } = null;
+        public DateTime StartDate
+        {
+            get
+            {
+                return _startDate ?? RockDateTime.Now.AddMonths( -3 ).Date;
+            }
+
+            set
+            {
+                _startDate = value;
+            }
+        }
+
         /// <summary>
-        /// Gets or sets the end date.
+        /// Gets or sets the end date. If not explicitly set returns 12 months from current date.
         /// </summary>
         /// <value>The end date.</value>
-        public DateTime? EndDate { get; set; } = null;
+        public DateTime EndDate
+        {
+            get
+            {
+                return _endDate ?? RockDateTime.Now.AddMonths( 12 ).Date;
+            }
+
+            set
+            {
+                _endDate = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the type of the client device.

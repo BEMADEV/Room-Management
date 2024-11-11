@@ -218,13 +218,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void gfSettings_ApplyFilterClick( object sender, EventArgs e )
         {
-            gfSettings.SaveUserPreference( "Selected Entity", rblResourceLocation.SelectedValue );
-            gfSettings.SaveUserPreference( "Start Time", dtpStartDateTime.SelectedDateTime.ToString() );
-            gfSettings.SaveUserPreference( "End Time", dtpEndDateTime.SelectedDateTime.ToString() );
-            gfSettings.SaveUserPreference( "Resource Category", cpResource.SelectedValue.ToString() );
-            gfSettings.SaveUserPreference( "Parent Location", lipLocation.SelectedValue.ToString() );
-            gfSettings.SaveUserPreference( "Expected Occupants", nbMaxOccupants.Text );
-            gfSettings.SaveUserPreference( "Campus", cpCampus.SelectedValuesAsInt.AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( "Selected Entity", rblResourceLocation.SelectedValue );
+            gfSettings.SetFilterPreference( "Start Time", dtpStartDateTime.SelectedDateTime.ToString() );
+            gfSettings.SetFilterPreference( "End Time", dtpEndDateTime.SelectedDateTime.ToString() );
+            gfSettings.SetFilterPreference( "Resource Category", cpResource.SelectedValue.ToString() );
+            gfSettings.SetFilterPreference( "Parent Location", lipLocation.SelectedValue.ToString() );
+            gfSettings.SetFilterPreference( "Expected Occupants", nbMaxOccupants.Text );
+            gfSettings.SetFilterPreference( "Campus", cpCampus.SelectedValuesAsInt.AsDelimited( "," ) );
             BindGrid();
         }
 
@@ -258,39 +258,39 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         private void BindFilter()
         {
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Start Time" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "Start Time" ) ) )
             {
-                dtpStartDateTime.SelectedDateTime = gfSettings.GetUserPreference( "Start Time" ).AsDateTime();
+                dtpStartDateTime.SelectedDateTime = gfSettings.GetFilterPreference( "Start Time" ).AsDateTime();
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "End Time" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "End Time" ) ) )
             {
-                dtpEndDateTime.SelectedDateTime = gfSettings.GetUserPreference( "End Time" ).AsDateTime();
+                dtpEndDateTime.SelectedDateTime = gfSettings.GetFilterPreference( "End Time" ).AsDateTime();
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Resource Category" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "Resource Category" ) ) )
             {
-                cpResource.SetValues( gfSettings.GetUserPreference( "Resource Category" ).Split( ',' ).AsIntegerList() );
+                cpResource.SetValues( gfSettings.GetFilterPreference( "Resource Category" ).Split( ',' ).AsIntegerList() );
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Parent Location" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "Parent Location" ) ) )
             {
-                lipLocation.SetValues( gfSettings.GetUserPreference( "Parent Location" ).Split( ',' ).AsIntegerList() );
+                lipLocation.SetValues( gfSettings.GetFilterPreference( "Parent Location" ).Split( ',' ).AsIntegerList() );
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Selected Entity" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "Selected Entity" ) ) )
             {
-                rblResourceLocation.SetValue( gfSettings.GetUserPreference( "Selected Entity" ) );
+                rblResourceLocation.SetValue( gfSettings.GetFilterPreference( "Selected Entity" ) );
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Expected Occupants" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "Expected Occupants" ) ) )
             {
-                nbMaxOccupants.Text = gfSettings.GetUserPreference( "Expected Occupants" );
+                nbMaxOccupants.Text = gfSettings.GetFilterPreference( "Expected Occupants" );
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( "Campus" ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( "Campus" ) ) )
             {
-                cpCampus.SetValues( gfSettings.GetUserPreference( "Campus" ).SplitDelimitedValues().AsIntegerList() );
+                cpCampus.SetValues( gfSettings.GetFilterPreference( "Campus" ).SplitDelimitedValues().AsIntegerList() );
             }
         }
 

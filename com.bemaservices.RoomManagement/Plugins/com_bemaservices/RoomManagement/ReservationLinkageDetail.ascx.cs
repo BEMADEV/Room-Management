@@ -473,6 +473,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 pnlExistingEvent.Visible = false;
                 pnlNewEvent.Visible = true;
+                pnlExistingOccurrence.Visible= false;
+                pnlNewOccurrence.Visible = true;
+                pnlNewOccurrenceSelection.Visible = false;
+                tglOccurrenceSelection.Checked = true;
             }
             else
             {
@@ -485,7 +489,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectedIndexChanged event of the eipSelectedEvent control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void eipSelectedEvent_SelectedIndexChanged( object sender, EventArgs e )
         {
             pnlNewOccurrenceSelection.Visible = false;
@@ -498,6 +502,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 if ( eventItemOccurrences.Any() )
                 {
                     pnlNewOccurrenceSelection.Visible = true;
+                    pnlNewOccurrence.Visible = false;
+                    pnlExistingOccurrence.Visible = true;
+                    tglOccurrenceSelection.Checked = false;
+
                     ddlSelectedOccurrence.Items.Clear();
                     foreach ( var eventItemOccurrence in eventItemOccurrences.OrderBy( eio => eio.NextStartDateTime ) )
                     {
@@ -515,7 +523,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         }
 
                         ddlSelectedOccurrence.Items.Add( new ListItem( description.ToString(), eventItemOccurrence.Id.ToString() ) );
-                    }                        
+                    }
+                }
+                else
+                {
+                    pnlExistingOccurrence.Visible = false;
+                    pnlNewOccurrence.Visible = true;
+                    pnlNewOccurrenceSelection.Visible = false;
+                    tglOccurrenceSelection.Checked = true;
                 }
             }
         }
@@ -524,7 +539,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the CheckedChanged event of the tglOccurrenceSelection control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void tglOccurrenceSelection_CheckedChanged( object sender, EventArgs e )
         {
             if ( tglOccurrenceSelection.Checked )
@@ -1329,7 +1344,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         #endregion
 
-
         #region Helper Classes
 
         /// <summary>
@@ -1358,7 +1372,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         private enum ActiveWizardStep { ViewReservation, EditReservation, Event, EventOccurrence, Summary, Finished }
         #endregion
-
 
         /// <summary>
         /// Handles the Click event of the lbCreateNewEventLinkage control.

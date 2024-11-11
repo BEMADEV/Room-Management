@@ -35,13 +35,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     /// <summary>
     /// Block for viewing list of reservations
     /// </summary>
-    [DisplayName( "Reservation List" )]
+    [DisplayName( "Conflicting Reservation List" )]
     [Category( "BEMA Services > Room Management" )]
-    [Description( "Block for viewing a list of reservations." )]
+    [Description( "Block for viewing a list of conflicting reservations." )]
 
     [LinkedPage( "Detail Page" )]
     [TextField( "Related Entity Query String Parameter", "The query string parameter that holds id to the related entity.", false )]
-    public partial class ReservationList : Rock.Web.UI.RockBlock
+    public partial class ConflictingReservationList : Rock.Web.UI.RockBlock
     {
         #region Control Methods
 
@@ -432,28 +432,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? defaultStartDateTime;
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? defaultEndDateTime;
-            var reservationSummaryList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
+            var reservationList = qry.ToList();
+
+            List<ConflictedReservation> conflictedReservationList = new List<ConflictedReservation>();
+            foreach ( var reservation in reservationList )
+            {
+                var conflictInfo = reservationService.GenerateConflictInfo( reservation, LinkedPageUrl( "DetailPage" ) );
+                if ( !string.IsNullOrWhiteSpace( conflictInfo ) )
+                {
+                    ConflictedReservation conflictedReservation = new ConflictedReservation(reservation, conflictInfo);
+                    conflictedReservationList.Add( conflictedReservation );
+                }
+            }
+
 
             // Bind to Grid
-            gReservations.DataSource = reservationSummaryList.Select( r => new
-            {
-                Id = r.Id,
-                ReservationType = r.ReservationType.Name,
-                ReservationName = r.ReservationName,
-                Locations = r.ReservationLocations.Select( rl => rl.Location.Name ).ToList().AsDelimited( ", " ),
-                Resources = r.ReservationResources.Select( rr => rr.Resource.Name ).ToList().AsDelimited( ", " ),
-                EventStartDateTime = r.EventStartDateTime,
-                EventEndDateTime = r.EventEndDateTime,
-                ReservationStartDateTime = r.ReservationStartDateTime,
-                ReservationEndDateTime = r.ReservationEndDateTime,
-                EventDateTimeDescription = r.EventDateTimeDescription,
-                ReservationDateTimeDescription = r.ReservationDateTimeDescription +
-                    string.Format( " ({0})", ( r.ReservationStartDateTime.Date == r.ReservationEndDateTime.Date )
-                        ? r.ReservationStartDateTime.DayOfWeek.ToStringSafe().Substring( 0, 3 )
-                        : r.ReservationStartDateTime.DayOfWeek.ToStringSafe().Substring( 0, 3 ) + "-" + r.ReservationEndDateTime.DayOfWeek.ToStringSafe().Substring( 0, 3 ) ),
-                ApprovalState = r.ApprovalState.ConvertToString()
-            } )
-            .OrderBy( r => r.ReservationStartDateTime ).ToList();
+            gReservations.DataSource = conflictedReservationList
+                .OrderBy( r => r.StartDate )
+                .ToList();
             gReservations.EntityTypeId = EntityTypeCache.Get<Reservation>().Id;
             gReservations.DataBind();
         }
@@ -533,6 +529,77 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// The event item occurrence identifier
             /// </summary>
             EventItemOccurrenceId
+        }
+
+        /// <summary>
+        /// Class ConflictedReservation.
+        /// </summary>
+        public class ConflictedReservation
+        {
+            /// <summary>
+            /// Gets or sets the identifier.
+            /// </summary>
+            /// <value>The identifier.</value>
+            public int Id { get; set; }
+            /// <summary>
+            /// Gets or sets the type of the reservation.
+            /// </summary>
+            /// <value>The type of the reservation.</value>
+            public string ReservationType { get; set; }
+            /// <summary>
+            /// Gets or sets the name of the reservation.
+            /// </summary>
+            /// <value>The name of the reservation.</value>
+            public string ReservationName { get; set; }
+            /// <summary>
+            /// Gets or sets the locations.
+            /// </summary>
+            /// <value>The locations.</value>
+            public string Locations { get; set; }
+            /// <summary>
+            /// Gets or sets the resources.
+            /// </summary>
+            /// <value>The resources.</value>
+            public string Resources { get; set; }
+            /// <summary>
+            /// Gets or sets the start date.
+            /// </summary>
+            /// <value>The start date.</value>
+            public DateTime? StartDate { get; set; }
+            /// <summary>
+            /// Gets or sets the schedule.
+            /// </summary>
+            /// <value>The schedule.</value>
+            public string Schedule { get; set; }
+            /// <summary>
+            /// Gets or sets the state of the approval.
+            /// </summary>
+            /// <value>The state of the approval.</value>
+            public string ApprovalState { get; set; }
+            /// <summary>
+            /// Gets or sets the conflicts.
+            /// </summary>
+            /// <value>The conflicts.</value>
+            public string Conflicts { get; set; }
+
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ConflictedReservation"/> class.
+            /// </summary>
+            /// <param name="reservation">The reservation.</param>
+            /// <param name="conflictSummary">The conflict summary.</param>
+            public ConflictedReservation( Reservation reservation, string conflictSummary )
+            {
+                // debug here
+                this.Id = reservation.Id;
+                this.ReservationType = reservation.ReservationType.Name;
+                this.ReservationName = reservation.Name;
+                this.Locations = reservation.ReservationLocations.Select( rl => rl.Location.Name ).ToList().AsDelimited( ", " );
+                this.Resources = reservation.ReservationResources.Select( rr => rr.Resource.Name ).ToList().AsDelimited( ", " );
+                this.StartDate = reservation.FirstOccurrenceStartDateTime;
+                this.Schedule = reservation.FriendlyReservationTime;
+                this.Conflicts = conflictSummary;
+                this.ApprovalState = reservation.ApprovalState.ConvertToString();
+            }
         }
     }
 }

@@ -23,7 +23,7 @@ namespace com.bemaservices.RoomManagement.Migrations
     /// Migration for the RoomManagement system.
     /// </summary>
     /// <seealso cref="Rock.Plugin.Migration" />
-    [MigrationNumber( 043, "1.14.0" )]
+    [MigrationNumber( 048, "1.16.6" )]
     public class LavaReportV2 : Migration
     {
         /// <summary>

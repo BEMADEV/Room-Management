@@ -135,7 +135,7 @@
     <Compile Include="Migrations\043_Rollup247.cs" />
     <Compile Include="Migrations\042_ModificationFixes.cs" />
     <Compile Include="Migrations\041_RoomDetails.cs" />
-    <Compile Include="Migrations\043_LavaReportV2.cs" />
+    <Compile Include="Migrations\048_LavaReportV2.cs" />
     <Compile Include="Migrations\047_OrphanedApprovalProcessHandling.cs" />
     <Compile Include="Migrations\046_DoorLocks.cs" />
     <Compile Include="Migrations\045_Rollup258.cs" />

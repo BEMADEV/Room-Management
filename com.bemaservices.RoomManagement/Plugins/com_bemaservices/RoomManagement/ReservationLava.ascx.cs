@@ -649,7 +649,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationType = r.ReservationType,
                 ApprovalState = r.ApprovalState.ConvertToString(),
                 ApprovalStateInt = r.ApprovalState.ConvertToInt(),
-                Locations = r.ReservationLocations.OrderBy(rl=> rl.Location.Name).ToList(),
+                Locations = r.ReservationLocations.OrderBy( rl => rl.Location.Name ).ToList(),
                 Resources = r.ReservationResources.OrderBy( rr => rr.Resource.Name ).ToList(),
                 UnassignedResources = r.UnassignedReservationResources.OrderBy( rr => rr.Resource.Name ).ToList(),
                 CalendarDate = r.EventStartDateTime.ToLongDateString(),
@@ -772,23 +772,27 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reportTemplate = GetReportTemplate( reportTemplateGuid );
 
             var outputArray = reportTemplate.GenerateReport( reservationSummaryList, logoFileUrl, reportFont, FilterStartDate, FilterEndDate, reportLava );
+            if ( outputArray != null )
+            {
 
-            Response.ClearHeaders();
-            Response.ClearContent();
-            Response.Clear();
-            Response.ContentType = "application/pdf";
-            var download = GetAttributeValue( "DownloadReports" ).AsBoolean();
-            if ( !download )
-            {
-                Response.AddHeader( "Content-Disposition", string.Format( "inline;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
+                Response.ClearHeaders();
+                Response.ClearContent();
+                Response.Clear();
+                Response.ContentType = "application/pdf";
+                var download = GetAttributeValue( "DownloadReports" ).AsBoolean();
+                if ( !download )
+                {
+                    Response.AddHeader( "Content-Disposition", string.Format( "inline;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
+                }
+                else
+                {
+                    Response.AddHeader( "Content-Disposition", string.Format( "attachment;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
+                }
+                Response.BinaryWrite( outputArray );
+                Response.Flush();
+                Response.End();
             }
-            else
-            {
-                Response.AddHeader( "Content-Disposition", string.Format( "attachment;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
-            }
-            Response.BinaryWrite( outputArray );
-            Response.Flush();
-            Response.End();
+
             return;
         }
 

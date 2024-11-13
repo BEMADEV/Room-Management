@@ -42,7 +42,13 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [ExportMetadata( "ComponentName", "Lava V2" )]
     public class LavaV2ReportTemplate : ReportTemplate
     {
-        protected virtual PaperFormat PaperFormat => PaperFormat.A4;
+        protected virtual PaperFormat PaperFormat
+        {
+            get
+            {
+                return PaperFormat.A4;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the exceptions.
@@ -60,7 +66,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
         /// <param name="filterEndDate">The filter end date.</param>
         /// <param name="lavaTemplate">The lava template.</param>
         /// <returns>System.Byte[].</returns>
-        public override byte[] GenerateReport( List<ReservationService.ReservationSummary> reservationSummaryList, string logoFileUrl, string font, DateTime? filterStartDate, DateTime? filterEndDate, string lavaTemplate = "" )
+        public override byte[] GenerateReport( List<ReservationSummary> reservationSummaryList, string logoFileUrl, string font, DateTime? filterStartDate, DateTime? filterEndDate, string lavaTemplate = "" )
         {
             // Date Ranges
             var today = RockDateTime.Today;

@@ -552,6 +552,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        protected void btnToday_Click( object sender, EventArgs e )
+        {
+            this.SetUserPreference( PreferenceKey + "ViewMode", "Day" );
+            ViewMode = "Day";
+            calReservationCalendar.SelectedDate = RockDateTime.Now.Date;
+
+            ResetCalendarSelection();
+            BindData();
+        }
+
         /// <summary>
         /// Handles the Click event of the btnAllReservations control.
         /// </summary>
@@ -1068,7 +1078,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             };
 
             var howManyVisible = viewsVisible.Where( v => v ).Count();
-            btnDay.Visible = howManyVisible > 1 && viewsVisible[0];
+            btnDay.Visible = btnToday.Visible = howManyVisible > 1 && viewsVisible[0];
             btnWeek.Visible = howManyVisible > 1 && viewsVisible[1];
             btnMonth.Visible = howManyVisible > 1 && viewsVisible[2];
             btnYear.Visible = howManyVisible > 1 && viewsVisible[3];
@@ -1209,6 +1219,5 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         }
         #endregion
-
     }
 }

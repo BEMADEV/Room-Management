@@ -193,6 +193,10 @@
                             <Rock:BootstrapButton ID="btnYear" runat="server" CssClass="btn btn-xs btn-default" Text="Year" OnClick="btnViewMode_Click" />
                         </div>
 
+                        <div id="divTodayButton" runat="server" class="btn-group hidden-print pull-left margin-l-sm" role="group">
+                            <Rock:BootstrapButton ID="btnToday" runat="server" CssClass="btn btn-xs btn-default" Text="Today" OnClick="btnToday_Click" />
+                        </div>
+
                         <div id="divViewDropDown" runat="server" class="pull-left margin-l-sm">
                             <div class="btn-group">
                                 <asp:HiddenField ID="hfSelectedView" runat="server" />
@@ -215,7 +219,7 @@
 
                         <div class="pull-right">
                             <div class="btn-group">
-                                <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown">Print <i class="fa fa-print"></i> <span class="caret"></span></button>
+                                <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown">Print <i class="fa fa-print"></i><span class="caret"></span></button>
 
                                 <ul id="ulReportDropDown" runat="server" enableviewstate="false" class="dropdown-menu dropdown-menu-right">
                                     <asp:Repeater runat="server" ID="rptReports" OnItemCommand="rptReports_ItemCommand">

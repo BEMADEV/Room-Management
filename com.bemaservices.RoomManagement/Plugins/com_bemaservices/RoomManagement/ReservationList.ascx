@@ -24,6 +24,7 @@
                         <Rock:PersonPicker ID="ppAdminContact" runat="server" Label="Admin Contact" EnableSelfSelection="true" />
                         <BEMA:ResourcePicker ID="rpResource" runat="server" Label="Resources" AllowMultiSelect="true" />
                         <Rock:LocationItemPicker ID="lipLocation" runat="server" Label="Locations" AllowMultiSelect="true" />
+                        <Rock:CampusesPicker ID="cpCampuses" runat="server" Label="Campuses" />
                     </Rock:GridFilter>
                     <Rock:Grid ID="gReservations" runat="server" RowItemText="Reservation" OnRowSelected="gReservations_Edit" TooltipField="Description">
                         <Columns>

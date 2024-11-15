@@ -521,6 +521,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// The approval state
             /// </summary>
             public const string APPROVAL_STATE = "Approval State";
+
+            public const string CAMPUSES = "Campuses";
         }
         #endregion
 

@@ -16,8 +16,10 @@
 //
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Rock;
 using Rock.Data;
 
@@ -384,6 +386,47 @@ namespace com.bemaservices.RoomManagement.Model
             target.ForeignId = source.ForeignId;
             target.ForeignGuid = source.ForeignGuid;
             target.ForeignKey = source.ForeignKey;
+        }
+
+        public static void CopyPropertiesFrom( this ReservationService.ReservationSummary target, Model.ReservationSummary source )
+        {
+            target.Id = source.Id;
+            target.ReservationType = source.ReservationType;
+            target.ApprovalState = source.ApprovalState;
+            target.ReservationName = source.ReservationName;
+            target.ReservationMinistry = source.ReservationMinistry;
+            target.SetupPhotoId = source.SetupPhotoId;
+            target.ScheduleId = source.ScheduleId;
+            target.NumberAttending = source.NumberAttending;
+            target.Note = source.Note;
+
+            target.EventDateTimeDescription = source.EventDateTimeDescription;
+            target.EventTimeDescription = source.EventTimeDescription;
+            target.ReservationDateTimeDescription = source.ReservationDateTimeDescription;
+            target.ReservationTimeDescription = source.ReservationTimeDescription;
+
+            target.ReservationStartDateTime = source.ReservationStartDateTime;
+            target.ReservationEndDateTime = source.ReservationEndDateTime;
+            target.EventStartDateTime = source.EventStartDateTime;
+            target.EventEndDateTime = source.EventEndDateTime;
+
+            target.ReservationLocations = source.ReservationLocations;
+            target.ReservationResources = source.ReservationResources;
+            target.UnassignedReservationResources = source.UnassignedReservationResources;
+            target.ReservationDoorLockTimes = source.ReservationDoorLockTimes;
+
+            target.EventContactPersonAlias = source.EventContactPersonAlias;
+            target.EventContactPhoneNumber = source.EventContactPhoneNumber;
+            target.EventContactEmail = source.EventContactEmail;
+            target.AdministrativeContactPersonAlias = source.AdministrativeContactPersonAlias;
+            target.AdministrativeContactPhoneNumber = source.AdministrativeContactPhoneNumber;
+            target.AdministrativeContactEmail = source.AdministrativeContactEmail;
+            target.RequesterAlias = source.RequesterAlias;
+
+
+            target.ModifiedDateTime = source.ModifiedDateTime;
+            target.Attributes = source.Attributes;
+            target.AttributeValues = source.AttributeValues;
         }
 
         /// <summary>

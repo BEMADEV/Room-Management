@@ -201,7 +201,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
 
                             try
                             {
-                                if ( reservationLocation.LocationLayout.LayoutPhotoId != null )
+                                if (reservationLocation.LocationLayoutId != null && reservationLocation.LocationLayout.LayoutPhotoId != null )
                                 {
                                     var appRootUri = new Uri( GlobalAttributesCache.Get().GetValue( "PublicApplicationRoot" ) );
                                     var photoUrl = appRootUri + reservationLocation.LocationLayout.LayoutPhotoUrl;

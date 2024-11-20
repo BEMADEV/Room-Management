@@ -59,5 +59,10 @@ namespace com.bemaservices.RoomManagement.Model
             EndDateTime = endDateTime;
             Note = note;
         }
+
+        public ReservationDoorLockTime()
+        {
+
+        }
     }
 }

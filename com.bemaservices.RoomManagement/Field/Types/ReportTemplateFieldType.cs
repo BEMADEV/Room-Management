@@ -82,6 +82,13 @@ namespace com.bemaservices.RoomManagement.Field.Types
         {
             var reportTemplatePicker = new ReportTemplatePicker { ID = id };
 
+            var a = ReportTemplateContainer.Instance;
+            var b = a.Components;
+            var c = b.Values;
+            var d = c.Where( v => v.Value.IsActive == true );
+            var e = d.Select( v => v.Value.EntityType );
+            var f = e.ToList();
+
             var allReportTemplates = ReportTemplateContainer.Instance.Components.Values
                 .Where( v => v.Value.IsActive == true )
                 .Select( v => v.Value.EntityType );

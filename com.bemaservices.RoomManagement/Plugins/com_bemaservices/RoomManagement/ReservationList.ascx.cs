@@ -29,6 +29,7 @@ using Rock.Web.UI.Controls;
 
 using com.bemaservices.RoomManagement.Model;
 using System.Web.UI.WebControls;
+using MailChimp.Net.Core;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -232,6 +233,29 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                         break;
                     }
+                case FilterSetting.CAMPUSES:
+                    {
+                        var campusIdList = e.Value.Split( ',' ).AsIntegerList();
+                        if ( campusIdList.Any() && cpCampuses.Visible )
+                        {
+                            var service = new CampusService( new RockContext() );
+                            var campuses = service.GetByIds( campusIdList );
+                            if ( campuses != null && campuses.Any() )
+                            {
+                                e.Value = campuses.Select( a => a.Name ).ToList().AsDelimited( "," );
+                            }
+                            else
+                            {
+                                e.Value = string.Empty;
+                            }
+                        }
+                        else
+                        {
+                            e.Value = string.Empty;
+                        }
+
+                        break;
+                    }
             }
         }
 
@@ -260,7 +284,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gfSettings.SetFilterPreference( FilterSetting.END_TIME, dtpEndDateTime.SelectedDateTime.ToString() );
             gfSettings.SetFilterPreference( FilterSetting.RESOURCES, rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
             gfSettings.SetFilterPreference( FilterSetting.LOCATIONS, lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( FilterSetting.CAMPUSES, cpCampuses.SelectedCampusIds.AsDelimited( "," ) );
             BindGrid();
+        }
+
+        protected void gfSettings_ClearFilterClick( object sender, EventArgs e )
+        {
+            gfSettings.DeleteFilterPreferences();
+            BindFilter();
         }
 
         /// <summary>
@@ -287,6 +318,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 tbName.Text = gfSettings.GetFilterPreference( FilterSetting.RESERVATION_NAME );
             }
+            else
+            {
+                tbName.Text = String.Empty;
+            }
 
             // Setup Ministry Filter
             cblMinistry.DataSource = new ReservationMinistryService( rockContext ).Queryable().DistinctBy( rmc => rmc.Name ).OrderBy( m => m.Name );
@@ -295,6 +330,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.MINISTRY ) ) )
             {
                 cblMinistry.SetValues( gfSettings.GetFilterPreference( FilterSetting.MINISTRY ).SplitDelimitedValues() );
+            }
+            else
+            {
+                cblMinistry.ClearSelection();
             }
 
             // Setup Reservation Type Filter
@@ -305,11 +344,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 cblReservationType.SetValues( gfSettings.GetFilterPreference( FilterSetting.RESERVATION_TYPE ).SplitDelimitedValues() );
             }
+            else
+            {
+                cblReservationType.ClearSelection();
+            }
 
             cblApproval.BindToEnum<ReservationApprovalState>();
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.APPROVAL_STATE ) ) )
             {
                 cblApproval.SetValues( gfSettings.GetFilterPreference( FilterSetting.APPROVAL_STATE ).SplitDelimitedValues() );
+            }
+            else
+            {
+                cblApproval.ClearSelection();
             }
 
             var personService = new PersonService( rockContext );
@@ -325,6 +372,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
                 }
             }
+            else
+            {
+                ppCreator.SetValue( null );
+            }
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.EVENT_CONTACT ) ) )
             {
@@ -337,6 +388,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         ppEventContact.SetValue( person );
                     }
                 }
+            }
+            else
+            {
+                ppEventContact.SetValue( null );
             }
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.ADMIN_CONTACT ) ) )
@@ -351,25 +406,54 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
                 }
             }
+            else
+            {
+                ppAdminContact.SetValue( null );
+            }
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.START_TIME ) ) )
             {
                 dtpStartDateTime.SelectedDateTime = gfSettings.GetFilterPreference( FilterSetting.START_TIME ).AsDateTime();
+            }
+            else
+            {
+                dtpStartDateTime.SelectedDateTime = null;
             }
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.END_TIME ) ) )
             {
                 dtpEndDateTime.SelectedDateTime = gfSettings.GetFilterPreference( FilterSetting.END_TIME ).AsDateTime();
             }
+            else
+            {
+                dtpEndDateTime.SelectedDateTime = null;
+            }
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.RESOURCES ) ) )
             {
                 rpResource.SetValues( gfSettings.GetFilterPreference( FilterSetting.RESOURCES ).Split( ',' ).AsIntegerList() );
             }
+            else
+            {
+                rpResource.SetValue( null );
+            }
 
             if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.LOCATIONS ) ) )
             {
                 lipLocation.SetValues( gfSettings.GetFilterPreference( FilterSetting.LOCATIONS ).Split( ',' ).AsIntegerList() );
+            }
+            else
+            {
+                lipLocation.SetValue( ( int? ) null );
+            }
+
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.CAMPUSES ) ) )
+            {
+                cpCampuses.SetValues( gfSettings.GetFilterPreference( FilterSetting.CAMPUSES ).Split( ',' ).AsIntegerList() );
+            }
+            else
+            {
+                cpCampuses.ClearSelection();
             }
         }
 
@@ -401,6 +485,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
             }
             reservationQueryOptions.LocationIds = locationIdList;
+
+            reservationQueryOptions.CampusIds = lipLocation.SelectedValuesAsInt().ToList();
 
             var qry = reservationService.Queryable( reservationQueryOptions );
 

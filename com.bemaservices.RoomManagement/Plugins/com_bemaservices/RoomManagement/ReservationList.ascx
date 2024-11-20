@@ -12,7 +12,7 @@
             <div class="panel-body">
                 <div class="grid grid-panel">
                     <Rock:NotificationBox ID="nbMessage" runat="server" NotificationBoxType="Warning" Visible="false"></Rock:NotificationBox>
-                    <Rock:GridFilter ID="gfSettings" runat="server">
+                    <Rock:GridFilter ID="gfSettings" runat="server" OnClearFilterClick="gfSettings_ClearFilterClick">
                         <Rock:RockTextBox ID="tbName" runat="server" Label="Reservation Name" />
                         <Rock:RockCheckBoxList ID="cblReservationType" RepeatDirection="Horizontal" Label="Reservation Type" runat="server" DataTextField="Name" DataValueField="Id" />
                         <Rock:RockCheckBoxList ID="cblMinistry" RepeatDirection="Horizontal" Label="Ministry" runat="server" DataTextField="Name" DataValueField="Id" />

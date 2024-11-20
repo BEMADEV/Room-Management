@@ -179,6 +179,11 @@
 
                 <Rock:DatePicker ID="dpStartDate" runat="server" Label="Start Date" OnTextChanged="dpStartDate_TextChanged" AutoPostBack="true" />
                 <Rock:DatePicker ID="dpEndDate" runat="server" Label="End Date" OnTextChanged="dpEndDate_TextChanged" AutoPostBack="true" />
+                <div class="row">
+                    <div class="col-md-12">
+                        <Rock:BootstrapButton ID="btnClearFilters" runat="server" CssClass="btn btn-xs btn-default" Text="Clear Filters" OnClick="btnClearFilters_Click" />
+                    </div>
+                </div>
 
                 <small class="text-muted">v<asp:Literal ID="lVersionText" runat="server"></asp:Literal></small>
             </asp:Panel>

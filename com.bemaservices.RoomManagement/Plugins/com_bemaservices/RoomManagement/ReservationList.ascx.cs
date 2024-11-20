@@ -29,7 +29,6 @@ using Rock.Web.UI.Controls;
 
 using com.bemaservices.RoomManagement.Model;
 using System.Web.UI.WebControls;
-using MailChimp.Net.Core;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {

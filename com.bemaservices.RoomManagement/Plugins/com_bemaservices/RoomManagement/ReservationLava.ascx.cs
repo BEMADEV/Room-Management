@@ -1014,6 +1014,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 lipLocation.SetValues( locationIds );
             }
+            else
+            {
+                lipLocation.SetValue( ( int? ) null );
+            }
 
             // Setup Resource Filter
             rpResource.Visible = GetAttributeValue( "ResourceFilterDisplayMode" ).AsInteger() > 1;
@@ -1021,6 +1025,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( resourceIds.Any() )
             {
                 rpResource.SetValues( resourceIds );
+            }
+            else
+            {
+                rpResource.SetValue( ( int? ) null );
             }
 
             // Setup Campus Filter
@@ -1084,12 +1092,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 FilterStartDate = dpStartDate.SelectedDate = startDate.Value;
             }
+            else
+            {
+                dpStartDate.SelectedDate = null;
+            }
 
             dpEndDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
             var endDate = preferences.GetValue( "EndDate" ).AsDateTime();
             if ( dpEndDate.Visible && endDate.HasValue )
             {
                 FilterEndDate = dpEndDate.SelectedDate = endDate.Value;
+            }
+            else
+            {
+                dpEndDate.SelectedDate = null;
             }
 
             // Get the View Modes, and only show them if more than one is visible
@@ -1118,6 +1134,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             pnlList.CssClass = showFilter ? "col-md-9" : "col-md-12";
 
             return true;
+        }
+
+        protected void btnClearFilters_Click( object sender, EventArgs e )
+        {
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Locations", "" );
+            preferences.SetValue( "Resources", "" );
+            preferences.SetValue( "Campuses", "" );
+            preferences.SetValue( "Ministries", "" );
+            preferences.SetValue( "ApprovalState", "" );
+            preferences.SetValue( "ReservationType", "" );
+            preferences.SetValue( "StartDate", "" );
+            preferences.SetValue( "EndDate", "" );
+            preferences.Save();
+            SetFilterControls();
+            BindData();
         }
 
         /// <summary>
@@ -1244,5 +1276,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         }
         #endregion
+
     }
 }

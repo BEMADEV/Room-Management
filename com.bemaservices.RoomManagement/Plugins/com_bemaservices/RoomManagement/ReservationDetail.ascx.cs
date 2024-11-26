@@ -67,7 +67,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         Key = "LocationDetailTemplate",
         DefaultValue = @"<div class='row'>
     {% if Location.ImageId != null %}
-        {% capture imgUrl %}/GetImage.ashx?id={{Location.ImageId}}{% endcapture %}
+        {% capture imgUrl %}/GetImage.ashx?guid={{Location.Image.Guid}}{% endcapture %}
         {% capture imgTag %}<img src='{{imgUrl}}&maxwidth=200&maxheight=200'/>{% endcapture %}
         <div class='col-md-4'>
             <div class='photo'>
@@ -1986,9 +1986,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var lLayoutPhoto = e.Row.FindControl( "lLayoutPhoto" ) as Literal;
                 if ( reservationLocation.LocationLayout != null && reservationLocation.LocationLayout.LayoutPhotoId.HasValue )
                 {
-                    string imgTag = string.Format( "<img src='{0}GetImage.ashx?id={1}&maxwidth=150&maxheight=150'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservationLocation.LocationLayout.LayoutPhotoId.Value );
+                    string imgTag = string.Format( "<img src='{0}GetImage.ashx?guid={1}&maxwidth=150&maxheight=150'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservationLocation.LocationLayout.LayoutPhoto.Guid );
 
-                    string imgUrl = string.Format( "~/GetImage.ashx?id={0}", reservationLocation.LocationLayout.LayoutPhotoId );
+                    string imgUrl = string.Format( "~/GetImage.ashx?guid={0}", reservationLocation.LocationLayout.LayoutPhoto.Guid );
                     if ( System.Web.HttpContext.Current != null )
                     {
                         imgUrl = VirtualPathUtility.ToAbsolute( imgUrl );
@@ -2078,7 +2078,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     Literal lPhoto = e.Row.FindControl( "lPhoto" ) as Literal;
                     if ( lPhoto != null )
                     {
-                        lPhoto.Text = String.Format( "<img src='/GetImage.ashx?id={0}' height='100 />'", locationLayout.LayoutPhotoId );
+                        lPhoto.Text = String.Format( "<img src='/GetImage.ashx?guid={0}' height='100 />'", locationLayout.LayoutPhoto.Guid );
                     }
                 }
             }
@@ -2388,9 +2388,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( reservation.SetupPhotoId.HasValue )
             {
-                string imgTag = string.Format( "<img src='{0}GetImage.ashx?id={1}&maxwidth=200&maxheight=200'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservation.SetupPhotoId.Value );
+                string imgTag = string.Format( "<img src='{0}GetImage.ashx?guid={1}&maxwidth=200&maxheight=200'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservation.SetupPhoto.Guid );
 
-                string imgUrl = string.Format( "~/GetImage.ashx?id={0}", reservation.SetupPhotoId );
+                string imgUrl = string.Format( "~/GetImage.ashx?guid={0}", reservation.SetupPhoto.Guid );
                 if ( System.Web.HttpContext.Current != null )
                 {
                     imgUrl = VirtualPathUtility.ToAbsolute( imgUrl );

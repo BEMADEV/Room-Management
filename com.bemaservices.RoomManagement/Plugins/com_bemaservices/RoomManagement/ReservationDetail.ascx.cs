@@ -18,9 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Web.UI.WebControls;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Web.UI;
 using com.bemaservices.RoomManagement.Model;
 using Rock;
@@ -33,13 +31,11 @@ using Rock.Web.UI;
 using Newtonsoft.Json;
 using Rock.Web.UI.Controls;
 using Rock.Security;
-using Rock.Communication;
 using System.Web;
 using System.Data.Entity;
 using System.Web.UI.HtmlControls;
 using com.bemaservices.RoomManagement.Attribute;
 using Rock.Constants;
-using Rock.Lava;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -884,7 +880,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ddlMinistry.Items.Add( new ListItem( ministry.Name, ministry.Id.ToString().ToUpper() ) );
             }
 
-            LoadAdditionalInfo( resetControls: true );
+            LoadAdditionalInfo( resetReservationControls: true );
 
             SetRequiredFieldsBasedOnReservationType( ReservationType );
 
@@ -2460,7 +2456,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             hfApprovalState.Value = reservation.ApprovalState.ConvertToString();
-            LoadAdditionalInfo( false, true );
+            LoadAdditionalInfo( false, true, true, true );
 
             divViewLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
             gViewLocations.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationLocation>().Id;
@@ -2577,7 +2573,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservationResource.IsNew = true;
                 }
 
-                LoadAdditionalInfo( resetControls: true );
+                LoadAdditionalInfo( true, true, true, true );
                 wpAdditionalInfo.Expanded = GetAttributeValue( "IsAdditionalInfoExpanded" ).AsBoolean();
 
 
@@ -2745,7 +2741,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         /// <param name="isEditMode">if set to <c>true</c> [is edit mode].</param>
         /// <param name="resetControls">if set to <c>true</c> [reset controls].</param>
-        private void LoadAdditionalInfo( bool isEditMode = true, bool resetControls = false )
+        private void LoadAdditionalInfo( bool isEditMode = true
+            , bool resetReservationControls = false
+            , bool resetLocationControls = false
+            , bool resetResourceControls = false )
         {
             var rockContext = new RockContext();
             RequiredAdditionalInfoFieldCount = AdditionalInfoFieldCount = 0;
@@ -2759,11 +2758,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             Hydrate( ResourcesState, rockContext );
 
-            BuildReservationQuestions( isEditMode, resetControls );
+            BuildReservationQuestions( isEditMode, resetReservationControls );
 
-            BuildLocationQuestions( isEditMode, resetControls );
+            BuildLocationQuestions( isEditMode, resetLocationControls );
 
-            BuildResourceQuestions( isEditMode, resetControls );
+            BuildResourceQuestions( isEditMode, resetResourceControls );
 
             if ( isEditMode )
             {

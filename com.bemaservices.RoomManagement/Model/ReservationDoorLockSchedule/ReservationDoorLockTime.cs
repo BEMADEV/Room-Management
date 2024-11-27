@@ -48,7 +48,7 @@ namespace com.bemaservices.RoomManagement.Model
 
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ReservationDoorLockTime"/> class.
+        /// Initializes a new instance of the <see cref="ReservationDoorLockTime" /> class.
         /// </summary>
         /// <param name="startDateTime">The start date time.</param>
         /// <param name="endDateTime">The end date time.</param>
@@ -60,6 +60,9 @@ namespace com.bemaservices.RoomManagement.Model
             Note = note;
         }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ReservationDoorLockTime"/> class.
+        /// </summary>
         public ReservationDoorLockTime()
         {
 

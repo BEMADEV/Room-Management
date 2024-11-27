@@ -389,6 +389,11 @@ namespace com.bemaservices.RoomManagement.Model
             target.ForeignKey = source.ForeignKey;
         }
 
+        /// <summary>
+        /// Copies the properties from.
+        /// </summary>
+        /// <param name="target">The target.</param>
+        /// <param name="source">The source.</param>
         public static void CopyPropertiesFrom( this ReservationService.ReservationSummary target, Model.ReservationSummary source )
         {
             target.Id = source.Id;

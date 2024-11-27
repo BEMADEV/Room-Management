@@ -287,6 +287,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             BindGrid();
         }
 
+        /// <summary>
+        /// Handles the ClearFilterClick event of the gfSettings control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void gfSettings_ClearFilterClick( object sender, EventArgs e )
         {
             gfSettings.DeleteFilterPreferences();
@@ -607,6 +612,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// </summary>
             public const string APPROVAL_STATE = "Approval State";
 
+            /// <summary>
+            /// The campuses
+            /// </summary>
             public const string CAMPUSES = "Campuses";
         }
         #endregion

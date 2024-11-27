@@ -42,6 +42,10 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [ExportMetadata( "ComponentName", "Lava V2" )]
     public class LavaV2ReportTemplate : ReportTemplate
     {
+        /// <summary>
+        /// Gets the paper format.
+        /// </summary>
+        /// <value>The paper format.</value>
         protected virtual PaperFormat PaperFormat
         {
             get

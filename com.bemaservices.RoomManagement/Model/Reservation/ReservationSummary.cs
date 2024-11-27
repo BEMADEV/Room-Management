@@ -177,6 +177,10 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The setup photo identifier.</value>
         public int? SetupPhotoId { get; set; }
 
+        /// <summary>
+        /// Gets or sets the setup photo unique identifier.
+        /// </summary>
+        /// <value>The setup photo unique identifier.</value>
         public Guid? SetupPhotoGuid { get; set; }
 
         /// <summary>

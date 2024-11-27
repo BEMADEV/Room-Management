@@ -39,6 +39,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             FixDeletedSpecialApprovalHandling();
         }
 
+        /// <summary>
+        /// Fixes the deleted special approval handling.
+        /// </summary>
         private void FixDeletedSpecialApprovalHandling()
         {           
             RockMigrationHelper.UpdateWorkflowActionType( "C21EF7B1-3B5C-4820-B123-F9241E206E27", "Delay 14 Days if Notifications Already Sent", 0, "D22E73F7-86E2-46CA-AD5B-7770A866726B", true, false, "", "98EF8E62-8094-4799-A7CE-A5D4713E9372", 1, "Yes", "ACD421C1-0F01-4D3F-8D49-C1AFC8A81ADB" ); // Approval Process:Pending Special Approval:Delay 14 Days if Notifications Already Sent

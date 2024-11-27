@@ -72,11 +72,26 @@ namespace com.bemaservices.RoomManagement.Jobs
     public class KickstartReservationsWithRemovedApprovalGroups : RockJob
     {
 
+        /// <summary>
+        /// Class AttributeKey.
+        /// </summary>
         private static class AttributeKey
         {
+            /// <summary>
+            /// The date range
+            /// </summary>
             public const string DateRange = "DateRange";
+            /// <summary>
+            /// The starts in date range
+            /// </summary>
             public const string StartsInDateRange = "StartsInDateRange";
+            /// <summary>
+            /// The reservation states
+            /// </summary>
             public const string ReservationStates = "ReservationStates";
+            /// <summary>
+            /// The workflow type
+            /// </summary>
             public const string WorkflowType = "WorkflowType";
         }
 

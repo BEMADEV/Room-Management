@@ -551,6 +551,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Handles the Click event of the btnToday control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnToday_Click( object sender, EventArgs e )
         {
             var preferences = GetBlockPersonPreferences();
@@ -642,6 +647,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         #region Methods
 
+        /// <summary>
+        /// Binds the data or reload page.
+        /// </summary>
         private void BindDataOrReloadPage()
         {
             var selectedView = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
@@ -667,6 +675,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Binds the data.
+        /// </summary>
         private void BindData()
         {
             var selectedView = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
@@ -676,6 +687,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <summary>
         /// Binds the data.
         /// </summary>
+        /// <param name="selectedView">The selected view.</param>
         private void BindData( DefinedValueCache selectedView )
         {
             var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
@@ -685,6 +697,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <summary>
         /// Binds the data.
         /// </summary>
+        /// <param name="selectedView">The selected view.</param>
         /// <param name="showBy">The show by.</param>
         private void BindData( DefinedValueCache selectedView, ShowBy showBy )
         {
@@ -1158,6 +1171,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             return true;
         }
 
+        /// <summary>
+        /// Handles the Click event of the btnClearFilters control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnClearFilters_Click( object sender, EventArgs e )
         {
             var preferences = GetBlockPersonPreferences();

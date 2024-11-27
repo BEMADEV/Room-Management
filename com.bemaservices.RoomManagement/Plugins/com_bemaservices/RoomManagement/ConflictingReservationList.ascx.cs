@@ -583,7 +583,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             public string Conflicts { get; set; }
 
             /// <summary>
-            /// Initializes a new instance of the <see cref="ConflictedReservation"/> class.
+            /// Initializes a new instance of the <see cref="ConflictedReservation" /> class.
             /// </summary>
             /// <param name="reservation">The reservation.</param>
             /// <param name="conflictSummary">The conflict summary.</param>

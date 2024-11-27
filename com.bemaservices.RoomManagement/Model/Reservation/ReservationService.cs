@@ -1240,15 +1240,13 @@ namespace com.bemaservices.RoomManagement.Model
         /// Loads the occurrences for the specified iCalendar content string, excluding the occurrence that represents
         /// the calendar event's start date/time, if it doesn't match the specified recurrence dates or recurrence rules.
         /// </summary>
-        /// <remarks>
-        /// For example, this is helpful when considering a group member's preferred schedule template, with respect to
-        /// group scheduling. If we don't exclude start date/times that don't match the recurrence dates or rules in
-        /// such scenarios, this can lead to false positives and people being scheduled when they shouldn't be.
-        /// </remarks>
         /// <param name="iCalendarContent">The RFC 5545 iCalendar content string.</param>
         /// <param name="startDateTime">The start date time.</param>
         /// <param name="endDateTime">The end date time.</param>
         /// <returns>The occurrences.</returns>
+        /// <remarks>For example, this is helpful when considering a group member's preferred schedule template, with respect to
+        /// group scheduling. If we don't exclude start date/times that don't match the recurrence dates or rules in
+        /// such scenarios, this can lead to false positives and people being scheduled when they shouldn't be.</remarks>
         internal static Occurrence[] GetOccurrencesExcludingStartDate( string iCalendarContent, DateTime startDateTime, DateTime? endDateTime )
         {
             var iCalEvent = InetCalendarHelper.CreateCalendarEvent( iCalendarContent );

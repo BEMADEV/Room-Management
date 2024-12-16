@@ -176,7 +176,7 @@ namespace com.bemaservices.RoomManagement.Model
                             AdministrativeContactEmail = reservation.AdministrativeContactEmail,
                             AdministrativeContactPhoneNumber = reservation.AdministrativeContactPhone,
                             SetupPhotoId = reservation.SetupPhotoId,
-                            SetupPhotoGuid = reservation.SetupPhoto.Guid,
+                            SetupPhotoGuid = reservation.SetupPhoto?.Guid,
                             Note = reservation.Note,
                             RequesterAlias = reservation.RequesterAlias,
                             NumberAttending = reservation.NumberAttending,

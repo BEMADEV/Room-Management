@@ -137,12 +137,20 @@
                             </div>
 
                             <div id="divViewDoorLockSchedules" runat="server">
-                                <h4>Door Lock Schedules</h4>
+                                <h4>Door Unlock Schedules</h4>
                                 <div class="grid">
-                                    <Rock:Grid ID="gViewDoorLockSchedules" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Location" ShowWorkflowOrCustomActionButtons="false">
+                                    <Rock:Grid ID="gViewDoorLockSchedules" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Door Unlock Schedule" ShowWorkflowOrCustomActionButtons="false" OnRowDataBound="gViewDoorLockSchedules_RowDataBound">
                                         <Columns>
-                                            <Rock:RockBoundField DataField="StartTimeOffset" HeaderText="Start Time Offset" />
-                                            <Rock:RockBoundField DataField="EndTimeOffset" HeaderText="End Time Offset" />
+                                            <Rock:RockTemplateField HeaderText="Start Time">
+                                                <ItemTemplate>
+                                                    <asp:Literal ID="lStartTime" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
+                                            <Rock:RockTemplateField HeaderText="End Time">
+                                                <ItemTemplate>
+                                                    <asp:Literal ID="lEndTime" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
                                             <Rock:RockBoundField DataField="Note" HeaderText="Note" />
                                         </Columns>
                                     </Rock:Grid>
@@ -292,14 +300,22 @@
                                 </div>
                             </Rock:PanelWidget>
 
-                            <Rock:PanelWidget ID="wpDoorLockSchedules" runat="server" Title="Door Lock Schedules">
+                            <Rock:PanelWidget ID="wpDoorLockSchedules" runat="server" Title="Door Unlock Schedules">
                                 <div class="grid">
                                     <Rock:ModalAlert ID="maDoorLockScheduleGridWarning" runat="server" />
                                     <Rock:NotificationBox ID="nbReservationDoorLockScheduleInstructions" Visible="true" NotificationBoxType="Info" runat="server" />
-                                    <Rock:Grid ID="gDoorLockSchedules" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Door Lock Schedules" ShowConfirmDeleteDialog="false" ShowWorkflowOrCustomActionButtons="false">
+                                    <Rock:Grid ID="gDoorLockSchedules" runat="server" AllowPaging="false" DisplayType="Light" RowItemText="Door Unlock Schedules" ShowConfirmDeleteDialog="false" ShowWorkflowOrCustomActionButtons="false" OnRowDataBound="gDoorLockSchedules_RowDataBound">
                                         <Columns>
-                                            <Rock:RockBoundField DataField="StartTimeOffset" HeaderText="Start Time Offset" />
-                                            <Rock:RockBoundField DataField="EndTimeOffset" HeaderText="End Time Offset" />
+                                            <Rock:RockTemplateField HeaderText="Start Time">
+                                                <ItemTemplate>
+                                                    <asp:Literal ID="lStartTime" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
+                                            <Rock:RockTemplateField HeaderText="End Time">
+                                                <ItemTemplate>
+                                                    <asp:Literal ID="lEndTime" runat="server" />
+                                                </ItemTemplate>
+                                            </Rock:RockTemplateField>
                                             <Rock:RockBoundField DataField="Note" HeaderText="Note" />
                                             <Rock:EditField OnClick="gDoorLockSchedules_Edit" />
                                             <Rock:DeleteField OnClick="gDoorLockSchedules_Delete" />
@@ -384,21 +400,29 @@
             </Content>
         </Rock:ModalDialog>
 
-        <Rock:ModalDialog ID="dlgReservationDoorLockSchedule" runat="server" Title="Add Door Lock Schedule" OnSaveThenAddClick="dlgReservationDoorLockSchedule_SaveThenAddClick" OnSaveClick="dlgReservationDoorLockSchedule_SaveClick" OnCancelScript="clearActiveDialog();" ValidationGroup="ReservationDoorLockSchedule">
+        <Rock:ModalDialog ID="dlgReservationDoorLockSchedule" runat="server" Title="Add Door Unlock Schedule" OnSaveThenAddClick="dlgReservationDoorLockSchedule_SaveThenAddClick" OnSaveClick="dlgReservationDoorLockSchedule_SaveClick" OnCancelScript="clearActiveDialog();" ValidationGroup="ReservationDoorLockSchedule">
             <Content>
                 <asp:HiddenField ID="hfAddReservationDoorLockScheduleGuid" runat="server" />
                 <asp:ValidationSummary ID="valReservationDoorLockScheduleSummary" runat="server" HeaderText="Please Correct the Following" CssClass="alert alert-danger" ValidationGroup="ReservationDoorLockSchedule" />
-                <div class="row">
-                    <div class="col-md-4">
-                        <Rock:NumberBox ID="nbStartTimeOffset" runat="server" Required="true" NumberType="Integer" ValidationGroup="ReservationDoorLockSchedule" Label="Start Time Offset" Help="How many minutes offset from the scheduled start time should the configured door lock period start?" />
+                <Rock:NotificationBox ID="nbDoorLockError" Visible="false" NotificationBoxType="Warning" runat="server" />
+                <div id="divDoorLockModalControls" runat="server" visible="true">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <Rock:NumberUpDown ID="nbStartDayOffset" runat="server" Required="true" ValidationGroup="ReservationDoorLockSchedule" Label="Start Day Offset" />
+                        </div>
+                        <div class="col-md-3">
+                            <Rock:TimePicker ID="tpStartTime" runat="server" Required="true" ValidationGroup="ReservationDoorLockSchedule" Label="Start Time" />
+                        </div>
+                        <div class="col-md-3">
+                            <Rock:NumberUpDown ID="nbEndDayOffset" runat="server" Required="true" ValidationGroup="ReservationDoorLockSchedule" Label="End Day Offset" />
+                        </div>
+                        <div class="col-md-3">
+                            <Rock:TimePicker ID="tpEndTime" runat="server" Required="true" ValidationGroup="ReservationDoorLockSchedule" Label="End Time" />
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <Rock:NumberBox ID="nbEndTimeOffset" runat="server" Required="true" NumberType="Integer" ValidationGroup="ReservationDoorLockSchedule" Label="End Time Offset" Help="How many minutes offset from the scheduled start time should the configured door lock period end?" />
-                    </div>
-                    <div class="col-md-4">
-                        <Rock:RockTextBox ID="tbReservationDoorLockScheduleNote" runat="server" Label="Note" Required="false" />
-                    </div>
+                    <Rock:RockTextBox ID="tbReservationDoorLockScheduleNote" runat="server" Label="Note" Required="false" />
                 </div>
+                
             </Content>
         </Rock:ModalDialog>
     </ContentTemplate>

@@ -204,7 +204,7 @@
     EVENT COLORS
 */
 .calendar-container .event {
-    background-color: #034f84;
+    /*background-color: #034f84;*/
     color: #fff;
 }
     .calendar-container .event a {

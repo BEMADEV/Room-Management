@@ -14,6 +14,8 @@
 // limitations under the License.
 // </copyright>
 //
+using System;
+using System.Text;
 using Rock.Data;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -30,5 +32,40 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <param name="context">The context.</param>
         public ReservationDoorLockScheduleService( RockContext context ) : base( context ) { }
+
+        public static string GetFriendlyDoorLockTime( DateTime? reservationStartDateTime, DateTime doorLockStartTime )
+        {
+            StringBuilder sb = new StringBuilder();
+            if ( reservationStartDateTime != null && doorLockStartTime != null )
+            {
+                var dateOffsetText = string.Empty;
+                var dateDifference = ( doorLockStartTime - reservationStartDateTime );
+                sb.Append( doorLockStartTime.ToShortTimeString() );
+
+                if ( dateDifference.HasValue )
+                {
+                    var dayDifference = ( Int64 ) dateDifference.Value.TotalDays;
+                    if ( dayDifference != 0 )
+                    {
+                        sb.Append( " (" );
+
+                        if ( dayDifference >= 1 )
+                        {
+                            sb.Append( "+" );
+                        }
+
+                        sb.AppendFormat( "{0} day", dayDifference.ToString() );
+
+                        if ( dayDifference < -1 || dayDifference > 1 )
+                        {
+                            sb.Append( "s" );
+                        }
+
+                        sb.Append( ")" );
+                    }
+                }
+            }
+            return sb.ToString();
+        }
     }
 }

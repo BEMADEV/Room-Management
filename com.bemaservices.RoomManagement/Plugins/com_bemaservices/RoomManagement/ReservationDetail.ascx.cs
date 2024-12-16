@@ -36,6 +36,7 @@ using System.Data.Entity;
 using System.Web.UI.HtmlControls;
 using com.bemaservices.RoomManagement.Attribute;
 using Rock.Constants;
+using DocumentFormat.OpenXml.Drawing;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -1200,6 +1201,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             lScheduleText.Text = Reservation.GetFriendlyReservationScheduleText( schedule, ReservationType, nbSetupTime.Text.AsIntegerOrNull(), nbCleanupTime.Text.AsIntegerOrNull(), null, null );
 
             LoadPickers();
+            BindReservationDoorLockSchedulesGrid();
         }
 
         /// <summary>
@@ -2105,10 +2107,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         protected void dlgReservationDoorLockSchedule_SaveClick( object sender, EventArgs e )
         {
-            SaveReservationDoorLockSchedule();
-
-            dlgReservationDoorLockSchedule.Hide();
-            hfActiveDialog.Value = string.Empty;
+            var validDoorLock = SaveReservationDoorLockSchedule();
+            if ( validDoorLock )
+            {
+                dlgReservationDoorLockSchedule.Hide();
+                hfActiveDialog.Value = string.Empty;
+            }
         }
 
         protected void dlgReservationDoorLockSchedule_SaveThenAddClick( object sender, EventArgs e )
@@ -2138,30 +2142,104 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         protected void gDoorLockSchedules_ShowEdit( Guid reservationDoorLockScheduleGuid )
         {
-            nbError.Visible = false;
-            ReservationDoorLockSchedule reservationDoorLockSchedule = DoorLockSchedulesState.FirstOrDefault( l => l.Guid.Equals( reservationDoorLockScheduleGuid ) );
-            if ( reservationDoorLockSchedule != null )
+            var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
+            var reservationStartDateTime = schedule.FirstStartDateTime;
+            if ( reservationStartDateTime != null )
             {
-                nbStartTimeOffset.Text = reservationDoorLockSchedule.StartTimeOffset.ToStringSafe();
-                nbEndTimeOffset.Text = reservationDoorLockSchedule.EndTimeOffset.ToStringSafe();
-                tbReservationDoorLockScheduleNote.Text = reservationDoorLockSchedule.Note;
+                divDoorLockModalControls.Visible = true;
+                nbError.Visible = false;
+                nbDoorLockError.Visible = false;
+                dlgReservationDoorLockSchedule.SaveButtonText = "Save";
+                dlgReservationDoorLockSchedule.SaveThenAddButtonText = "Save Then Add";
+
+                ReservationDoorLockSchedule reservationDoorLockSchedule = DoorLockSchedulesState.FirstOrDefault( l => l.Guid.Equals( reservationDoorLockScheduleGuid ) );
+
+                if ( reservationDoorLockSchedule != null )
+                {
+
+                    var doorLockStartTime = reservationStartDateTime.Value.AddMinutes( reservationDoorLockSchedule.StartTimeOffset );
+                    var doorLockEndTime = reservationStartDateTime.Value.AddMinutes( reservationDoorLockSchedule.EndTimeOffset );
+
+                    var startDateOffset = ( int ) ( doorLockStartTime - reservationStartDateTime ).Value.TotalDays;
+                    var endDateOffset = ( int ) ( doorLockEndTime - reservationStartDateTime ).Value.TotalDays;
+
+                    nbStartDayOffset.Value = startDateOffset;
+                    tpStartTime.SelectedTime = doorLockStartTime.TimeOfDay;
+
+                    nbEndDayOffset.Value = endDateOffset;
+                    tpEndTime.SelectedTime = doorLockEndTime.TimeOfDay;
+
+                    tbReservationDoorLockScheduleNote.Text = reservationDoorLockSchedule.Note;
+                }
+                else
+                {
+                    nbStartDayOffset.Value = 0;
+                    tpStartTime.SelectedTime = reservationStartDateTime.Value.TimeOfDay;
+
+                    nbEndDayOffset.Value = 0;
+                    tpEndTime.SelectedTime = reservationStartDateTime.Value.TimeOfDay;
+                    tbReservationDoorLockScheduleNote.Text = string.Empty;
+                }
             }
             else
             {
-                nbStartTimeOffset.Text = string.Empty;
-                nbEndTimeOffset.Text = string.Empty;
-                tbReservationDoorLockScheduleNote.Text = string.Empty;
+                divDoorLockModalControls.Visible = false;
+                nbDoorLockError.Visible = true;
+                nbDoorLockError.Text = "Please first set a reservation schedule.";
+                dlgReservationDoorLockSchedule.SaveButtonText = string.Empty;
+                dlgReservationDoorLockSchedule.SaveThenAddButtonText = string.Empty;
             }
 
             hfAddReservationDoorLockScheduleGuid.Value = reservationDoorLockScheduleGuid.ToString();
             hfActiveDialog.Value = "dlgReservationDoorLockSchedule";
-
             dlgReservationDoorLockSchedule.Show();
         }
 
         private void gDoorLockSchedules_Add( object sender, EventArgs e )
         {
             gDoorLockSchedules_ShowEdit( Guid.Empty );
+        }
+
+        protected void gDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
+        {
+            var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
+            var reservationStartDateTime = schedule.FirstStartDateTime;
+            BindDoorLockSchedulesRow( e.Row, reservationStartDateTime );
+        }
+
+        protected void gViewDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var reservation = new ReservationService( rockContext ).Get( hfReservationId.Value.AsInteger() );
+                var reservationStartDateTime = reservation.Schedule.FirstStartDateTime;
+                Literal lPhoto = e.Row.FindControl( "lPhoto" ) as Literal;
+                Literal lStartTime = e.Row.FindControl( "lStartTime" ) as Literal;
+                Literal lEndTime = e.Row.FindControl( "lEndTime" ) as Literal;
+                BindDoorLockSchedulesRow( e.Row, reservationStartDateTime );
+            }
+        }
+
+        protected void BindDoorLockSchedulesRow( GridViewRow gridViewRow, DateTime? reservationStartDateTime )
+        {
+            var doorLockSchedule = gridViewRow.DataItem as ReservationDoorLockSchedule;
+            Literal lStartTime = gridViewRow.FindControl( "lStartTime" ) as Literal;
+            Literal lEndTime = gridViewRow.FindControl( "lEndTime" ) as Literal;
+            if ( lStartTime != null && lEndTime != null )
+            {
+                if ( doorLockSchedule != null && reservationStartDateTime != null )
+                {
+                    var doorLockStartTime = reservationStartDateTime.Value.AddMinutes( doorLockSchedule.StartTimeOffset );
+                    lStartTime.Text = ReservationDoorLockScheduleService.GetFriendlyDoorLockTime( reservationStartDateTime, doorLockStartTime );
+
+                    var doorLockEndTime = reservationStartDateTime.Value.AddMinutes( doorLockSchedule.EndTimeOffset );
+                    lEndTime.Text = ReservationDoorLockScheduleService.GetFriendlyDoorLockTime( reservationStartDateTime, doorLockEndTime );
+                }
+                else
+                {
+                    lStartTime.Text = lEndTime.Text = "Schedule Required";
+                }
+            }
         }
 
         private void BindReservationDoorLockSchedulesGrid()
@@ -4243,7 +4321,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         #region Reservation Door Lock Schedule Methods
 
-        private void SaveReservationDoorLockSchedule()
+        private bool SaveReservationDoorLockSchedule()
         {
             ReservationDoorLockSchedule reservationDoorLockSchedule = null;
             Guid guid = hfAddReservationDoorLockScheduleGuid.Value.AsGuid();
@@ -4257,13 +4335,37 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationDoorLockSchedule = new ReservationDoorLockSchedule();
             }
 
-            reservationDoorLockSchedule.StartTimeOffset = nbStartTimeOffset.Text.AsInteger();
-            reservationDoorLockSchedule.EndTimeOffset = nbEndTimeOffset.Text.AsInteger();
+            var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
+            if ( schedule == null ||
+                tpStartTime.SelectedTime == null ||
+                tpEndTime.SelectedTime == null )
+            {
+                return false;
+            }
+
+            var reservationStartDateTime = schedule.FirstStartDateTime;
+            var reservationStartDate = reservationStartDateTime.Value.Date;
+
+            var startDateTime = reservationStartDate.Add( tpStartTime.SelectedTime.Value ).AddDays( nbStartDayOffset.Value );
+            var endDateTime = reservationStartDate.Add( tpEndTime.SelectedTime.Value ).AddDays( nbEndDayOffset.Value );
+
+            var startDateTimeOffset = ( int ) ( startDateTime - reservationStartDateTime ).Value.TotalMinutes;
+            var endDateTimeOffset = ( int ) ( endDateTime - reservationStartDateTime ).Value.TotalMinutes;
+
+            reservationDoorLockSchedule.StartTimeOffset = startDateTimeOffset;
+            reservationDoorLockSchedule.EndTimeOffset = endDateTimeOffset;
             reservationDoorLockSchedule.Note = tbReservationDoorLockScheduleNote.Text;
 
             if ( !reservationDoorLockSchedule.IsValid )
             {
-                return;
+                return false;
+            }
+
+            if ( startDateTimeOffset > endDateTimeOffset )
+            {
+                nbDoorLockError.Visible = true;
+                nbDoorLockError.Text = "Please select an end time after your start time.";
+                return false;
             }
 
             if ( DoorLockSchedulesState.Any( a => a.Guid.Equals( reservationDoorLockSchedule.Guid ) ) )
@@ -4273,6 +4375,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             DoorLockSchedulesState.Add( reservationDoorLockSchedule );
             BindReservationDoorLockSchedulesGrid();
+            return true;
         }
 
         private void RemoveDoorLockSchedule( Guid rowGuid )

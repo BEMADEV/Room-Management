@@ -2634,8 +2634,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     wpResources.Expanded = true;
                 }
 
-                BindReservationDoorLockSchedulesGrid();
-                nbReservationDoorLockScheduleInstructions.Text = ReservationType.DoorLockInstructions;
+                BindReservationDoorLockSchedulesGrid();                
                 if ( DoorLockSchedulesState.Any() )
                 {
                     wpDoorLockSchedules.Expanded = true;
@@ -2811,7 +2810,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             wpLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
             wpResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any() );
+
             wpDoorLockSchedules.Visible = ReservationType.DisplayReservationDoorLockSchedules;
+            nbReservationDoorLockScheduleInstructions.Text = ReservationType.DoorLockInstructions;
         }
 
         /// <summary>
@@ -3032,14 +3033,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             string encodedCalendarContent = Uri.EscapeUriString( sbSchedule.iCalendarContent );
             srpResource.CampusId = ddlCampus.SelectedValueAsInt();
-            //srpResource.ItemRestUrlExtraParams = BaseResourceRestUrl + String.Format( "&reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}{4}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), string.IsNullOrWhiteSpace( locationIds ) ? "" : "&locationIds=" + locationIds );
             srpResource.ReservationId = reservationId;
             srpResource.LocationIds = locationIds;
             srpResource.ICalendarContent = sbSchedule.iCalendarContent;
             srpResource.SetupTime = nbSetupTime.Text.AsInteger();
             srpResource.CleanupTime = nbCleanupTime.Text.AsInteger();
             srpResource.SetExtraRestParams();
-            slpLocation.ItemRestUrlExtraParams = BaseLocationRestUrl + String.Format( "?reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}&attendeeCount={4}&reservationTypeId={5}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), nbAttending.Text.AsInteger(), ddlReservationType.SelectedValueAsId() );
+
+            slpLocation.ReservationId = reservationId;
+            slpLocation.ReservationTypeId = ddlReservationType.SelectedValueAsId();
+            slpLocation.ICalendarContent = sbSchedule.iCalendarContent;
+            slpLocation.SetupTime = nbSetupTime.Text.AsInteger();
+            slpLocation.CleanupTime = nbCleanupTime.Text.AsInteger();
+            slpLocation.AttendeeCount = nbAttending.Text.AsInteger();
+            slpLocation.SetExtraRestParams();
         }
 
         /// <summary>

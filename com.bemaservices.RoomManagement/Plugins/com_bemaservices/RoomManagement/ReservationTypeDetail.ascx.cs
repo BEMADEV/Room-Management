@@ -61,7 +61,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             /// <summary>
             /// The default door lock instruction text
             /// </summary>
-            public const string DefaultDoorLockInstructionText = @"If you would like to create custom door lock times to forward to your provider, enter them here as a date offset from the reservation start date and a start and end time. Otherwise, the default handling for reservations will be used, which may differ per provider.";
+            public const string DefaultDoorLockInstructionText = @"Typically, door lock providers that integrate with Room Management use the duration of the reservation including setup and cleanup times to determine door status. If you want to create custom door lock times to forward to your provider, enter the start and end times here.";
         }
 
         #endregion Attribute Keys and Values

@@ -93,7 +93,7 @@ namespace com.bemaservices.RoomManagement.Migrations
             Sql( @"ALTER TABLE [_com_bemaservices_RoomManagement_ReservationType] ADD [DoorLockInstructions] [nvarchar](max) NULL;" );
             Sql( @"UPDATE [_com_bemaservices_RoomManagement_ReservationType] SET [DisplayReservationDoorLockSchedules] = 0;
                 " );
-            Sql( @" UPDATE [_com_bemaservices_RoomManagement_ReservationType] SET [DoorLockInstructions] = 'If you would like to create custom door lock times to forward to your provider, enter them here as a date offset from the reservation start date and a start and end time. Otherwise, the default handling for reservations will be used, which may differ per provider.'" );
+            Sql( @" UPDATE [_com_bemaservices_RoomManagement_ReservationType] SET [DoorLockInstructions] = 'Typically, door lock providers that integrate with Room Management use the duration of the reservation including setup and cleanup times to determine door status. If you want to create custom door lock times to forward to your provider, enter the start and end times here.'" );
         }
 
         /// <summary>

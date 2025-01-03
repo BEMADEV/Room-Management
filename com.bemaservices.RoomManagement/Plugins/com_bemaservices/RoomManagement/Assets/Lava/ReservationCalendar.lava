@@ -42,6 +42,7 @@
   id: {{ reservationSummary.Id }},
   relatedId: {{ reservationSummary.Id }},
   start: "{{reservationSummary.ReservationStartDateTime}}",
+  end: "{{reservationSummary.ReservationEndDateTime}}",
   name: "{{ reservationSummary.ReservationName | Replace:'"','\"' | Append:' ' | Append:reservationSummary.ApprovalStateInt }}",
   url: "{{ DetailsPage }}?ReservationId={{ reservationSummary.Id }}",
   state: "{{reservationSummary.ApprovalState}}",

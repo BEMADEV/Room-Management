@@ -32,6 +32,7 @@ using Rock.Security;
 
 using com.bemaservices.RoomManagement.Model;
 using com.bemaservices.RoomManagement.ReportTemplates;
+using static Rock.Blocks.Security.AuthClientList;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -253,9 +254,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             // Set User Preference
             ReservationViewId = GetBlockPersonPreferences().GetValue( "ReservationViewId" ).AsIntegerOrNull();
-            if ( ReservationViewId == null && definedValueList.FirstOrDefault() != null )
+            if ( ReservationViewId == null || !definedValueList.Where( dv => dv.Id == ReservationViewId ).Any() )
             {
-                ReservationViewId = definedValueList.FirstOrDefault().Id;
+                ReservationViewId = definedValueList.FirstOrDefault()?.Id;
             }
 
             if ( !Page.IsPostBack )

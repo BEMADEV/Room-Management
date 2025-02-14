@@ -32,7 +32,6 @@ using Rock.Security;
 
 using com.bemaservices.RoomManagement.Model;
 using com.bemaservices.RoomManagement.ReportTemplates;
-using static Rock.Blocks.Security.AuthClientList;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {

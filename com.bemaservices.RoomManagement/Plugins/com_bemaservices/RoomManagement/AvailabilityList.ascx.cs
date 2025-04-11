@@ -157,7 +157,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
                 case "Parent Location":
                     {
-                        if ( gfSettings.GetUserPreference( "Selected Entity" ) == "Location" )
+                        if ( gfSettings.GetFilterPreference( "Selected Entity" ) == "Location" )
                         {
                             var locationIdList = e.Value.Split( ',' ).AsIntegerList();
                             if ( locationIdList.Any() && lipLocation.Visible )

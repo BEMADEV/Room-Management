@@ -46,10 +46,10 @@ namespace com.bemaservices.RoomManagement.Migrations
             RockMigrationHelper.UpdateDefinedValue( "13B169EA-A090-45FF-8B11-A9E02776E35E", "Lava Location-Based Report", "Meant primarily for facilities teams, this report has a line item for each reservation location containing information about requested layouts.", "5ED8A40D-64CC-4D05-8C8C-C5378C1C76EE", false );
 
             RockMigrationHelper.AddDefinedValueAttributeValue( "5ED8A40D-64CC-4D05-8C8C-C5378C1C76EE", "1C2F3975-B1E2-4F8A-B2A2-FEF8D1A37E6C", @"bf66fe07-e6f1-417b-baa4-a7c31bee4239" );
-            RockMigrationHelper.AddDefinedValueAttributeValue( "5ED8A40D-64CC-4D05-8C8C-C5378C1C76EE", "2F0BEBBA-B890-46B1-8C36-A3F7CE9A36B9", @"{% include ''~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/LocationReport.lava'' %}" );
+            RockMigrationHelper.AddDefinedValueAttributeValue( "5ED8A40D-64CC-4D05-8C8C-C5378C1C76EE", "2F0BEBBA-B890-46B1-8C36-A3F7CE9A36B9", @"{% include ""~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/LocationReport.lava"" %}" );
             
             RockMigrationHelper.AddDefinedValueAttributeValue( "75D7960B-AF0D-42E9-8756-33CBBEE65B8E", "1C2F3975-B1E2-4F8A-B2A2-FEF8D1A37E6C", @"bfdefc3d-3d1d-431c-b20a-92e56fadd7cc" );
-            RockMigrationHelper.AddDefinedValueAttributeValue( "75D7960B-AF0D-42E9-8756-33CBBEE65B8E", "2F0BEBBA-B890-46B1-8C36-A3F7CE9A36B9", @"{% include ''~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/EventReport.lava'' %}" );
+            RockMigrationHelper.AddDefinedValueAttributeValue( "75D7960B-AF0D-42E9-8756-33CBBEE65B8E", "2F0BEBBA-B890-46B1-8C36-A3F7CE9A36B9", @"{% include ""~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/EventReport.lava"" %}" );
         }
 
         /// <summary>

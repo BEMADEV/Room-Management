@@ -165,8 +165,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void gfSettings_ApplyFilterClick( object sender, EventArgs e )
         {
             int? categoryId = cpCategory.SelectedValueAsInt();
-            gfSettings.SaveUserPreference( "Category", categoryId.HasValue ? categoryId.Value.ToString() : "" );
-            gfSettings.SaveUserPreference( "Campus", ddlCampus.SelectedValue );
+            gfSettings.SetFilterPreference( "Category", categoryId.HasValue ? categoryId.Value.ToString() : "" );
+            gfSettings.SetFilterPreference( "Campus", ddlCampus.SelectedValue );
 
             BindGrid();
         }
@@ -180,14 +180,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         private void BindFilter()
         {
-            int? categoryId = gfSettings.GetUserPreference( "Category" ).AsIntegerOrNull();
+            int? categoryId = gfSettings.GetFilterPreference( "Category" ).AsIntegerOrNull();
             cpCategory.SetValue( categoryId );
 
             ddlCampus.Items.Add( new ListItem( string.Empty, string.Empty ) );
             foreach ( var campus in CampusCache.All() )
             {
                 ListItem li = new ListItem( campus.Name, campus.Id.ToString() );
-                li.Selected = campus.Id.ToString() == gfSettings.GetUserPreference( "Campus" );
+                li.Selected = campus.Id.ToString() == gfSettings.GetFilterPreference( "Campus" );
                 ddlCampus.Items.Add( li );
             }
         }
@@ -199,14 +199,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var qry = new ResourceService( new RockContext() ).Queryable( true );
 
-            int? categoryId = gfSettings.GetUserPreference( "Category" ).AsIntegerOrNull();
+            int? categoryId = gfSettings.GetFilterPreference( "Category" ).AsIntegerOrNull();
             if ( categoryId.HasValue )
             {
                 qry = qry.Where( r => r.CategoryId == categoryId.Value );
             }
 
             int campusId = int.MinValue;
-            if ( int.TryParse( gfSettings.GetUserPreference( "Campus" ), out campusId ) )
+            if ( int.TryParse( gfSettings.GetFilterPreference( "Campus" ), out campusId ) )
             {
                 qry = qry.Where( r => r.Campus.Id == campusId );
             }

@@ -18,7 +18,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
-using System.IO;
 using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
@@ -29,17 +28,10 @@ using Rock.Model;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
 using Rock.Attribute;
-using Rock.Store;
-using System.Text;
 using Rock.Security;
 
 using com.bemaservices.RoomManagement.Model;
-using com.bemaservices.RoomManagement.Attribute;
-using iTextSharp.text;
-using iTextSharp.text.pdf;
-using iTextSharp.text.html.simpleparser;
 using com.bemaservices.RoomManagement.ReportTemplates;
-using System.Web;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -175,18 +167,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <value>The reservation dates.</value>
         private List<DateTime> ReservationDates { get; set; }
 
-        /// <summary>
-        /// Gets the preference key.
-        /// </summary>
-        /// <value>The preference key.</value>
-        private String PreferenceKey
-        {
-            get
-            {
-                return string.Format( "reservation-lava-{0}-", this.BlockId );
-            }
-        }
-
         #endregion
 
         #region Base ControlMethods
@@ -272,10 +252,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             rptViews.DataBind();
 
             // Set User Preference
-            ReservationViewId = this.GetUserPreference( PreferenceKey + "ReservationViewId" ).AsIntegerOrNull();
-            if ( ReservationViewId == null && definedValueList.FirstOrDefault() != null )
+            ReservationViewId = GetBlockPersonPreferences().GetValue( "ReservationViewId" ).AsIntegerOrNull();
+            if ( ReservationViewId == null || !definedValueList.Where( dv => dv.Id == ReservationViewId ).Any() )
             {
-                ReservationViewId = definedValueList.FirstOrDefault().Id;
+                ReservationViewId = definedValueList.FirstOrDefault()?.Id;
             }
 
             if ( !Page.IsPostBack )
@@ -287,9 +267,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         hfSelectedView.Value = ReservationViewId.ToString();
                     }
 
+                    var selectedValue = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
+
                     if ( definedValueList.Count > 1 )
                     {
-                        var selectedValue = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
                         lSelectedView.Text = string.Format( "View As: {0}", selectedValue.Value );
                         divViewDropDown.Visible = true;
                     }
@@ -299,7 +280,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
 
                     pnlDetails.Visible = true;
-                    BindData();
+                    BindData( selectedValue );
                 }
                 else
                 {
@@ -395,7 +376,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( SetFilterControls() )
             {
                 pnlDetails.Visible = true;
-                BindData();
+                BindDataOrReloadPage();
             }
             else
             {
@@ -415,7 +396,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void calReservationCalendar_SelectionChanged( object sender, EventArgs e )
         {
             ResetCalendarSelection();
-            BindData();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -442,7 +423,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             calReservationCalendar.SelectedDate = e.NewDate;
             Session["CalendarVisibleDate"] = e.NewDate;
             ResetCalendarSelection();
-            BindData();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -452,8 +433,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lipLocation_SelectItem( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Locations", lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
-            BindData();
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Locations", lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -463,8 +446,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void rpResource_SelectItem( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Resources", rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
-            BindData();
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Resources", rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -474,8 +459,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void cblCampus_SelectedIndexChanged( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Campuses", cblCampus.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList().AsDelimited( "," ) );
-            BindData();
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Campuses", cblCampus.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList().AsDelimited( "," ) );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -485,8 +472,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void cblMinistry_SelectedIndexChanged( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Ministries", cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList().AsDelimited( "," ) );
-            BindData();
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Ministries", cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList().AsDelimited( "," ) );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -496,8 +485,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void cblApproval_SelectedIndexChanged( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Approval State", cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>().ConvertToInt() ).ToList().AsDelimited( "," ) );
-            BindData();
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "ApprovalState", cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>().ConvertToInt() ).ToList().AsDelimited( "," ) );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -507,8 +498,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void cblReservationType_SelectedIndexChanged( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Reservation Type", cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList().AsDelimited( "," ) );
-            BindData();
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "ReservationType", cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList().AsDelimited( "," ) );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -518,9 +511,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dpStartDate_TextChanged( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "Start Date", dpStartDate.SelectedDate.ToString() );
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "StartDate", dpStartDate.SelectedDate.ToString() );
+            preferences.Save();
             FilterStartDate = dpStartDate.SelectedDate;
-            BindData();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -530,9 +525,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void dpEndDate_TextChanged( object sender, EventArgs e )
         {
-            this.SetUserPreference( PreferenceKey + "End Date", dpEndDate.SelectedDate.ToString() );
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "EndDate", dpEndDate.SelectedDate.ToString() );
+            preferences.Save();
             FilterEndDate = dpEndDate.SelectedDate;
-            BindData();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -545,11 +542,30 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var btnViewMode = sender as BootstrapButton;
             if ( btnViewMode != null )
             {
-                this.SetUserPreference( PreferenceKey + "ViewMode", btnViewMode.Text );
+                var preferences = GetBlockPersonPreferences();
+                preferences.SetValue( "ViewMode", btnViewMode.Text );
+                preferences.Save();
                 ViewMode = btnViewMode.Text;
                 ResetCalendarSelection();
-                BindData();
+                BindDataOrReloadPage();
             }
+        }
+
+        /// <summary>
+        /// Handles the Click event of the btnToday control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+        protected void btnToday_Click( object sender, EventArgs e )
+        {
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "ViewMode", "Day" );
+            preferences.Save();
+            ViewMode = "Day";
+            calReservationCalendar.SelectedDate = RockDateTime.Now.Date;
+
+            ResetCalendarSelection();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -560,8 +576,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void btnAllReservations_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.All ).ToString();
-            this.SetUserPreference( PreferenceKey + "ShowBy", hfShowBy.Value );
-            BindData( ShowBy.All );
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "ShowBy", hfShowBy.Value );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -572,8 +590,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void btnMyReservations_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.MyReservations ).ToString();
-            this.SetUserPreference( PreferenceKey + "ShowBy", hfShowBy.Value );
-            BindData( ShowBy.MyReservations );
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "ShowBy", hfShowBy.Value );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -584,8 +604,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void btnMyApprovals_Click( object sender, EventArgs e )
         {
             hfShowBy.Value = ( ( int ) ShowBy.MyApprovals ).ToString();
-            this.SetUserPreference( PreferenceKey + "ShowBy", hfShowBy.Value );
-            BindData( ShowBy.MyApprovals );
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "ShowBy", hfShowBy.Value );
+            preferences.Save();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -612,30 +634,72 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( definedValueId.HasValue )
             {
                 var selectedValue = DefinedValueCache.Get( definedValueId.Value );
-                this.SetUserPreference( PreferenceKey + "ReservationViewId", selectedValue.Id.ToString() );
+                var preferences = GetBlockPersonPreferences();
+                preferences.SetValue( "ReservationViewId", selectedValue.Id.ToString() );
+                preferences.Save();
                 lSelectedView.Text = string.Format( "View As: {0}", selectedValue.Value );
                 hfSelectedView.Value = definedValueId.ToString();
-                BindData();
+                BindDataOrReloadPage();
             }
         }
 
         #endregion
 
         #region Methods
+
         /// <summary>
-        /// Binds the data.
+        /// Binds the data or reload page.
         /// </summary>
-        private void BindData()
+        private void BindDataOrReloadPage()
         {
-            var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
-            BindData( showBy );
+            var selectedView = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
+            var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
+            var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
+
+            var mergeFields = new Dictionary<string, object>();
+            mergeFields.Add( "TimeFrame", ViewMode );
+            mergeFields.Add( "FilterStartDate", FilterStartDate );
+            mergeFields.Add( "FilterEndDate", FilterEndDate );
+            mergeFields.Add( "DetailsPage", LinkedPageUrl( "DetailsPage", null ) );
+            mergeFields.Add( "CurrentPerson", CurrentPerson );
+
+            var formattedOutput = lavaTemplate.ResolveMergeFields( mergeFields, lavaCommands );
+            var hasJavascript = formattedOutput.Contains( "<script" );
+            if ( hasJavascript )
+            {
+                NavigateToCurrentPageReference();
+            }
+            else
+            {
+                BindData( selectedView );
+            }
         }
 
         /// <summary>
         /// Binds the data.
         /// </summary>
+        private void BindData()
+        {
+            var selectedView = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
+            BindData( selectedView );
+        }
+
+        /// <summary>
+        /// Binds the data.
+        /// </summary>
+        /// <param name="selectedView">The selected view.</param>
+        private void BindData( DefinedValueCache selectedView )
+        {
+            var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
+            BindData( selectedView, showBy );
+        }
+
+        /// <summary>
+        /// Binds the data.
+        /// </summary>
+        /// <param name="selectedView">The selected view.</param>
         /// <param name="showBy">The show by.</param>
-        private void BindData( ShowBy showBy )
+        private void BindData( DefinedValueCache selectedView, ShowBy showBy )
         {
             HighlightActionButtons( showBy );
 
@@ -649,7 +713,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationType = r.ReservationType,
                 ApprovalState = r.ApprovalState.ConvertToString(),
                 ApprovalStateInt = r.ApprovalState.ConvertToInt(),
-                Locations = r.ReservationLocations.OrderBy(rl=> rl.Location.Name).ToList(),
+                Locations = r.ReservationLocations.OrderBy( rl => rl.Location.Name ).ToList(),
                 Resources = r.ReservationResources.OrderBy( rr => rr.Resource.Name ).ToList(),
                 UnassignedResources = r.UnassignedReservationResources.OrderBy( rr => rr.Resource.Name ).ToList(),
                 CalendarDate = r.EventStartDateTime.ToLongDateString(),
@@ -662,7 +726,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationTimeDescription = r.ReservationTimeDescription,
                 ReservationDateTimeDescription = r.ReservationDateTimeDescription,
                 SetupPhotoId = r.SetupPhotoId,
-                SetupPhotoLink = ResolveRockUrl( String.Format( "~/GetImage.ashx?id={0}", r.SetupPhotoId ?? 0 ) ),
+                SetupPhotoLink = ResolveRockUrl( String.Format( "~/GetImage.ashx?guid={0}", r.SetupPhotoGuid ?? Guid.Empty ) ),
                 Note = r.Note,
                 RequesterAlias = r.RequesterAlias,
                 EventContactPersonAlias = r.EventContactPersonAlias,
@@ -725,11 +789,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             mergeFields.Add( "ReservationDates", lavaReservationDates );
             mergeFields.Add( "CurrentPerson", CurrentPerson );
 
-            var definedValue = new DefinedValueService( new RockContext() ).Get( hfSelectedView.ValueAsInt() );
-            definedValue.LoadAttributes();
-
-            var lavaTemplate = definedValue.GetAttributeValue( "Lava" );
-            var lavaCommands = definedValue.GetAttributeValue( "LavaCommands" );
+            var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
+            var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
 
             lOutput.Text = lavaTemplate.ResolveMergeFields( mergeFields, lavaCommands );
 
@@ -772,23 +833,27 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reportTemplate = GetReportTemplate( reportTemplateGuid );
 
             var outputArray = reportTemplate.GenerateReport( reservationSummaryList, logoFileUrl, reportFont, FilterStartDate, FilterEndDate, reportLava );
+            if ( outputArray != null )
+            {
 
-            Response.ClearHeaders();
-            Response.ClearContent();
-            Response.Clear();
-            Response.ContentType = "application/pdf";
-            var download = GetAttributeValue( "DownloadReports" ).AsBoolean();
-            if ( !download )
-            {
-                Response.AddHeader( "Content-Disposition", string.Format( "inline;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
+                Response.ClearHeaders();
+                Response.ClearContent();
+                Response.Clear();
+                Response.ContentType = "application/pdf";
+                var download = GetAttributeValue( "DownloadReports" ).AsBoolean();
+                if ( !download )
+                {
+                    Response.AddHeader( "Content-Disposition", string.Format( "inline;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
+                }
+                else
+                {
+                    Response.AddHeader( "Content-Disposition", string.Format( "attachment;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
+                }
+                Response.BinaryWrite( outputArray );
+                Response.Flush();
+                Response.End();
             }
-            else
-            {
-                Response.AddHeader( "Content-Disposition", string.Format( "attachment;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
-            }
-            Response.BinaryWrite( outputArray );
-            Response.Flush();
-            Response.End();
+
             return;
         }
 
@@ -918,9 +983,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
         private bool SetFilterControls()
         {
+            var preferences = GetBlockPersonPreferences();
+
             var rockContext = new RockContext();
             // Get and verify the view mode
-            ViewMode = this.GetUserPreference( PreferenceKey + "ViewMode" );
+            ViewMode = preferences.GetValue( "ViewMode" );
             if ( string.IsNullOrWhiteSpace( ViewMode ) )
             {
                 ViewMode = GetAttributeValue( "DefaultViewOption" );
@@ -977,25 +1044,37 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             // Setup Location Filter
             lipLocation.Visible = GetAttributeValue( "LocationFilterDisplayMode" ).AsInteger() > 1;
-            if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Locations" ) ) )
+            var locationIds = preferences.GetValue( "Locations" ).Split( ',' ).AsIntegerList();
+            if ( locationIds.Any() )
             {
-                lipLocation.SetValues( this.GetUserPreference( PreferenceKey + "Locations" ).Split( ',' ).AsIntegerList() );
+                lipLocation.SetValues( locationIds );
+            }
+            else
+            {
+                lipLocation.SetValue( ( int? ) null );
             }
 
             // Setup Resource Filter
             rpResource.Visible = GetAttributeValue( "ResourceFilterDisplayMode" ).AsInteger() > 1;
-            if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Resources" ) ) )
+            var resourceIds = preferences.GetValue( "Resources" ).Split( ',' ).AsIntegerList();
+            if ( resourceIds.Any() )
             {
-                rpResource.SetValues( this.GetUserPreference( PreferenceKey + "Resources" ).Split( ',' ).AsIntegerList() );
+                rpResource.SetValues( resourceIds );
+            }
+            else
+            {
+                rpResource.SetValue( ( int? ) null );
             }
 
             // Setup Campus Filter
             rcwCampus.Visible = GetAttributeValue( "CampusFilterDisplayMode" ).AsInteger() > 1;
             cblCampus.DataSource = CampusCache.All( false );
             cblCampus.DataBind();
-            if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Campuses" ) ) )
+
+            var campusIds = preferences.GetValue( "Campuses" ).Split( ',' ).AsIntegerList();
+            if ( campusIds.Any() )
             {
-                cblCampus.SetValues( this.GetUserPreference( PreferenceKey + "Campuses" ).SplitDelimitedValues() );
+                cblCampus.SetValues( campusIds );
             }
             else
             {
@@ -1014,18 +1093,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             cblMinistry.DataSource = new ReservationMinistryService( rockContext ).Queryable().DistinctBy( rmc => rmc.Name ).OrderBy( m => m.Name );
             cblMinistry.DataBind();
 
-            if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Ministries" ) ) )
+            var ministryIds = preferences.GetValue( "Ministries" ).Split( ',' ).AsIntegerList();
+            if ( ministryIds.Any() )
             {
-                cblMinistry.SetValues( this.GetUserPreference( PreferenceKey + "Ministries" ).SplitDelimitedValues() );
+                cblMinistry.SetValues( ministryIds );
             }
 
             // Setup Approval Filter
             rcwApproval.Visible = GetAttributeValue( "ApprovalFilterDisplayMode" ).AsInteger() > 1;
             cblApproval.BindToEnum<ReservationApprovalState>();
 
-            if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Approval State" ) ) )
+            var approvalStateIntValues = preferences.GetValue( "ApprovalState" ).Split( ',' ).AsIntegerList();
+            if ( approvalStateIntValues.Any() )
             {
-                cblApproval.SetValues( this.GetUserPreference( PreferenceKey + "Approval State" ).SplitDelimitedValues() );
+                cblApproval.SetValues( approvalStateIntValues );
             }
 
             // Setup Reservation Type Filter
@@ -1033,30 +1114,33 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where( rt => rt.IsActive ).ToList();
             cblReservationType.DataBind();
 
-            if ( !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Reservation Type" ) ) )
+            var reservationTypeIds = preferences.GetValue( "ReservationType" ).Split( ',' ).AsIntegerList();
+            if ( reservationTypeIds.Any() )
             {
-                cblReservationType.SetValues( this.GetUserPreference( PreferenceKey + "Reservation Type" ).SplitDelimitedValues() );
+                cblReservationType.SetValues( reservationTypeIds );
             }
 
             // Date Range Filter
             dpStartDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
-            if ( dpStartDate.Visible && !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "Start Date" ) ) )
+            var startDate = preferences.GetValue( "StartDate" ).AsDateTime();
+            if ( dpStartDate.Visible && startDate.HasValue )
             {
-                dpStartDate.SelectedDate = this.GetUserPreference( PreferenceKey + "Start Date" ).AsDateTime();
-                if ( dpStartDate.SelectedDate.HasValue )
-                {
-                    FilterStartDate = dpStartDate.SelectedDate;
-                }
+                FilterStartDate = dpStartDate.SelectedDate = startDate.Value;
+            }
+            else
+            {
+                dpStartDate.SelectedDate = null;
             }
 
             dpEndDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
-            if ( dpEndDate.Visible && !string.IsNullOrWhiteSpace( this.GetUserPreference( PreferenceKey + "End Date" ) ) )
+            var endDate = preferences.GetValue( "EndDate" ).AsDateTime();
+            if ( dpEndDate.Visible && endDate.HasValue )
             {
-                dpEndDate.SelectedDate = this.GetUserPreference( PreferenceKey + "End Date" ).AsDateTime();
-                if ( dpEndDate.SelectedDate.HasValue )
-                {
-                    FilterEndDate = dpEndDate.SelectedDate;
-                }
+                FilterEndDate = dpEndDate.SelectedDate = endDate.Value;
+            }
+            else
+            {
+                dpEndDate.SelectedDate = null;
             }
 
             // Get the View Modes, and only show them if more than one is visible
@@ -1068,12 +1152,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             };
 
             var howManyVisible = viewsVisible.Where( v => v ).Count();
-            btnDay.Visible = howManyVisible > 1 && viewsVisible[0];
+            btnDay.Visible = btnToday.Visible = howManyVisible > 1 && viewsVisible[0];
             btnWeek.Visible = howManyVisible > 1 && viewsVisible[1];
             btnMonth.Visible = howManyVisible > 1 && viewsVisible[2];
             btnYear.Visible = howManyVisible > 1 && viewsVisible[3];
 
-            var showByPreference = this.GetUserPreference( PreferenceKey + "ShowBy" );
+            var showByPreference = preferences.GetValue( "ShowBy" );
             if ( showByPreference.IsNotNullOrWhiteSpace() )
             {
                 hfShowBy.Value = showByPreference;
@@ -1085,6 +1169,27 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             pnlList.CssClass = showFilter ? "col-md-9" : "col-md-12";
 
             return true;
+        }
+
+        /// <summary>
+        /// Handles the Click event of the btnClearFilters control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+        protected void btnClearFilters_Click( object sender, EventArgs e )
+        {
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Locations", "" );
+            preferences.SetValue( "Resources", "" );
+            preferences.SetValue( "Campuses", "" );
+            preferences.SetValue( "Ministries", "" );
+            preferences.SetValue( "ApprovalState", "" );
+            preferences.SetValue( "ReservationType", "" );
+            preferences.SetValue( "StartDate", "" );
+            preferences.SetValue( "EndDate", "" );
+            preferences.Save();
+            SetFilterControls();
+            BindDataOrReloadPage();
         }
 
         /// <summary>
@@ -1115,8 +1220,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             dpStartDate.SelectedDate = dpEndDate.SelectedDate = null;
-            this.SetUserPreference( PreferenceKey + "Start Date", null );
-            this.SetUserPreference( PreferenceKey + "End Date", null );
+            var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "Start Date", null );
+            preferences.SetValue( "End Date", null );
+            preferences.Save();
 
             // Reset the selection
             calReservationCalendar.SelectedDates.SelectRange( FilterStartDate.Value, FilterEndDate.Value );

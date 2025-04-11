@@ -113,15 +113,19 @@ namespace com.bemaservices.RoomManagement.Model
     /// <seealso cref="com.bemaservices.RoomManagement.Model.ReservationQueryOptions" />
     public class ReservationCalendarOptions : ReservationQueryOptions
     {
+        /// <summary>
+        /// The start date
+        /// </summary>
         private DateTime? _startDate;
+        /// <summary>
+        /// The end date
+        /// </summary>
         private DateTime? _endDate;
 
         /// <summary>
         /// Gets or sets the start date. if not explicitly set returns 3 months prior to the current date.
         /// </summary>
-        /// <value>
-        /// The start date.
-        /// </value>
+        /// <value>The start date.</value>
         public DateTime StartDate
         {
             get
@@ -138,9 +142,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Gets or sets the end date. If not explicitly set returns 12 months from current date.
         /// </summary>
-        /// <value>
-        /// The end date.
-        /// </value>
+        /// <value>The end date.</value>
         public DateTime EndDate
         {
             get

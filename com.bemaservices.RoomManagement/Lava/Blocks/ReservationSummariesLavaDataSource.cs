@@ -144,6 +144,8 @@ namespace com.bemaservices.RoomManagement.Lava.Blocks
         /// <param name="settings">The settings.</param>
         /// <param name="rockContext">The rock context.</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
+        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception">Invalid configuration setting \"{unknownNames.AsDelimited( "," )}\".</exception>
+        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception">Invalid configuration setting \"maxoccurrences\".</exception>
         /// <exception cref="System.Exception">Invalid configuration setting \"{unknownNames.AsDelimited( "," )}\".</exception>
         /// <exception cref="System.Exception">Invalid configuration setting \"maxoccurrences\".</exception>
         public List<ReservationSummary> GetReservationSummaries( LavaElementAttributes settings, RockContext rockContext )
@@ -180,30 +182,30 @@ namespace com.bemaservices.RoomManagement.Lava.Blocks
             }
 
             var reservationQueryOptions = new ReservationQueryOptions();
-            reservationQueryOptions.Name = settings.GetStringValue( ParameterName );
-            reservationQueryOptions.ApprovalsByPersonId = settings.GetIntegerValue( ParameterApprovalsByPersonId );
-            reservationQueryOptions.ReservationsByPersonId = settings.GetIntegerValue( ParameterReservationsByPersonId );
-            reservationQueryOptions.CreatorPersonId = settings.GetIntegerValue( ParameterCreatorPersonId );
-            reservationQueryOptions.EventContactPersonId = settings.GetIntegerValue( ParameterEventContactPersonId );
-            reservationQueryOptions.AdministrativeContactPersonId = settings.GetIntegerValue( ParameterAdministrativeContactPersonId );
+            reservationQueryOptions.Name = settings.GetString( ParameterName );
+            reservationQueryOptions.ApprovalsByPersonId = settings.GetIntegerOrNull( ParameterApprovalsByPersonId );
+            reservationQueryOptions.ReservationsByPersonId = settings.GetIntegerOrNull( ParameterReservationsByPersonId );
+            reservationQueryOptions.CreatorPersonId = settings.GetIntegerOrNull( ParameterCreatorPersonId );
+            reservationQueryOptions.EventContactPersonId = settings.GetIntegerOrNull( ParameterEventContactPersonId );
+            reservationQueryOptions.AdministrativeContactPersonId = settings.GetIntegerOrNull( ParameterAdministrativeContactPersonId );
 
-            reservationQueryOptions.ReservationTypeIds = settings.GetStringValue( ParameterReservationTypeIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationQueryOptions.ReservationIds = settings.GetStringValue( ParameterReservationIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationQueryOptions.LocationIds = settings.GetStringValue( ParameterLocationIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationQueryOptions.ResourceIds = settings.GetStringValue( ParameterResourceIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationQueryOptions.CampusIds = settings.GetStringValue( ParameterCampusIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
-            reservationQueryOptions.MinistryIds = settings.GetStringValue( ParameterMinistryIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.ReservationTypeIds = settings.GetString( ParameterReservationTypeIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.ReservationIds = settings.GetString( ParameterReservationIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.LocationIds = settings.GetString( ParameterLocationIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.ResourceIds = settings.GetString( ParameterResourceIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.CampusIds = settings.GetString( ParameterCampusIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
+            reservationQueryOptions.MinistryIds = settings.GetString( ParameterMinistryIds, string.Empty ).SplitDelimitedValues().AsIntegerList();
 
-            reservationQueryOptions.MinistryNames = settings.GetStringValue( ParameterMinistryNames, string.Empty ).SplitDelimitedValues().Where( s => s.IsNotNullOrWhiteSpace() ).ToList();
+            reservationQueryOptions.MinistryNames = settings.GetString( ParameterMinistryNames, string.Empty ).SplitDelimitedValues().Where( s => s.IsNotNullOrWhiteSpace() ).ToList();
 
-            reservationQueryOptions.ApprovalStates = settings.GetStringValue( ParameterApprovalStates, string.Empty ).SplitDelimitedValues().AsEnumList<ReservationApprovalState>();
+            reservationQueryOptions.ApprovalStates = settings.GetString( ParameterApprovalStates, string.Empty ).SplitDelimitedValues().AsEnumList<ReservationApprovalState>();
 
             // Get the Maximum Summaries.
             int maxSummaries = 100;
 
             if ( settings.HasValue( ParameterMaxSummaries ) )
             {
-                maxSummaries = settings.GetIntegerValue( ParameterMaxSummaries, null ) ?? 0;
+                maxSummaries = settings.GetInteger( ParameterMaxSummaries);
 
                 if ( maxSummaries == 0 )
                 {
@@ -212,8 +214,8 @@ namespace com.bemaservices.RoomManagement.Lava.Blocks
             }
 
             // Get the Date Range.
-            var startDate = settings.GetDateTimeValue( ParameterStartDateTime );
-            var endDate = settings.GetDateTimeValue( ParameterStartDateTime );
+            var startDate = settings.GetDateTimeOrNull( ParameterStartDateTime );
+            var endDate = settings.GetDateTimeOrNull( ParameterEndDateTime );
 
             var reservationService = new ReservationService( rockContext );
             var qry = reservationService.Queryable( reservationQueryOptions );

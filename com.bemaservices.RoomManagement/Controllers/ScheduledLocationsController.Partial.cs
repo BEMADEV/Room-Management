@@ -17,6 +17,7 @@
 
 using System.Collections.Generic;
 using System.Data.Entity;
+using System.Data.Entity.Core.Metadata.Edm;
 using System.Linq;
 
 using com.bemaservices.RoomManagement.Model;
@@ -40,33 +41,22 @@ namespace Rock.Rest.Controllers
     }
     public partial class ScheduledLocationsController
     {
-        /// <summary>
-        /// The controller class for the ScheduledLocations
-        /// </summary>
-        /// <param name="id">The identifier.</param>
-        /// <param name="rootLocationId">The root location identifier.</param>
-        /// <param name="reservationId">The reservation identifier.</param>
-        /// <param name="iCalendarContent">Content of the i calendar.</param>
-        /// <param name="setupTime">The setup time.</param>
-        /// <param name="cleanupTime">The cleanup time.</param>
-        /// <param name="attendeeCount">The attendee count.</param>
-        /// <param name="reservationTypeId">The reservation type id.</param>
-        /// <returns>IQueryable&lt;TreeViewItem&gt;.</returns>
         [Authenticate, Secured]
         [System.Web.Http.Route( "api/com_bemaservices/ScheduledLocations/GetChildren/{id}/{rootLocationId}" )]
         public IQueryable<TreeViewItem> GetChildren(
             int id,
             int rootLocationId = 0,
-            int? reservationId = null,
-            string iCalendarContent = "",
-            int? setupTime = null,
-            int? cleanupTime = null,
-            int? attendeeCount = null,
-            int? reservationTypeId = null )
+            string locationTypeIds = "",
+            int? reservedLocationEntitySetId = null,
+            int? conflictedLocationEntitySetId = null,
+            int? attendeeCount = null )
         {
             var rockContext = new RockContext();
             var locationService = new LocationService( rockContext );
-            var reservationLocationTypeList = new List<int>();
+
+            List<int> reservationLocationTypeList = locationTypeIds.Split( ',' ).AsIntegerList();
+            List<int> reservedLocationIds = new List<int>();
+            List<int> conflictedLocationIds = new List<int>();
 
             IQueryable<Location> qry;
             if ( id == 0 )
@@ -83,25 +73,32 @@ namespace Rock.Rest.Controllers
             }
 
             // limit to only active, Named Locations (don't show home addresses, etc)
-            qry = qry.Where( a => a.Name != null && a.Name != string.Empty && a.IsActive == true );
-
-            if ( reservationTypeId.HasValue )
-            {
-                var reservationType = new ReservationTypeService( rockContext ).Get( reservationTypeId.Value );
-                reservationLocationTypeList = reservationType.ReservationLocationTypes.Select( rlt => rlt.LocationTypeValueId ).ToList();
-            }
+            qry = qry.Where( a => a.Name != null && a.Name != string.Empty && a.IsActive == true );            
 
             List<Location> locationList = new List<Location>();
             List<TreeViewItem> locationNameList = new List<TreeViewItem>();
 
             var person = GetPerson();
-            var reservationService = new ReservationService( rockContext );
 
-            var newReservation = new Reservation() { Id = reservationId ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarContent ), SetupTime = setupTime, CleanupTime = cleanupTime };
-            newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
-            
-            List<int> reservedLocationIds = reservationService.GetReservedLocationIds( newReservation, false, false, false );
-            List<int> conflictedLocationIds = reservationService.GetReservedLocationIds( newReservation, false, true, false );
+            if( reservedLocationEntitySetId.HasValue || conflictedLocationEntitySetId.HasValue )
+            {
+                var entitySetItemService = new EntitySetItemService( rockContext );
+                if ( reservedLocationEntitySetId.HasValue )
+                {
+                    reservedLocationIds = entitySetItemService
+                       .GetByEntitySetId( reservedLocationEntitySetId.Value )
+                       .Select( esi => esi.EntityId )
+                       .ToList();
+                }
+
+                if ( conflictedLocationEntitySetId.HasValue )
+                {
+                    conflictedLocationIds = entitySetItemService
+                       .GetByEntitySetId( reservedLocationEntitySetId.Value )
+                       .Select( esi => esi.EntityId )
+                       .ToList();
+                }
+            }
 
             foreach ( var location in qry.OrderBy( l => l.Name ) )
             {

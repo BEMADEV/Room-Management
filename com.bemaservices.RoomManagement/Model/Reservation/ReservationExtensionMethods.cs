@@ -16,8 +16,10 @@
 //
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Rock;
 using Rock.Data;
 
@@ -37,8 +39,9 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="roundToDay">if set to <c>true</c> [round to day].</param>
         /// <param name="includeAttributes">if set to <c>true</c> [include attributes].</param>
         /// <param name="maxOccurrences">The maximum occurrences.</param>
+        /// <param name="filterTimeBy">The filter time by.</param>
         /// <returns>List&lt;ReservationSummary&gt;.</returns>
-        public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false, int? maxOccurrences = null )
+        public static List<Model.ReservationSummary> GetReservationSummaries( this IQueryable<Reservation> qry, DateTime? filterStartDateTime, DateTime? filterEndDateTime, bool roundToDay = false, bool includeAttributes = false, int? maxOccurrences = null, FilterTimeBy filterTimeBy = FilterTimeBy.Reservation )
         {
             var reservationSummaryList = new List<Model.ReservationSummary>();
 
@@ -106,9 +109,46 @@ namespace com.bemaservices.RoomManagement.Model
                     var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
                     var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
 
+                    var validReservationTime = false;
                     if (
+                        ( filterTimeBy == FilterTimeBy.Reservation || filterTimeBy == FilterTimeBy.Both ) &&
                         ( ( reservationStartDateTime >= filterStartDateTime ) || ( reservationEndDateTime >= filterStartDateTime ) ) &&
-                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) ) )
+                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) )
+                       )
+                    {
+                        validReservationTime = true;
+                    }
+
+                    var validDoorLockTime = false;
+                    List<ReservationDoorLockTime> reservationDoorLockTimes = new List<ReservationDoorLockTime>();
+                    var orderedReservationDoorLockSchedules = reservation.ReservationDoorLockSchedules.OrderBy( rdls => rdls.StartTimeOffset ).ToList();
+                    foreach ( var reservationDoorLockSchedule in orderedReservationDoorLockSchedules )
+                    {
+                        var reservationDoorLockTime = new ReservationDoorLockTime(
+                                reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.StartTimeOffset ),
+                                reservationDateTime.StartDateTime.AddMinutes( reservationDoorLockSchedule.EndTimeOffset ),
+                                reservationDoorLockSchedule.Note
+                                );
+                        reservationDoorLockTimes.Add( reservationDoorLockTime );
+
+                        if (
+                            ( filterTimeBy == FilterTimeBy.DoorLock || filterTimeBy == FilterTimeBy.Both ) &&
+                            ( ( reservationDoorLockTime.StartDateTime >= filterStartDateTime ) || ( reservationDoorLockTime.EndDateTime >= filterStartDateTime ) ) &&
+                            ( ( reservationDoorLockTime.StartDateTime < filterEndDateTime ) || ( reservationDoorLockTime.EndDateTime < filterEndDateTime ) )
+                           )
+                        {
+                            validDoorLockTime = true;
+                        }
+                    }
+
+                    // Removed 9/17/2024: If no custom ones are set, we want to leave it up to the HVAC provider whether to
+                    // use the default times or ignore the reservation.
+                    //if ( !reservationDoorLockTimes.Any() )
+                    //{
+                    //    reservationDoorLockTimes.Add( new ReservationDoorLockTime( reservationStartDateTime, reservationEndDateTime,"Default" ) );
+                    //}
+
+                    if ( validReservationTime || validDoorLockTime )
                     {
                         var reservationSummary = new Model.ReservationSummary
                         {
@@ -119,6 +159,7 @@ namespace com.bemaservices.RoomManagement.Model
                             ReservationLocations = reservation.ReservationLocations.ToList(),
                             ReservationResources = reservation.ReservationResources.ToList(),
                             UnassignedReservationResources = reservation.UnassignedReservationResources.ToList(),
+                            ReservationDoorLockTimes = reservationDoorLockTimes,
                             EventStartDateTime = reservationDateTime.StartDateTime,
                             EventEndDateTime = reservationDateTime.EndDateTime,
                             ReservationStartDateTime = reservationStartDateTime,
@@ -135,6 +176,7 @@ namespace com.bemaservices.RoomManagement.Model
                             AdministrativeContactEmail = reservation.AdministrativeContactEmail,
                             AdministrativeContactPhoneNumber = reservation.AdministrativeContactPhone,
                             SetupPhotoId = reservation.SetupPhotoId,
+                            SetupPhotoGuid = reservation.SetupPhoto?.Guid,
                             Note = reservation.Note,
                             RequesterAlias = reservation.RequesterAlias,
                             NumberAttending = reservation.NumberAttending,
@@ -170,7 +212,7 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             // Pass 2: Sort all of the event occurrences by date, and then apply the occurrence limit.
-            if(maxOccurrences != null )
+            if ( maxOccurrences != null )
             {
                 reservationSummaryList = reservationSummaryList
                     .OrderBy( x => x.ReservationStartDateTime )
@@ -345,6 +387,73 @@ namespace com.bemaservices.RoomManagement.Model
             target.ForeignId = source.ForeignId;
             target.ForeignGuid = source.ForeignGuid;
             target.ForeignKey = source.ForeignKey;
+        }
+
+        /// <summary>
+        /// Copies the properties from.
+        /// </summary>
+        /// <param name="target">The target.</param>
+        /// <param name="source">The source.</param>
+        public static void CopyPropertiesFrom( this ReservationService.ReservationSummary target, Model.ReservationSummary source )
+        {
+            target.Id = source.Id;
+            target.ReservationType = source.ReservationType;
+            target.ApprovalState = source.ApprovalState;
+            target.ReservationName = source.ReservationName;
+            target.ReservationMinistry = source.ReservationMinistry;
+            target.SetupPhotoId = source.SetupPhotoId;
+            target.ScheduleId = source.ScheduleId;
+            target.NumberAttending = source.NumberAttending;
+            target.Note = source.Note;
+
+            target.EventDateTimeDescription = source.EventDateTimeDescription;
+            target.EventTimeDescription = source.EventTimeDescription;
+            target.ReservationDateTimeDescription = source.ReservationDateTimeDescription;
+            target.ReservationTimeDescription = source.ReservationTimeDescription;
+
+            target.ReservationStartDateTime = source.ReservationStartDateTime;
+            target.ReservationEndDateTime = source.ReservationEndDateTime;
+            target.EventStartDateTime = source.EventStartDateTime;
+            target.EventEndDateTime = source.EventEndDateTime;
+
+            target.ReservationLocations = source.ReservationLocations;
+            target.ReservationResources = source.ReservationResources;
+            target.UnassignedReservationResources = source.UnassignedReservationResources;
+            target.ReservationDoorLockTimes = source.ReservationDoorLockTimes;
+
+            target.EventContactPersonAlias = source.EventContactPersonAlias;
+            target.EventContactPhoneNumber = source.EventContactPhoneNumber;
+            target.EventContactEmail = source.EventContactEmail;
+            target.AdministrativeContactPersonAlias = source.AdministrativeContactPersonAlias;
+            target.AdministrativeContactPhoneNumber = source.AdministrativeContactPhoneNumber;
+            target.AdministrativeContactEmail = source.AdministrativeContactEmail;
+            target.RequesterAlias = source.RequesterAlias;
+
+
+            target.ModifiedDateTime = source.ModifiedDateTime;
+            target.Attributes = source.Attributes;
+            target.AttributeValues = source.AttributeValues;
+        }
+
+        /// <summary>
+        /// Enum FilterTimeBy
+        /// </summary>
+        public enum FilterTimeBy
+        {
+            /// <summary>
+            /// The reservation
+            /// </summary>
+            Reservation = 0,
+
+            /// <summary>
+            /// The door lock
+            /// </summary>
+            DoorLock = 1,
+
+            /// <summary>
+            /// The both
+            /// </summary>
+            Both = 2
         }
 
     }

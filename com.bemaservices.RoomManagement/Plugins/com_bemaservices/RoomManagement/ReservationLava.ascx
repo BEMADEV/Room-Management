@@ -179,6 +179,11 @@
 
                 <Rock:DatePicker ID="dpStartDate" runat="server" Label="Start Date" OnTextChanged="dpStartDate_TextChanged" AutoPostBack="true" />
                 <Rock:DatePicker ID="dpEndDate" runat="server" Label="End Date" OnTextChanged="dpEndDate_TextChanged" AutoPostBack="true" />
+                <div class="row">
+                    <div class="col-md-12">
+                        <Rock:BootstrapButton ID="btnClearFilters" runat="server" CssClass="btn btn-xs btn-default" Text="Clear Filters" OnClick="btnClearFilters_Click" />
+                    </div>
+                </div>
 
                 <small class="text-muted">v<asp:Literal ID="lVersionText" runat="server"></asp:Literal></small>
             </asp:Panel>
@@ -191,6 +196,10 @@
                             <Rock:BootstrapButton ID="btnWeek" runat="server" CssClass="btn btn-xs btn-default" Text="Week" OnClick="btnViewMode_Click" />
                             <Rock:BootstrapButton ID="btnMonth" runat="server" CssClass="btn btn-xs btn-default" Text="Month" OnClick="btnViewMode_Click" />
                             <Rock:BootstrapButton ID="btnYear" runat="server" CssClass="btn btn-xs btn-default" Text="Year" OnClick="btnViewMode_Click" />
+                        </div>
+
+                        <div id="divTodayButton" runat="server" class="btn-group hidden-print pull-left margin-l-sm" role="group">
+                            <Rock:BootstrapButton ID="btnToday" runat="server" CssClass="btn btn-xs btn-default" Text="Today" OnClick="btnToday_Click" />
                         </div>
 
                         <div id="divViewDropDown" runat="server" class="pull-left margin-l-sm">
@@ -215,7 +224,7 @@
 
                         <div class="pull-right">
                             <div class="btn-group">
-                                <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown">Print <i class="fa fa-print"></i> <span class="caret"></span></button>
+                                <button class="btn btn-default btn-xs dropdown-toggle" type="button" data-toggle="dropdown">Print <i class="fa fa-print"></i><span class="caret"></span></button>
 
                                 <ul id="ulReportDropDown" runat="server" enableviewstate="false" class="dropdown-menu dropdown-menu-right">
                                     <asp:Repeater runat="server" ID="rptReports" OnItemCommand="rptReports_ItemCommand">

@@ -51,6 +51,21 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Description( "Displays the details of the given Reservation Type for editing." )]
     public partial class ReservationTypeDetail : RockBlock
     {
+        #region Attribute Keys and Values
+
+        /// <summary>
+        /// Class DefaultValue.
+        /// </summary>
+        private static class DefaultValue
+        {
+            /// <summary>
+            /// The default door lock instruction text
+            /// </summary>
+            public const string DefaultDoorLockInstructionText = @"Typically, door lock providers that integrate with Room Management use the duration of the reservation including setup and cleanup times to determine door status. If you want to create custom door lock times to forward to your provider, enter the start and end times here.";
+        }
+
+        #endregion Attribute Keys and Values
+
         #region Properties
         /// <summary>
         /// Gets or sets the state of the attributes.
@@ -394,12 +409,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                 reservationType.Name = tbName.Text;
                 reservationType.Description = tbDescription.Text;
+                reservationType.DoorLockInstructions = tbDoorLockInstructions.Text;
                 reservationType.IsActive = cbActive.Checked;
                 reservationType.IconCssClass = tbIconCssClass.Text;
                 reservationType.IsContactDetailsRequired = cbIsContactDetailsRequired.Checked;
                 reservationType.IsCampusRequired = cbIsCampusRequired.Checked;
                 reservationType.IsNumberAttendingRequired = cbIsNumberAttendingRequired.Checked;
                 reservationType.IsSetupTimeRequired = cbIsSetupTimeRequired.Checked;
+                reservationType.DisplayReservationDoorLockSchedules = cbDisplayDoorLock.Checked;
                 reservationType.DefaultSetupTime = nbDefaultSetupTime.Text.AsIntegerOrNull();
                 reservationType.DefaultCleanupTime = nbDefaultCleanupTime.Text.AsIntegerOrNull();
                 reservationType.IsReservationBookedOnApproval = cbIsReservationBookedOnApproval.Checked;
@@ -1341,6 +1358,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 lReadOnlyTitle.Text = ActionTitle.Add( ReservationType.FriendlyTypeName ).FormatAsHtmlTitle();
                 reservationType.ReservationLocationTypes = new List<ReservationLocationType>();
+                reservationType.DoorLockInstructions = DefaultValue.DefaultDoorLockInstructionText;
                 reservationType.IsActive = true;
             }
             else
@@ -1354,12 +1372,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             tbName.Text = reservationType.Name;
             tbDescription.Text = reservationType.Description;
             tbIconCssClass.Text = reservationType.IconCssClass;
+            tbDoorLockInstructions.Text = reservationType.DoorLockInstructions;
             cbActive.Checked = reservationType.IsActive;
             cbIsReservationBookedOnApproval.Checked = reservationType.IsReservationBookedOnApproval;
             cbIsContactDetailsRequired.Checked = reservationType.IsContactDetailsRequired;
             cbIsCampusRequired.Checked = reservationType.IsCampusRequired;
             cbIsNumberAttendingRequired.Checked = reservationType.IsNumberAttendingRequired;
             cbIsSetupTimeRequired.Checked = reservationType.IsSetupTimeRequired;
+            cbDisplayDoorLock.Checked = reservationType.DisplayReservationDoorLockSchedules;
             nbDefaultSetupTime.Text = reservationType.DefaultSetupTime.ToStringSafe();
             nbDefaultCleanupTime.Text = reservationType.DefaultCleanupTime.ToStringSafe();
             nbDefaultEndDate.Text = reservationType.DefaultReservationDuration.ToStringSafe();

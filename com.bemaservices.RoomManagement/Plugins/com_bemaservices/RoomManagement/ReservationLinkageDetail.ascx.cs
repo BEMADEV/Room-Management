@@ -489,7 +489,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the SelectedIndexChanged event of the eipSelectedEvent control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void eipSelectedEvent_SelectedIndexChanged( object sender, EventArgs e )
         {
             pnlNewOccurrenceSelection.Visible = false;
@@ -539,7 +539,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// Handles the CheckedChanged event of the tglOccurrenceSelection control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
-        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void tglOccurrenceSelection_CheckedChanged( object sender, EventArgs e )
         {
             if ( tglOccurrenceSelection.Checked )

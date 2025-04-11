@@ -55,6 +55,7 @@
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>$(SolutionDir)packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="PuppeteerSharp, Version=7.0.0.0, Culture=neutral, PublicKeyToken=db12f80f85d8ba23" />
     <Reference Include="Quartz, Version=2.0.0.100, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>$(SolutionDir)libs\Quartz\Quartz.dll</HintPath>
@@ -119,6 +120,7 @@
     <Compile Include="Field\Types\ReportTemplateFieldType.cs" />
     <Compile Include="Field\Types\ReservationFieldType.cs" />
     <Compile Include="Jobs\FireWorkflowFromReservationInDateRange.cs" />
+    <Compile Include="Jobs\KickstartReservationsWithRemovedApprovalGroups.cs" />
     <Compile Include="Jobs\PopulateFirstLastOccurrenceDateTimes.cs" />
     <Compile Include="Jobs\V247TemporarySetupPhotoFix.cs" />
     <Compile Include="Lava\Blocks\ReservationSummariesBlock.cs" />
@@ -133,6 +135,9 @@
     <Compile Include="Migrations\043_Rollup247.cs" />
     <Compile Include="Migrations\042_ModificationFixes.cs" />
     <Compile Include="Migrations\041_RoomDetails.cs" />
+    <Compile Include="Migrations\048_LavaReportV2.cs" />
+    <Compile Include="Migrations\047_OrphanedApprovalProcessHandling.cs" />
+    <Compile Include="Migrations\046_DoorLocks.cs" />
     <Compile Include="Migrations\045_Rollup258.cs" />
     <Compile Include="Migrations\RoomManagementMigration.cs" />
     <Compile Include="Migrations\RoomManagementMigrationHelper.cs" />
@@ -152,8 +157,11 @@
     <Compile Include="Lava\LavaFilters.cs" />
     <Compile Include="Migrations\022_ReservationReports.cs" />
     <Compile Include="Migrations\021_LocationLayout.cs" />
+    <Compile Include="Model\ReservationDoorLockSchedule\ReservationDoorLockSchedule.cs" />
+    <Compile Include="Model\ReservationDoorLockSchedule\ReservationDoorLockScheduleService.cs" />
     <Compile Include="Model\LocationLayout\LocationLayout.cs" />
     <Compile Include="Model\LocationLayout\LocationLayoutService.cs" />
+    <Compile Include="Model\ReservationDoorLockSchedule\ReservationDoorLockTime.cs" />
     <Compile Include="Model\ReservationLocationType\ReservationLocationType.cs" />
     <Compile Include="Model\ReservationApprovalGroup\ReservationApprovalGroupService.cs" />
     <Compile Include="Model\ReservationLocationType\ReservationLocationTypeService.cs" />
@@ -166,7 +174,9 @@
     <Compile Include="Model\Reservation\ReservationDate.cs" />
     <Compile Include="Model\Reservation\ReservationConflict.cs" />
     <Compile Include="ReportTemplates\AdvancedReportTemplate.cs" />
+    <Compile Include="ReportTemplates\LavaV2ReportLandscapeTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportLandscapeTemplate.cs" />
+    <Compile Include="ReportTemplates\LavaV2ReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportTemplate.cs" />
     <Compile Include="ReportTemplates\ReportTemplate.cs" />
     <Compile Include="ReportTemplates\ReportTemplateContainer.cs" />

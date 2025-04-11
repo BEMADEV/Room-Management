@@ -18,9 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Web.UI.WebControls;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Web.UI;
 using com.bemaservices.RoomManagement.Model;
 using Rock;
@@ -33,13 +31,12 @@ using Rock.Web.UI;
 using Newtonsoft.Json;
 using Rock.Web.UI.Controls;
 using Rock.Security;
-using Rock.Communication;
 using System.Web;
 using System.Data.Entity;
 using System.Web.UI.HtmlControls;
 using com.bemaservices.RoomManagement.Attribute;
 using Rock.Constants;
-using Rock.Lava;
+using DocumentFormat.OpenXml.Drawing;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -67,7 +64,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         Key = "LocationDetailTemplate",
         DefaultValue = @"<div class='row'>
     {% if Location.ImageId != null %}
-        {% capture imgUrl %}/GetImage.ashx?id={{Location.ImageId}}{% endcapture %}
+        {% capture imgUrl %}/GetImage.ashx?guid={{Location.Image.Guid}}{% endcapture %}
         {% capture imgTag %}<img src='{{imgUrl}}&maxwidth=200&maxheight=200'/>{% endcapture %}
         <div class='col-md-4'>
             <div class='photo'>
@@ -88,7 +85,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         "Is Additional Info Expanded By Default"
         , Key = "IsAdditionalInfoExpanded"
         , DefaultBooleanValue = false
-		, Order = 2 )]
+        , Order = 2 )]
 
     public partial class ReservationDetail : Rock.Web.UI.RockBlock
     {
@@ -185,6 +182,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <value>The state of the locations.</value>
         private List<ReservationLocationSummary> LocationsState { get; set; }
 
+        private List<ReservationDoorLockSchedule> DoorLockSchedulesState { get; set; }
+
         /// <summary>
         /// Gets or sets the modified date time.
         /// </summary>
@@ -221,6 +220,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             else
             {
                 LocationsState = JsonConvert.DeserializeObject<List<ReservationLocationSummary>>( json );
+            }
+
+            json = ViewState["DoorLockSchedulesState"] as string;
+            if ( string.IsNullOrWhiteSpace( json ) )
+            {
+                DoorLockSchedulesState = new List<ReservationDoorLockSchedule>();
+            }
+            else
+            {
+                DoorLockSchedulesState = JsonConvert.DeserializeObject<List<ReservationDoorLockSchedule>>( json );
             }
 
             json = ViewState["ReservationType"] as string;
@@ -265,11 +274,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gResources.Actions.AddClick += gResources_Add;
             gResources.GridRebind += gResources_GridRebind;
 
-            gViewLocations.DataKeyNames = new string[] { "Guid" };
-            gViewLocations.GridRebind += gLocations_GridRebind;
+            gDoorLockSchedules.DataKeyNames = new string[] { "Guid" };
+            gDoorLockSchedules.Actions.ShowAdd = true;
+            gDoorLockSchedules.Actions.AddClick += gDoorLockSchedules_Add;
+            gDoorLockSchedules.GridRebind += gDoorLockSchedules_GridRebind;
 
+            gViewLocations.DataKeyNames = new string[] { "Guid" };
             gViewResources.DataKeyNames = new string[] { "Guid" };
-            gViewResources.GridRebind += gResources_GridRebind;
+            gViewDoorLockSchedules.DataKeyNames = new string[] { "Guid" };
 
             rptWorkflows.ItemCommand += rptWorkflows_ItemCommand;
 
@@ -315,6 +327,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             ViewState["ReservationType"] = JsonConvert.SerializeObject( ReservationType, Formatting.None, jsonSetting );
             ViewState["ResourcesState"] = JsonConvert.SerializeObject( ResourcesState, typeof( List<ReservationResourceSummary> ), Formatting.None, jsonSetting );
             ViewState["LocationsState"] = JsonConvert.SerializeObject( LocationsState, Formatting.None, jsonSetting );
+            ViewState["DoorLockSchedulesState"] = JsonConvert.SerializeObject( DoorLockSchedulesState, Formatting.None, jsonSetting );
             ViewState["ModifiedDateTime"] = JsonConvert.SerializeObject( ModifiedDateTime, Formatting.None, jsonSetting );
 
             return base.SaveViewState();
@@ -383,6 +396,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationMinistryService reservationMinistryService = new ReservationMinistryService( rockContext );
                 ReservationResourceService reservationResourceService = new ReservationResourceService( rockContext );
                 ReservationLocationService reservationLocationService = new ReservationLocationService( rockContext );
+                ReservationDoorLockScheduleService reservationDoorLockScheduleService = new ReservationDoorLockScheduleService( rockContext );
 
                 Reservation reservation = null;
                 var changes = new History.HistoryChangeList();
@@ -439,6 +453,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         changes.Add( new History.HistoryChange( History.HistoryVerb.Delete, History.HistoryChangeType.Property, String.Format( "[Resource] {0}", reservationResource.Resource.Name ) ) );
                         reservation.ReservationResources.Remove( reservationResource );
                         reservationResourceService.Delete( reservationResource );
+                    }
+
+
+                    var uiDoorLockSchedules = DoorLockSchedulesState.Select( l => l.Guid );
+                    foreach ( var reservationDoorLockSchedule in reservation.ReservationDoorLockSchedules.Where( l => !uiDoorLockSchedules.Contains( l.Guid ) ).ToList() )
+                    {
+                        changes.Add( new History.HistoryChange( History.HistoryVerb.Delete, History.HistoryChangeType.Property, String.Format( "[Door Lock Schedule] {0} - {1}", reservationDoorLockSchedule.StartTimeOffset, reservationDoorLockSchedule.EndTimeOffset ) ) );
+                        reservation.ReservationDoorLockSchedules.Remove( reservationDoorLockSchedule );
+                        reservationDoorLockScheduleService.Delete( reservationDoorLockSchedule );
                     }
                 }
 
@@ -516,6 +539,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbEditModeMessage.Text = "At least one resource is required for this reservation type.";
                     nbEditModeMessage.Visible = true;
                     return;
+                }
+
+                foreach ( var reservationDoorLockScheduleState in DoorLockSchedulesState )
+                {
+                    ReservationDoorLockSchedule reservationDoorLockSchedule = reservation.ReservationDoorLockSchedules.Where( a => a.Guid == reservationDoorLockScheduleState.Guid ).FirstOrDefault();
+                    if ( reservationDoorLockSchedule == null )
+                    {
+                        reservationDoorLockSchedule = new ReservationDoorLockSchedule();
+                        reservation.ReservationDoorLockSchedules.Add( reservationDoorLockSchedule );
+                    }
+                    else
+                    {
+                        reservationDoorLockScheduleState.Id = reservationDoorLockSchedule.Id;
+                        reservationDoorLockScheduleState.Guid = reservationDoorLockSchedule.Guid;
+                    }
+                    reservationDoorLockSchedule.CopyPropertiesFrom( reservationDoorLockScheduleState as ReservationDoorLockSchedule );
+                    reservationDoorLockSchedule.Reservation = reservationService.Get( reservation.Id );
+                    reservationDoorLockSchedule.ReservationId = reservation.Id;
                 }
 
                 if ( sbSchedule.iCalendarContent != null )
@@ -840,7 +881,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ddlMinistry.Items.Add( new ListItem( ministry.Name, ministry.Id.ToString().ToUpper() ) );
             }
 
-            LoadAdditionalInfo( resetControls: true );
+            LoadAdditionalInfo( resetReservationControls: true );
 
             SetRequiredFieldsBasedOnReservationType( ReservationType );
 
@@ -933,6 +974,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 ResourcesState.Add( rrSummary );
+            }
+
+            DoorLockSchedulesState = new List<ReservationDoorLockSchedule>();
+            foreach ( var reservationDoorLockSchedule in newItem.ReservationDoorLockSchedules.ToList() )
+            {
+                var rdls = new ReservationDoorLockSchedule();
+                rdls.CopyPropertiesFrom( reservationDoorLockSchedule );
+
+                var newGuid = Guid.NewGuid();
+                rdls.Guid = newGuid;
+
+                DoorLockSchedulesState.Add( rdls );
             }
 
             btnCopy.Visible = false;
@@ -1148,6 +1201,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             lScheduleText.Text = Reservation.GetFriendlyReservationScheduleText( schedule, ReservationType, nbSetupTime.Text.AsIntegerOrNull(), nbCleanupTime.Text.AsIntegerOrNull(), null, null );
 
             LoadPickers();
+            BindReservationDoorLockSchedulesGrid();
         }
 
         /// <summary>
@@ -1241,7 +1295,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             LoadResourcePopup();
         }
-		
+
         /// <summary>
         /// Handles the SelectedIndexChanged event of the ddlReservationLocation control.
         /// </summary>
@@ -1930,9 +1984,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var lLayoutPhoto = e.Row.FindControl( "lLayoutPhoto" ) as Literal;
                 if ( reservationLocation.LocationLayout != null && reservationLocation.LocationLayout.LayoutPhotoId.HasValue )
                 {
-                    string imgTag = string.Format( "<img src='{0}GetImage.ashx?id={1}&maxwidth=150&maxheight=150'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservationLocation.LocationLayout.LayoutPhotoId.Value );
+                    string imgTag = string.Format( "<img src='{0}GetImage.ashx?guid={1}&maxwidth=150&maxheight=150'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservationLocation.LocationLayout.LayoutPhoto.Guid );
 
-                    string imgUrl = string.Format( "~/GetImage.ashx?id={0}", reservationLocation.LocationLayout.LayoutPhotoId );
+                    string imgUrl = string.Format( "~/GetImage.ashx?guid={0}", reservationLocation.LocationLayout.LayoutPhoto.Guid );
                     if ( System.Web.HttpContext.Current != null )
                     {
                         imgUrl = VirtualPathUtility.ToAbsolute( imgUrl );
@@ -2022,11 +2076,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     Literal lPhoto = e.Row.FindControl( "lPhoto" ) as Literal;
                     if ( lPhoto != null )
                     {
-                        lPhoto.Text = String.Format( "<img src='/GetImage.ashx?id={0}' height='100 />'", locationLayout.LayoutPhotoId );
+                        lPhoto.Text = String.Format( "<img src='/GetImage.ashx?guid={0}' height='100 />'", locationLayout.LayoutPhoto.Guid );
                     }
                 }
             }
-
         }
 
         /// <summary>
@@ -2046,6 +2099,155 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             RadioButton rb = ( RadioButton ) sender;
             GridViewRow row = ( GridViewRow ) rb.NamingContainer;
             ( ( RadioButton ) row.FindControl( "rbSelected" ) ).Checked = true;
+        }
+
+        #endregion
+
+        #region ReservationDoorLockSchedule Events
+
+        protected void dlgReservationDoorLockSchedule_SaveClick( object sender, EventArgs e )
+        {
+            var validDoorLock = SaveReservationDoorLockSchedule();
+            if ( validDoorLock )
+            {
+                dlgReservationDoorLockSchedule.Hide();
+                hfActiveDialog.Value = string.Empty;
+            }
+        }
+
+        protected void dlgReservationDoorLockSchedule_SaveThenAddClick( object sender, EventArgs e )
+        {
+            SaveReservationDoorLockSchedule();
+            gDoorLockSchedules_ShowEdit( Guid.Empty );
+        }
+
+        protected void gDoorLockSchedules_Delete( object sender, RowEventArgs e )
+        {
+            nbError.Visible = false;
+            Guid rowGuid = ( Guid ) e.RowKeyValue;
+
+            RemoveDoorLockSchedule( rowGuid );
+        }
+
+        private void gDoorLockSchedules_GridRebind( object sender, EventArgs e )
+        {
+            BindReservationDoorLockSchedulesGrid();
+        }
+
+        protected void gDoorLockSchedules_Edit( object sender, RowEventArgs e )
+        {
+            Guid reservationDoorLockScheduleGuid = ( Guid ) e.RowKeyValue;
+            gDoorLockSchedules_ShowEdit( reservationDoorLockScheduleGuid );
+        }
+
+        protected void gDoorLockSchedules_ShowEdit( Guid reservationDoorLockScheduleGuid )
+        {
+            var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
+            var reservationStartDateTime = schedule.FirstStartDateTime;
+            if ( reservationStartDateTime != null )
+            {
+                divDoorLockModalControls.Visible = true;
+                nbError.Visible = false;
+                nbDoorLockError.Visible = false;
+                dlgReservationDoorLockSchedule.SaveButtonText = "Save";
+                dlgReservationDoorLockSchedule.SaveThenAddButtonText = "Save Then Add";
+
+                ReservationDoorLockSchedule reservationDoorLockSchedule = DoorLockSchedulesState.FirstOrDefault( l => l.Guid.Equals( reservationDoorLockScheduleGuid ) );
+
+                if ( reservationDoorLockSchedule != null )
+                {
+
+                    var doorLockStartTime = reservationStartDateTime.Value.AddMinutes( reservationDoorLockSchedule.StartTimeOffset );
+                    var doorLockEndTime = reservationStartDateTime.Value.AddMinutes( reservationDoorLockSchedule.EndTimeOffset );
+
+                    var startDateOffset = ( int ) ( doorLockStartTime - reservationStartDateTime ).Value.TotalDays;
+                    var endDateOffset = ( int ) ( doorLockEndTime - reservationStartDateTime ).Value.TotalDays;
+
+                    nbStartDayOffset.Value = startDateOffset;
+                    tpStartTime.SelectedTime = doorLockStartTime.TimeOfDay;
+
+                    nbEndDayOffset.Value = endDateOffset;
+                    tpEndTime.SelectedTime = doorLockEndTime.TimeOfDay;
+
+                    tbReservationDoorLockScheduleNote.Text = reservationDoorLockSchedule.Note;
+                }
+                else
+                {
+                    nbStartDayOffset.Value = 0;
+                    tpStartTime.SelectedTime = reservationStartDateTime.Value.TimeOfDay;
+
+                    nbEndDayOffset.Value = 0;
+                    tpEndTime.SelectedTime = reservationStartDateTime.Value.TimeOfDay;
+                    tbReservationDoorLockScheduleNote.Text = string.Empty;
+                }
+            }
+            else
+            {
+                divDoorLockModalControls.Visible = false;
+                nbDoorLockError.Visible = true;
+                nbDoorLockError.Text = "Please first set a reservation schedule.";
+                dlgReservationDoorLockSchedule.SaveButtonText = string.Empty;
+                dlgReservationDoorLockSchedule.SaveThenAddButtonText = string.Empty;
+            }
+
+            hfAddReservationDoorLockScheduleGuid.Value = reservationDoorLockScheduleGuid.ToString();
+            hfActiveDialog.Value = "dlgReservationDoorLockSchedule";
+            dlgReservationDoorLockSchedule.Show();
+        }
+
+        private void gDoorLockSchedules_Add( object sender, EventArgs e )
+        {
+            gDoorLockSchedules_ShowEdit( Guid.Empty );
+        }
+
+        protected void gDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
+        {
+            var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
+            var reservationStartDateTime = schedule.FirstStartDateTime;
+            BindDoorLockSchedulesRow( e.Row, reservationStartDateTime );
+        }
+
+        protected void gViewDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var reservation = new ReservationService( rockContext ).Get( hfReservationId.Value.AsInteger() );
+                var reservationStartDateTime = reservation.Schedule.FirstStartDateTime;
+                Literal lPhoto = e.Row.FindControl( "lPhoto" ) as Literal;
+                Literal lStartTime = e.Row.FindControl( "lStartTime" ) as Literal;
+                Literal lEndTime = e.Row.FindControl( "lEndTime" ) as Literal;
+                BindDoorLockSchedulesRow( e.Row, reservationStartDateTime );
+            }
+        }
+
+        protected void BindDoorLockSchedulesRow( GridViewRow gridViewRow, DateTime? reservationStartDateTime )
+        {
+            var doorLockSchedule = gridViewRow.DataItem as ReservationDoorLockSchedule;
+            Literal lStartTime = gridViewRow.FindControl( "lStartTime" ) as Literal;
+            Literal lEndTime = gridViewRow.FindControl( "lEndTime" ) as Literal;
+            if ( lStartTime != null && lEndTime != null )
+            {
+                if ( doorLockSchedule != null && reservationStartDateTime != null )
+                {
+                    var doorLockStartTime = reservationStartDateTime.Value.AddMinutes( doorLockSchedule.StartTimeOffset );
+                    lStartTime.Text = ReservationDoorLockScheduleService.GetFriendlyDoorLockTime( reservationStartDateTime, doorLockStartTime );
+
+                    var doorLockEndTime = reservationStartDateTime.Value.AddMinutes( doorLockSchedule.EndTimeOffset );
+                    lEndTime.Text = ReservationDoorLockScheduleService.GetFriendlyDoorLockTime( reservationStartDateTime, doorLockEndTime );
+                }
+                else
+                {
+                    lStartTime.Text = lEndTime.Text = "Schedule Required";
+                }
+            }
+        }
+
+        private void BindReservationDoorLockSchedulesGrid()
+        {
+            Hydrate( DoorLockSchedulesState, new RockContext() );
+            gDoorLockSchedules.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationDoorLockSchedule>().Id;
+            gDoorLockSchedules.SetLinqDataSource( DoorLockSchedulesState.AsQueryable().OrderBy( dls => dls.StartTimeOffset ) );
+            gDoorLockSchedules.DataBind();
         }
 
         #endregion
@@ -2177,6 +2379,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ResourcesState.Add( rrSummary );
             }
 
+            DoorLockSchedulesState = new List<ReservationDoorLockSchedule>();
+            foreach ( var reservationDoorLockSchedule in reservation.ReservationDoorLockSchedules.ToList() )
+            {
+                var rdls = new ReservationDoorLockSchedule();
+                rdls.CopyPropertiesFrom( reservationDoorLockSchedule );
+                DoorLockSchedulesState.Add( rdls );
+            }
+
             reservation.LoadAttributes( rockContext );
 
             bool readOnly = true;
@@ -2252,9 +2462,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( reservation.SetupPhotoId.HasValue )
             {
-                string imgTag = string.Format( "<img src='{0}GetImage.ashx?id={1}&maxwidth=200&maxheight=200'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservation.SetupPhotoId.Value );
+                string imgTag = string.Format( "<img src='{0}GetImage.ashx?guid={1}&maxwidth=200&maxheight=200'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservation.SetupPhoto.Guid );
 
-                string imgUrl = string.Format( "~/GetImage.ashx?id={0}", reservation.SetupPhotoId );
+                string imgUrl = string.Format( "~/GetImage.ashx?guid={0}", reservation.SetupPhoto.Guid );
                 if ( System.Web.HttpContext.Current != null )
                 {
                     imgUrl = VirtualPathUtility.ToAbsolute( imgUrl );
@@ -2324,7 +2534,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             hfApprovalState.Value = reservation.ApprovalState.ConvertToString();
-            LoadAdditionalInfo( false, true );
+            LoadAdditionalInfo( false, true, true, true );
 
             divViewLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
             gViewLocations.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationLocation>().Id;
@@ -2336,6 +2546,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gViewResources.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationResource>().Id;
             gViewResources.SetLinqDataSource( ResourcesState.AsQueryable().OrderBy( r => r.LocationName ).ThenBy( r => r.Resource.Name ) );
             gViewResources.DataBind();
+
+            Hydrate( DoorLockSchedulesState, new RockContext() );
+            divViewDoorLockSchedules.Visible = ReservationType.DisplayReservationDoorLockSchedules && DoorLockSchedulesState.Any();
+            gViewDoorLockSchedules.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationDoorLockSchedule>().Id;
+            gViewDoorLockSchedules.SetLinqDataSource( DoorLockSchedulesState.AsQueryable().OrderBy( r => r.StartTimeOffset ).ThenBy( r => r.EndTimeOffset ) );
+            gViewDoorLockSchedules.DataBind();
 
             if ( ReservationType != null )
             {
@@ -2418,6 +2634,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     wpResources.Expanded = true;
                 }
 
+                BindReservationDoorLockSchedulesGrid();                
+                if ( DoorLockSchedulesState.Any() )
+                {
+                    wpDoorLockSchedules.Expanded = true;
+                }
+
                 foreach ( var reservationLocation in LocationsState )
                 {
                     reservationLocation.IsNew = true;
@@ -2428,7 +2650,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservationResource.IsNew = true;
                 }
 
-                LoadAdditionalInfo( resetControls: true );
+                LoadAdditionalInfo( true, true, true, true );
                 wpAdditionalInfo.Expanded = GetAttributeValue( "IsAdditionalInfoExpanded" ).AsBoolean();
 
 
@@ -2588,6 +2810,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             wpLocations.Visible = !( ReservationType.LocationRequirement == ReservationTypeRequirement.Hide && !LocationsState.Any() );
             wpResources.Visible = !( ReservationType.ResourceRequirement == ReservationTypeRequirement.Hide && !ResourcesState.Any() );
+
+            wpDoorLockSchedules.Visible = ReservationType.DisplayReservationDoorLockSchedules;
+            nbReservationDoorLockScheduleInstructions.Text = ReservationType.DoorLockInstructions;
         }
 
         /// <summary>
@@ -2595,7 +2820,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         /// <param name="isEditMode">if set to <c>true</c> [is edit mode].</param>
         /// <param name="resetControls">if set to <c>true</c> [reset controls].</param>
-        private void LoadAdditionalInfo( bool isEditMode = true, bool resetControls = false )
+        private void LoadAdditionalInfo( bool isEditMode = true
+            , bool resetReservationControls = false
+            , bool resetLocationControls = false
+            , bool resetResourceControls = false )
         {
             var rockContext = new RockContext();
             RequiredAdditionalInfoFieldCount = AdditionalInfoFieldCount = 0;
@@ -2609,11 +2837,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             Hydrate( ResourcesState, rockContext );
 
-            BuildReservationQuestions( isEditMode, resetControls );
+            BuildReservationQuestions( isEditMode, resetReservationControls );
 
-            BuildLocationQuestions( isEditMode, resetControls );
+            BuildLocationQuestions( isEditMode, resetLocationControls );
 
-            BuildResourceQuestions( isEditMode, resetControls );
+            BuildResourceQuestions( isEditMode, resetResourceControls );
 
             if ( isEditMode )
             {
@@ -2805,14 +3033,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             string encodedCalendarContent = Uri.EscapeUriString( sbSchedule.iCalendarContent );
             srpResource.CampusId = ddlCampus.SelectedValueAsInt();
-            //srpResource.ItemRestUrlExtraParams = BaseResourceRestUrl + String.Format( "&reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}{4}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), string.IsNullOrWhiteSpace( locationIds ) ? "" : "&locationIds=" + locationIds );
             srpResource.ReservationId = reservationId;
             srpResource.LocationIds = locationIds;
             srpResource.ICalendarContent = sbSchedule.iCalendarContent;
             srpResource.SetupTime = nbSetupTime.Text.AsInteger();
             srpResource.CleanupTime = nbCleanupTime.Text.AsInteger();
             srpResource.SetExtraRestParams();
-            slpLocation.ItemRestUrlExtraParams = BaseLocationRestUrl + String.Format( "?reservationId={0}&iCalendarContent={1}&setupTime={2}&cleanupTime={3}&attendeeCount={4}&reservationTypeId={5}", reservationId, encodedCalendarContent, nbSetupTime.Text.AsInteger(), nbCleanupTime.Text.AsInteger(), nbAttending.Text.AsInteger(), ddlReservationType.SelectedValueAsId() );
+
+            slpLocation.ReservationId = reservationId;
+            slpLocation.ReservationTypeId = ddlReservationType.SelectedValueAsId();
+            slpLocation.ICalendarContent = sbSchedule.iCalendarContent;
+            slpLocation.SetupTime = nbSetupTime.Text.AsInteger();
+            slpLocation.CleanupTime = nbCleanupTime.Text.AsInteger();
+            slpLocation.AttendeeCount = nbAttending.Text.AsInteger();
+            slpLocation.SetExtraRestParams();
         }
 
         /// <summary>
@@ -3746,7 +3980,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reservationService = new ReservationService( rockContext );
             if ( resource != null )
             {
-                var newReservation = new Reservation() {
+                var newReservation = new Reservation()
+                {
                     Id = hfReservationId.ValueAsInt(),
                     Schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent ),
                     SetupTime = nbSetupTime.Text.AsInteger(),
@@ -4049,7 +4284,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         private static string GetResourceAttributeFieldId( Guid reservationResourceGuid, AttributeCache attribute )
         {
-            return String.Format( "attribute_field_{0}_resource_{1}", attribute.Id, reservationResourceGuid.ToString().Replace("-","_") );
+            return String.Format( "attribute_field_{0}_resource_{1}", attribute.Id, reservationResourceGuid.ToString().Replace( "-", "_" ) );
         }
 
         /// <summary>
@@ -4088,6 +4323,84 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         #endregion
+
+        #endregion
+
+        #region Reservation Door Lock Schedule Methods
+
+        private bool SaveReservationDoorLockSchedule()
+        {
+            ReservationDoorLockSchedule reservationDoorLockSchedule = null;
+            Guid guid = hfAddReservationDoorLockScheduleGuid.Value.AsGuid();
+            if ( !guid.IsEmpty() )
+            {
+                reservationDoorLockSchedule = DoorLockSchedulesState.FirstOrDefault( l => l.Guid.Equals( guid ) );
+            }
+
+            if ( reservationDoorLockSchedule == null )
+            {
+                reservationDoorLockSchedule = new ReservationDoorLockSchedule();
+            }
+
+            var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
+            if ( schedule == null ||
+                tpStartTime.SelectedTime == null ||
+                tpEndTime.SelectedTime == null )
+            {
+                return false;
+            }
+
+            var reservationStartDateTime = schedule.FirstStartDateTime;
+            var reservationStartDate = reservationStartDateTime.Value.Date;
+
+            var startDateTime = reservationStartDate.Add( tpStartTime.SelectedTime.Value ).AddDays( nbStartDayOffset.Value );
+            var endDateTime = reservationStartDate.Add( tpEndTime.SelectedTime.Value ).AddDays( nbEndDayOffset.Value );
+
+            var startDateTimeOffset = ( int ) ( startDateTime - reservationStartDateTime ).Value.TotalMinutes;
+            var endDateTimeOffset = ( int ) ( endDateTime - reservationStartDateTime ).Value.TotalMinutes;
+
+            reservationDoorLockSchedule.StartTimeOffset = startDateTimeOffset;
+            reservationDoorLockSchedule.EndTimeOffset = endDateTimeOffset;
+            reservationDoorLockSchedule.Note = tbReservationDoorLockScheduleNote.Text;
+
+            if ( !reservationDoorLockSchedule.IsValid )
+            {
+                return false;
+            }
+
+            if ( startDateTimeOffset > endDateTimeOffset )
+            {
+                nbDoorLockError.Visible = true;
+                nbDoorLockError.Text = "Please select an end time after your start time.";
+                return false;
+            }
+
+            if ( DoorLockSchedulesState.Any( a => a.Guid.Equals( reservationDoorLockSchedule.Guid ) ) )
+            {
+                DoorLockSchedulesState.RemoveEntity( reservationDoorLockSchedule.Guid );
+            }
+
+            DoorLockSchedulesState.Add( reservationDoorLockSchedule );
+            BindReservationDoorLockSchedulesGrid();
+            return true;
+        }
+
+        private void RemoveDoorLockSchedule( Guid rowGuid )
+        {
+            DoorLockSchedulesState.RemoveEntity( rowGuid );
+
+            BindReservationDoorLockSchedulesGrid();
+        }
+
+        private void Hydrate( List<ReservationDoorLockSchedule> doorLockSchedulesState, RockContext rockContext )
+        {
+            var reservationService = new ReservationService( rockContext );
+
+            foreach ( var reservationDoorLockSchedule in doorLockSchedulesState )
+            {
+                reservationDoorLockSchedule.Reservation = reservationService.Get( reservationDoorLockSchedule.ReservationId );
+            }
+        }
 
         #endregion
 

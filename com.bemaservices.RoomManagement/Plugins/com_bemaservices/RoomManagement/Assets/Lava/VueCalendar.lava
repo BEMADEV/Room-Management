@@ -12,6 +12,7 @@
         {% assign adminContact = reservationSummary.AdminContactPersonAlias.Person %}
             {
                 approvalState:"{{reservationSummary.ApprovalState }}",
+                approvalStateInt:{{reservationSummary.ApprovalStateInt }},
                 eventContact:'{{eventContact.FullName}}',
                 eventContactId:{{eventContact.Id}},
                 reservationStart:"{{reservationSummary.ReservationStartDateTime | Date:'M/d h:mm tt'}}",
@@ -22,7 +23,6 @@
                 resources:"{{reservationSummary.Resources | Select:'Location' | Select:'Name' | Join:', ' | Replace:'"','\"'}}",
                 id:{{reservationSummary.Id}},
                 name:"{{reservationSummary.ReservationName | Replace:'"','\"' }}",
-                color:"{% case reservationSummary.ApprovalStateInt %}{% when 2 %}#16c98d{% when 3 %}#d4442e{% when 4 %}#ee7624{% when 1 or 5 or 6 %}#ffc870{% else %}#009ce3{% endcase %}",
                 start:"{{reservationSummary.ReservationStartDateTime | Date:'yyyy-MM-ddTHH:mm:ss'}}",
                 end:"{{reservationSummary.ReservationEndDateTime | Date:'yyyy-MM-ddTHH:mm:ss'}}",
                 timed: true
@@ -102,7 +102,7 @@
                     <v-menu v-model="selectedOpen" class="mr-4" :close-on-content-click="false"
                         :activator="selectedElement" offset-y>
                         <v-card color="grey lighten-4" min-width="350px" flat>
-                            <v-toolbar :color="selectedEvent.color" dark>
+                            <v-toolbar color="getEventColor(selectedEvent)" dark>
                                 <v-toolbar-title>{$ selectedEvent.name $}</v-toolbar-title>
 
 
@@ -124,8 +124,8 @@
 
                             </v-card-text>
                             <v-card-actions>
-                                <v-btn text :color="selectedEvent.color" @click.native="editRockEvent(selectedEvent)"> View Reservation </v-btn>
-                                <v-btn text :color="selectedEvent.color" @click="selectedOpen = false"> Close Window </v-btn>
+                                <v-btn text color="getEventColor(selectedEvent)" @click.native="editRockEvent(selectedEvent)"> View Reservation </v-btn>
+                                <v-btn text color="getEventColor(selectedEvent)" @click="selectedOpen = false"> Close Window </v-btn>
                             </v-card-actions>
                         </v-card>
                     </v-menu>
@@ -252,7 +252,33 @@ new Vue({
             this.type = 'day';
         },
         getEventColor(event) {
-            return event.color
+            // 0: Draft
+            // 1: PendingInitialApproval
+            // 2: Approved
+            // 3: Denied
+            // 4: ChangesNeeded
+            // 5: PendingFinalApproval
+            // 6: PendingSpecialApproval
+            // 7: Cancelled
+            let styles = getComputedStyle(document.documentElement)
+            let color = styles.getPropertyValue('--color-primary')
+            if ( event.approvalStateInt == 0 || event.approvalStateInt == 7 ){
+                color = styles.getPropertyValue('--theme-medium')
+            }
+            else if ( event.approvalStateInt == 1 || event.approvalStateInt == 5 || event.approvalStateInt == 6 ){
+                color = styles.getPropertyValue('--color-info')
+            }
+            else if ( event.approvalStateInt == 2 ){
+                color = styles.getPropertyValue('--color-success')
+            }
+            else if ( event.approvalStateInt == 3 ){
+                color = styles.getPropertyValue('--color-danger')
+            }
+            else if ( event.approvalStateInt == 4 ){
+                color = styles.getPropertyValue('--color-warning')
+            }
+            
+            return color
         },
         setToday() {
             this.focus = ''

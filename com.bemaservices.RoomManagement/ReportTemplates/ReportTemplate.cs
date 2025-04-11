@@ -61,7 +61,19 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
         /// <returns>System.Byte[].</returns>
         public virtual byte[] GenerateReport( List<com.bemaservices.RoomManagement.Model.ReservationSummary> reservationSummaryList, string logoFileUrl, string font, DateTime? filterStartDate, DateTime? filterEndDate, string lavaTemplate = "" )
         {
-            return null;
+            var convertedSummaryList = new List<ReservationService.ReservationSummary>();
+            foreach ( var reservationSummary in reservationSummaryList )
+            {
+                var convertedSummary = new ReservationService.ReservationSummary();
+                convertedSummary.CopyPropertiesFrom( reservationSummary );
+                if ( convertedSummary != null )
+                {
+                    convertedSummaryList.Add( convertedSummary );
+                }
+            }
+
+            var outputArray = GenerateReport( convertedSummaryList, logoFileUrl, font, filterStartDate, filterEndDate, lavaTemplate );
+            return outputArray;
         }
 
     }

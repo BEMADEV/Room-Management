@@ -242,24 +242,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void gfSettings_ApplyFilterClick( object sender, EventArgs e )
         {
-            gfSettings.SaveUserPreference( FilterSetting.RESERVATION_NAME, tbName.Text );
-            gfSettings.SaveUserPreference( FilterSetting.APPROVAL_STATE, cblApproval.SelectedValues.AsDelimited( "," ) );
-            gfSettings.SaveUserPreference( FilterSetting.MINISTRY, cblMinistry.SelectedValues.AsDelimited( "," ) );
-            gfSettings.SaveUserPreference( FilterSetting.RESERVATION_TYPE, cblReservationType.SelectedValues.AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( FilterSetting.RESERVATION_NAME, tbName.Text );
+            gfSettings.SetFilterPreference( FilterSetting.APPROVAL_STATE, cblApproval.SelectedValues.AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( FilterSetting.MINISTRY, cblMinistry.SelectedValues.AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( FilterSetting.RESERVATION_TYPE, cblReservationType.SelectedValues.AsDelimited( "," ) );
 
             int creatorId = ppCreator.PersonId ?? 0;
-            gfSettings.SaveUserPreference( FilterSetting.CREATED_BY, creatorId.ToString() );
+            gfSettings.SetFilterPreference( FilterSetting.CREATED_BY, creatorId.ToString() );
 
             int eventContactId = ppEventContact.PersonId ?? 0;
-            gfSettings.SaveUserPreference( FilterSetting.EVENT_CONTACT, eventContactId.ToString() );
+            gfSettings.SetFilterPreference( FilterSetting.EVENT_CONTACT, eventContactId.ToString() );
 
             int adminContactId = ppAdminContact.PersonId ?? 0;
-            gfSettings.SaveUserPreference( FilterSetting.ADMIN_CONTACT, adminContactId.ToString() );
+            gfSettings.SetFilterPreference( FilterSetting.ADMIN_CONTACT, adminContactId.ToString() );
 
-            gfSettings.SaveUserPreference( FilterSetting.START_TIME, dtpStartDateTime.SelectedDateTime.ToString() );
-            gfSettings.SaveUserPreference( FilterSetting.END_TIME, dtpEndDateTime.SelectedDateTime.ToString() );
-            gfSettings.SaveUserPreference( FilterSetting.RESOURCES, rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
-            gfSettings.SaveUserPreference( FilterSetting.LOCATIONS, lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( FilterSetting.START_TIME, dtpStartDateTime.SelectedDateTime.ToString() );
+            gfSettings.SetFilterPreference( FilterSetting.END_TIME, dtpEndDateTime.SelectedDateTime.ToString() );
+            gfSettings.SetFilterPreference( FilterSetting.RESOURCES, rpResource.SelectedValues.AsIntegerList().AsDelimited( "," ) );
+            gfSettings.SetFilterPreference( FilterSetting.LOCATIONS, lipLocation.SelectedValues.AsIntegerList().AsDelimited( "," ) );
             BindGrid();
         }
 
@@ -283,39 +283,39 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var rockContext = new RockContext();
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.RESERVATION_NAME ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.RESERVATION_NAME ) ) )
             {
-                tbName.Text = gfSettings.GetUserPreference( FilterSetting.RESERVATION_NAME );
+                tbName.Text = gfSettings.GetFilterPreference( FilterSetting.RESERVATION_NAME );
             }
 
             // Setup Ministry Filter
             cblMinistry.DataSource = new ReservationMinistryService( rockContext ).Queryable().DistinctBy( rmc => rmc.Name ).OrderBy( m => m.Name );
             cblMinistry.DataBind();
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.MINISTRY ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.MINISTRY ) ) )
             {
-                cblMinistry.SetValues( gfSettings.GetUserPreference( FilterSetting.MINISTRY ).SplitDelimitedValues() );
+                cblMinistry.SetValues( gfSettings.GetFilterPreference( FilterSetting.MINISTRY ).SplitDelimitedValues() );
             }
 
             // Setup Reservation Type Filter
             cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().Where( rt => rt.IsActive ).ToList();
             cblReservationType.DataBind();
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.RESERVATION_TYPE ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.RESERVATION_TYPE ) ) )
             {
-                cblReservationType.SetValues( gfSettings.GetUserPreference( FilterSetting.RESERVATION_TYPE ).SplitDelimitedValues() );
+                cblReservationType.SetValues( gfSettings.GetFilterPreference( FilterSetting.RESERVATION_TYPE ).SplitDelimitedValues() );
             }
 
             cblApproval.BindToEnum<ReservationApprovalState>();
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.APPROVAL_STATE ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.APPROVAL_STATE ) ) )
             {
-                cblApproval.SetValues( gfSettings.GetUserPreference( FilterSetting.APPROVAL_STATE ).SplitDelimitedValues() );
+                cblApproval.SetValues( gfSettings.GetFilterPreference( FilterSetting.APPROVAL_STATE ).SplitDelimitedValues() );
             }
 
             var personService = new PersonService( rockContext );
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.CREATED_BY ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.CREATED_BY ) ) )
             {
-                int? personId = gfSettings.GetUserPreference( FilterSetting.CREATED_BY ).AsIntegerOrNull();
+                int? personId = gfSettings.GetFilterPreference( FilterSetting.CREATED_BY ).AsIntegerOrNull();
                 if ( personId.HasValue && personId.Value != 0 )
                 {
                     var person = personService.Get( personId.Value );
@@ -326,9 +326,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.EVENT_CONTACT ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.EVENT_CONTACT ) ) )
             {
-                int? personId = gfSettings.GetUserPreference( FilterSetting.EVENT_CONTACT ).AsIntegerOrNull();
+                int? personId = gfSettings.GetFilterPreference( FilterSetting.EVENT_CONTACT ).AsIntegerOrNull();
                 if ( personId.HasValue && personId.Value != 0 )
                 {
                     var person = personService.Get( personId.Value );
@@ -339,9 +339,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.ADMIN_CONTACT ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.ADMIN_CONTACT ) ) )
             {
-                int? personId = gfSettings.GetUserPreference( FilterSetting.ADMIN_CONTACT ).AsIntegerOrNull();
+                int? personId = gfSettings.GetFilterPreference( FilterSetting.ADMIN_CONTACT ).AsIntegerOrNull();
                 if ( personId.HasValue && personId.Value != 0 )
                 {
                     var person = personService.Get( personId.Value );
@@ -352,24 +352,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.START_TIME ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.START_TIME ) ) )
             {
-                dtpStartDateTime.SelectedDateTime = gfSettings.GetUserPreference( FilterSetting.START_TIME ).AsDateTime();
+                dtpStartDateTime.SelectedDateTime = gfSettings.GetFilterPreference( FilterSetting.START_TIME ).AsDateTime();
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.END_TIME ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.END_TIME ) ) )
             {
-                dtpEndDateTime.SelectedDateTime = gfSettings.GetUserPreference( FilterSetting.END_TIME ).AsDateTime();
+                dtpEndDateTime.SelectedDateTime = gfSettings.GetFilterPreference( FilterSetting.END_TIME ).AsDateTime();
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.RESOURCES ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.RESOURCES ) ) )
             {
-                rpResource.SetValues( gfSettings.GetUserPreference( FilterSetting.RESOURCES ).Split( ',' ).AsIntegerList() );
+                rpResource.SetValues( gfSettings.GetFilterPreference( FilterSetting.RESOURCES ).Split( ',' ).AsIntegerList() );
             }
 
-            if ( !string.IsNullOrWhiteSpace( gfSettings.GetUserPreference( FilterSetting.LOCATIONS ) ) )
+            if ( !string.IsNullOrWhiteSpace( gfSettings.GetFilterPreference( FilterSetting.LOCATIONS ) ) )
             {
-                lipLocation.SetValues( gfSettings.GetUserPreference( FilterSetting.LOCATIONS ).Split( ',' ).AsIntegerList() );
+                lipLocation.SetValues( gfSettings.GetFilterPreference( FilterSetting.LOCATIONS ).Split( ',' ).AsIntegerList() );
             }
         }
 
@@ -531,18 +531,62 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             EventItemOccurrenceId
         }
 
+        /// <summary>
+        /// Class ConflictedReservation.
+        /// </summary>
         public class ConflictedReservation
         {
+            /// <summary>
+            /// Gets or sets the identifier.
+            /// </summary>
+            /// <value>The identifier.</value>
             public int Id { get; set; }
+            /// <summary>
+            /// Gets or sets the type of the reservation.
+            /// </summary>
+            /// <value>The type of the reservation.</value>
             public string ReservationType { get; set; }
+            /// <summary>
+            /// Gets or sets the name of the reservation.
+            /// </summary>
+            /// <value>The name of the reservation.</value>
             public string ReservationName { get; set; }
+            /// <summary>
+            /// Gets or sets the locations.
+            /// </summary>
+            /// <value>The locations.</value>
             public string Locations { get; set; }
+            /// <summary>
+            /// Gets or sets the resources.
+            /// </summary>
+            /// <value>The resources.</value>
             public string Resources { get; set; }
+            /// <summary>
+            /// Gets or sets the start date.
+            /// </summary>
+            /// <value>The start date.</value>
             public DateTime? StartDate { get; set; }
+            /// <summary>
+            /// Gets or sets the schedule.
+            /// </summary>
+            /// <value>The schedule.</value>
             public string Schedule { get; set; }
+            /// <summary>
+            /// Gets or sets the state of the approval.
+            /// </summary>
+            /// <value>The state of the approval.</value>
             public string ApprovalState { get; set; }
+            /// <summary>
+            /// Gets or sets the conflicts.
+            /// </summary>
+            /// <value>The conflicts.</value>
             public string Conflicts { get; set; }
 
+            /// <summary>
+            /// Initializes a new instance of the <see cref="ConflictedReservation" /> class.
+            /// </summary>
+            /// <param name="reservation">The reservation.</param>
+            /// <param name="conflictSummary">The conflict summary.</param>
             public ConflictedReservation( Reservation reservation, string conflictSummary )
             {
                 // debug here

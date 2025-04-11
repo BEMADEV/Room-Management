@@ -40,6 +40,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             AddConflictPage();
         }
 
+        /// <summary>
+        /// Adds the conflict page.
+        /// </summary>
         private void AddConflictPage()
         {
             // Page: Conflicting Reservations
@@ -81,6 +84,9 @@ namespace com.bemaservices.RoomManagement.Migrations
             RemoveConflictPage();
         }
 
+        /// <summary>
+        /// Removes the conflict page.
+        /// </summary>
         private void RemoveConflictPage()
         {
             RockMigrationHelper.DeleteAttribute( "4C3795B8-C641-4CC2-A944-68C7A0ED162F" );

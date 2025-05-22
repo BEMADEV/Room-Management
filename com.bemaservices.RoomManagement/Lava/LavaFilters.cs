@@ -14,7 +14,6 @@
 // limitations under the License.
 // </copyright>
 //
-using DotLiquid;
 using Rock.Lava;
 using Rock.Utility;
 

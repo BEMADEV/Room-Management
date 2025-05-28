@@ -39,30 +39,27 @@ namespace com.bemaservices.RoomManagement.Model
             if ( reservationStartDateTime != null && doorLockStartTime != null )
             {
                 var dateOffsetText = string.Empty;
-                var dateDifference = ( doorLockStartTime - reservationStartDateTime );
+                var dateDifference = ( doorLockStartTime.Date - reservationStartDateTime.Value.Date );
                 sb.Append( doorLockStartTime.ToShortTimeString() );
 
-                if ( dateDifference.HasValue )
+                var dayDifference = ( Int64 ) dateDifference.TotalDays;
+                if ( dayDifference != 0 )
                 {
-                    var dayDifference = ( Int64 ) dateDifference.Value.TotalDays;
-                    if ( dayDifference != 0 )
+                    sb.Append( " (" );
+
+                    if ( dayDifference >= 1 )
                     {
-                        sb.Append( " (" );
-
-                        if ( dayDifference >= 1 )
-                        {
-                            sb.Append( "+" );
-                        }
-
-                        sb.AppendFormat( "{0} day", dayDifference.ToString() );
-
-                        if ( dayDifference < -1 || dayDifference > 1 )
-                        {
-                            sb.Append( "s" );
-                        }
-
-                        sb.Append( ")" );
+                        sb.Append( "+" );
                     }
+
+                    sb.AppendFormat( "{0} day", dayDifference.ToString() );
+
+                    if ( dayDifference < -1 || dayDifference > 1 )
+                    {
+                        sb.Append( "s" );
+                    }
+
+                    sb.Append( ")" );
                 }
             }
             return sb.ToString();

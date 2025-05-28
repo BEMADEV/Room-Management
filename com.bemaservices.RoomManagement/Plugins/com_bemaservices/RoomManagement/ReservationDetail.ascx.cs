@@ -2160,8 +2160,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     var doorLockStartTime = reservationStartDateTime.Value.AddMinutes( reservationDoorLockSchedule.StartTimeOffset );
                     var doorLockEndTime = reservationStartDateTime.Value.AddMinutes( reservationDoorLockSchedule.EndTimeOffset );
 
-                    var startDateOffset = ( int ) ( doorLockStartTime - reservationStartDateTime ).Value.TotalDays;
-                    var endDateOffset = ( int ) ( doorLockEndTime - reservationStartDateTime ).Value.TotalDays;
+                    var startDateOffset = ( int ) ( doorLockStartTime.Date - reservationStartDateTime.Value.Date ).TotalDays;
+                    var endDateOffset = ( int ) ( doorLockEndTime.Date - reservationStartDateTime.Value.Date ).TotalDays;
 
                     nbStartDayOffset.Value = startDateOffset;
                     tpStartTime.SelectedTime = doorLockStartTime.TimeOfDay;

@@ -14,7 +14,7 @@
 // limitations under the License.
 // </copyright>
 //
-using DotLiquid;
+using Rock.Lava;
 using Rock.Utility;
 
 namespace com.bemaservices.RoomManagement.Lava
@@ -37,7 +37,7 @@ namespace com.bemaservices.RoomManagement.Lava
         /// </summary>
         public virtual void OnStartup()
         {
-            Template.RegisterFilter( GetType() );
+            LavaService.RegisterFilters( GetType() );
         }
     }
 }

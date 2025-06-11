@@ -94,7 +94,7 @@ namespace Rock.Rest.Controllers
                 if ( conflictedLocationEntitySetId.HasValue )
                 {
                     conflictedLocationIds = entitySetItemService
-                       .GetByEntitySetId( reservedLocationEntitySetId.Value )
+                       .GetByEntitySetId( conflictedLocationEntitySetId.Value )
                        .Select( esi => esi.EntityId )
                        .ToList();
                 }

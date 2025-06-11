@@ -61,13 +61,13 @@
   return $('<span class="name"></span>')
 			.addClass('pm-event-' + event.state.toLowerCase())
 			.text(eventName);
-	}	
+	}
 
 	function LoadCalendar(){
 		var options = {
 			events: getEvents,
 			eventNameTemplate: getEventName,
-			monthLayout: {%- if TimeFrame == "Month" or TimeFrame == "Year" -%}EventCalendar.Constants.MonthLayout.Compact{%- else -%}EventCalendar.Constants.MonthLayout.None{%- endif -%},
+			monthLayout: {%- if TimeFrame == "Month" or TimeFrame == "Year" -%}EventCalendar.Constants.MonthLayout.Full{%- else -%}EventCalendar.Constants.MonthLayout.None{%- endif -%},
 			weekLayout: {%- if TimeFrame == "Week" -%}EventCalendar.Constants.WeekLayout.Compact{%- else -%}EventCalendar.Constants.WeekLayout.None{%- endif -%},
 			dayLayout: {%- if TimeFrame == "Day" -%}EventCalendar.Constants.DayLayout.TimeView{%- else -%}EventCalendar.Constants.DayLayout.None{%- endif -%},
             layout: {%- if TimeFrame == "Month" or TimeFrame == "Year" -%}EventCalendar.Constants.Layout.Month{%- elseif TimeFrame == "Week" -%}EventCalendar.Constants.Layout.Week{%- else -%}EventCalendar.Constants.Layout.Day{%- endif -%}

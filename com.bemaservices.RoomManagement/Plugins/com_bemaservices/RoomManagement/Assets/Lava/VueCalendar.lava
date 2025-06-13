@@ -20,7 +20,7 @@
                 eventStart:"{{reservationSummary.EventStartDateTime | Date:'M/d h:mm tt'}}",
                 eventEnd:"{{reservationSummary.EventEndDateTime | Date:'M/d h:mm tt'}}",
                 locations:"{{reservationSummary.Locations | Select:'Location' | Select:'Name' | Join:', ' | Replace:'"','\"'}}",
-                resources:"{{reservationSummary.Resources | Select:'Location' | Select:'Name' | Join:', ' | Replace:'"','\"'}}",
+                resources:"{{reservationSummary.Resources | Select:'Resource' | Select:'Name' | Join:', ' | Replace:'"','\"'}}",
                 id:{{reservationSummary.Id}},
                 name:"{{reservationSummary.ReservationName | Replace:'"','\"' }}",
                 start:"{{reservationSummary.ReservationStartDateTime | Date:'yyyy-MM-ddTHH:mm:ss'}}",
@@ -78,7 +78,7 @@
                             </v-list>
                         </v-menu>
                     </v-toolbar>
-                </v-sheet>                
+                </v-sheet>
                 <v-sheet height="600">
                     <v-calendar
                         ref="calendar"
@@ -277,7 +277,7 @@ new Vue({
             else if ( event.approvalStateInt == 4 ){
                 color = styles.getPropertyValue('--color-warning')
             }
-            
+
             return color
         },
         setToday() {

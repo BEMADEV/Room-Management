@@ -490,7 +490,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             reservationQueryOptions.LocationIds = locationIdList;
 
-            reservationQueryOptions.CampusIds = cpCampuses.SelectedValuesAsInt().ToList();
+            reservationQueryOptions.CampusIds = cpCampuses.SelectedCampusIds;
 
             var qry = reservationService.Queryable( reservationQueryOptions );
 

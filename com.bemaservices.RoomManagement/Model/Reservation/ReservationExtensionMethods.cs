@@ -272,7 +272,7 @@ namespace com.bemaservices.RoomManagement.Model
         public static List<ReservationSummary> MatchingSummaries( this ReservationSummary sourceReservationSummary, List<ReservationSummary> potentialSummaryMatches )
         {
             var matchingSummaries = potentialSummaryMatches.Where( potentialSummaryMatch =>
-                 ( sourceReservationSummary.ReservationStartDateTime > potentialSummaryMatch.ReservationStartDateTime || sourceReservationSummary.ReservationEndDateTime > potentialSummaryMatch.ReservationStartDateTime ) &&
+                 ( sourceReservationSummary.ReservationStartDateTime >= potentialSummaryMatch.ReservationStartDateTime || sourceReservationSummary.ReservationEndDateTime > potentialSummaryMatch.ReservationStartDateTime ) &&
                  ( sourceReservationSummary.ReservationStartDateTime < potentialSummaryMatch.ReservationEndDateTime || sourceReservationSummary.ReservationEndDateTime < potentialSummaryMatch.ReservationEndDateTime )
                  ).ToList();
             return matchingSummaries;

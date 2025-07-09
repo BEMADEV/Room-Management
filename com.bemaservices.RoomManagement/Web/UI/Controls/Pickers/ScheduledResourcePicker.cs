@@ -24,6 +24,7 @@ using com.bemaservices.RoomManagement.Model;
 using Rock;
 using Rock.Data;
 using Rock.Model;
+using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
 
 namespace com.bemaservices.RoomManagement.Web.UI.Controls
@@ -118,8 +119,6 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
                 ViewState["LocationIds"] = value;
             }
         }
-
-
 
         /// <summary>
         /// The checkbox to show inactive groups
@@ -294,36 +293,55 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             additionalParams.Append( "?getCategorizedItems=true" );
             additionalParams.Append( "&showUnnamedEntityItems=true" );
             additionalParams.Append( "&showCategoriesThatHaveNoChildren=true" );
-            additionalParams.AppendFormat( "&includeAllCampuses={0}", _cbShowAllResources.Checked.ToTrueFalse() );
 
-            if ( CampusId.HasValue )
+            int? resourceEntitySetId = null;
+            using ( var rockContext = new RockContext() )
             {
-                additionalParams.AppendFormat( "&CampusId={0}", CampusId );
+                var reservationService = new ReservationService( rockContext );
+
+                var newReservation = new Reservation()
+                {
+                    Id = ReservationId ?? 0,
+                    Schedule = ReservationService.BuildScheduleFromICalContent( ICalendarContent ),
+                    SetupTime = SetupTime,
+                    CleanupTime = CleanupTime
+                };
+
+                newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+                var resourceAvailability = reservationService.GetResourceAvailabilities( newReservation,
+                    _cbShowAllResources.Checked, 
+                    CampusId ?? 0, 
+                    LocationIds.SplitDelimitedValues().AsIntegerList() 
+                );
+
+                var entitySet = new EntitySet()
+                {
+                    EntityTypeId = EntityTypeCache.GetId( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESOURCE ),
+                    ExpireDateTime = RockDateTime.Now.AddMinutes( 120 )
+                };
+
+                foreach ( var resource in resourceAvailability )
+                {
+                    var entitySetItem = new EntitySetItem()
+                    {
+                        EntityId = resource.ResourceId,
+                        AdditionalMergeValuesJson = resource.ToJson()
+                    };
+
+                    entitySet.Items.Add( entitySetItem );
+                }
+
+                var entitySetService = new EntitySetService( rockContext );
+                entitySetService.Add( entitySet );
+
+                rockContext.SaveChanges();
+
+                resourceEntitySetId = entitySet.Id;
             }
 
-            if ( ReservationId.HasValue )
+            if ( resourceEntitySetId.HasValue )
             {
-                additionalParams.AppendFormat( "&ReservationId={0}", ReservationId );
-            }
-
-            if ( ICalendarContent.IsNotNullOrWhiteSpace() )
-            {
-                additionalParams.AppendFormat( "&iCalendarContent={0}", Uri.EscapeUriString( ICalendarContent ) );
-            }
-
-            if ( SetupTime.HasValue )
-            {
-                additionalParams.AppendFormat( "&SetupTime={0}", SetupTime.Value );
-            }
-
-            if ( CleanupTime.HasValue )
-            {
-                additionalParams.AppendFormat( "&CleanupTime={0}", CleanupTime.Value );
-            }
-
-            if ( LocationIds.IsNotNullOrWhiteSpace() )
-            {
-                additionalParams.AppendFormat( "&LocationIds={0}", LocationIds );
+                additionalParams.AppendFormat( "&resourceEntitySetId={0}", resourceEntitySetId );
             }
 
             ItemRestUrlExtraParams = additionalParams.ToString();

@@ -53,8 +53,8 @@
       <HintPath>libs\itextsharp.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-            <SpecificVersion>False</SpecificVersion>
-            <HintPath>$(SolutionDir)packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(SolutionDir)packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="PuppeteerSharp, Version=7.0.0.0, Culture=neutral, PublicKeyToken=db12f80f85d8ba23, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -179,6 +179,7 @@
     <Compile Include="Model\Reservation\ReservationSummary.cs" />
     <Compile Include="Model\Reservation\ReservationDate.cs" />
     <Compile Include="Model\Reservation\ReservationConflict.cs" />
+    <Compile Include="Model\ReservationResource\ResourceAvailability.cs" />
     <Compile Include="ReportTemplates\AdvancedReportTemplate.cs" />
     <Compile Include="ReportTemplates\LavaV2ReportLandscapeTemplate.cs" />
     <Compile Include="ReportTemplates\LavaReportLandscapeTemplate.cs" />
@@ -231,6 +232,8 @@
     <Compile Include="SystemGuid\Group.cs" />
     <Compile Include="SystemGuid\ServiceJob.cs" />
     <Compile Include="Transactions\ReservationChangeTransaction.cs" />
+    <Compile Include="Utility\RockInternalMethods\Calendars\EventCalendarServiceOverrides.cs" />
+    <Compile Include="Utility\RockInternalMethods\Calendars\InetCalendarHelperOverrides.cs" />
     <Compile Include="VersionInfo.cs" />
     <Compile Include="Web\UI\Controls\Pickers\ReportTemplatePicker.cs" />
     <Compile Include="Web\UI\Controls\Pickers\ReservationTypePicker.cs" />

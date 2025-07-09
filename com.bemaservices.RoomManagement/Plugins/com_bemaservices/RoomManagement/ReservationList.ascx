@@ -4,6 +4,7 @@
     <ContentTemplate>
 
         <Rock:ModalAlert ID="mdGridWarning" runat="server" />
+        <asp:HiddenField ID="hfAction" runat="server" />
 
         <div class="panel panel-block">
             <div class="panel-heading">
@@ -28,6 +29,7 @@
                     </Rock:GridFilter>
                     <Rock:Grid ID="gReservations" runat="server" RowItemText="Reservation" OnRowSelected="gReservations_Edit" TooltipField="Description">
                         <Columns>
+                            <Rock:SelectField />
                             <Rock:RockBoundField DataField="Id" HeaderText="Id" Visible="false" />
                             <Rock:RockBoundField DataField="ReservationName" HeaderText="Reservation Name" />
                             <Rock:RockBoundField DataField="ReservationType" HeaderText="Reservation Type" />

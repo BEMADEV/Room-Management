@@ -30,7 +30,6 @@ using Rock.Web.UI.Controls;
 using com.bemaservices.RoomManagement.Model;
 using System.Web.UI.WebControls;
 using System.Data.Entity;
-using MailChimp.Net.Models;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {

@@ -29,6 +29,7 @@ using Rock.Web.UI.Controls;
 
 using com.bemaservices.RoomManagement.Model;
 using System.Web.UI.WebControls;
+using System.Data.Entity;
 
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
@@ -41,8 +42,41 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
     [LinkedPage( "Detail Page" )]
     [TextField( "Related Entity Query String Parameter", "The query string parameter that holds id to the related entity.", false )]
-    public partial class ReservationList : Rock.Web.UI.RockBlock
+    public partial class ReservationList : Rock.Web.UI.RockBlock, IPostBackEventHandler
     {
+        #region Fields
+
+        private RockDropDownList _ddlAction;
+
+        #endregion
+
+        #region Keys
+
+        private static class PageParameterKey
+        {
+            public const string CommunicationId = "CommunicationId";
+        }
+
+        private static class GridAction
+        {
+            public const string EmailAdminContacts = "EMAIL_ADMIN";
+            public const string EmailEventContacts = "EMAIL_EVENT";
+            public const string EmailAdminAndEventContacts = "EMAIL_ADMIN_AND_EVENT";
+            public const string None = "";
+        }
+
+        private static class PostbackEventArgument
+        {
+            public const string GridActionChanged = "GridActionChanged";
+        }
+
+        private static class MergeFieldKey
+        {
+            public const string Reservations = "Reservations";
+        }
+
+        #endregion
+
         #region Control Methods
 
         /// <summary>
@@ -60,6 +94,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gReservations.Actions.ShowAdd = false;
             gReservations.GridRebind += gReservations_GridRebind;
 
+            _ddlAction = new RockDropDownList();
+            _ddlAction.ID = "ddlAction";
+            _ddlAction.CssClass = "pull-left input-width-xl";
+            _ddlAction.Items.Add( new ListItem( "-- Select Action --", GridAction.None ) );
+            _ddlAction.Items.Add( new ListItem( "Email Admin Contacts of Selected Reservations", GridAction.EmailAdminContacts ) );
+            _ddlAction.Items.Add( new ListItem( "Email Event Contacts of Selected Reservations", GridAction.EmailEventContacts ) );
+            _ddlAction.Items.Add( new ListItem( "Email Admin and Event Contacts of Selected Reservations", GridAction.EmailAdminAndEventContacts ) );
+
+            gReservations.Actions.AddCustomActionControl( _ddlAction );
+
+
             this.BlockUpdated += Block_BlockUpdated;
         }
 
@@ -76,6 +121,33 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             base.OnLoad( e );
+        }
+
+        /// <summary>
+        /// When implemented by a class, enables a server control to process an event raised when a form is posted to the server.
+        /// </summary>
+        /// <param name="eventArgument">A <see cref="T:System.String" /> that represents an optional event argument to be passed to the event handler.</param>
+        public void RaisePostBackEvent( string eventArgument )
+        {
+            if ( eventArgument != PostbackEventArgument.GridActionChanged || hfAction.Value.IsNullOrWhiteSpace() )
+            {
+                return;
+            }
+
+            var selectedIds = gReservations.SelectedKeys.Select( k => ( int ) k ).ToList();
+            if ( selectedIds.Any() )
+            {
+                var selectedReservations = new ReservationService( new RockContext() ).Queryable()
+                    .Where( r => selectedIds.Contains( r.Id ) )
+                    .ToList();
+
+                EmailContacts( selectedReservations, hfAction.Value );
+            }
+
+            _ddlAction.SelectedIndex = 0;
+            hfAction.Value = string.Empty;
+            gReservations.SelectedKeys.Clear();
+            BindGrid();
         }
 
         #endregion
@@ -298,6 +370,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             BindFilter();
         }
 
+        protected void _ddlCommunicate_SelectedIndexChanged( object sender, EventArgs e )
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Handles the BlockUpdated event of the control.
         /// </summary>
@@ -490,7 +567,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             reservationQueryOptions.LocationIds = locationIdList;
 
-            reservationQueryOptions.CampusIds = lipLocation.SelectedValuesAsInt().ToList();
+            reservationQueryOptions.CampusIds = cpCampuses.SelectedCampusIds;
 
             var qry = reservationService.Queryable( reservationQueryOptions );
 
@@ -546,6 +623,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             .OrderBy( r => r.ReservationStartDateTime ).ToList();
             gReservations.EntityTypeId = EntityTypeCache.Get<Reservation>().Id;
             gReservations.DataBind();
+
+            RegisterJavaScriptForGridActions();
         }
 
         /// <summary>
@@ -556,6 +635,165 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             nbMessage.Visible = true;
             nbMessage.Text = message;
+        }
+
+
+        /// <summary>
+        /// Registers the JavaScript for grid actions.
+        /// NOTE: This needs to be done after binding the grid.
+        /// </summary>
+        private void RegisterJavaScriptForGridActions()
+        {
+            string script = $@"
+                $('#{_ddlAction.ClientID}').on('change', function (e){{
+                    var $ddl = $(this);
+                    var action = $ddl.val();
+                    $('#{hfAction.ClientID}').val(action);
+
+                    var count = $(""#{gReservations.ClientID} input[id$='_cbSelect_0']:checked"").length;
+                    if (action === '{GridAction.None}' || count === 0) {{
+                        return;
+                    }}
+
+                    window.location = ""javascript:{Page.ClientScript.GetPostBackEventReference( this, PostbackEventArgument.GridActionChanged )}"";
+                    $ddl.val('');
+                }});";
+
+            ScriptManager.RegisterStartupScript( _ddlAction, _ddlAction.GetType(), "ProcessGridActionChange", script, true );
+        }
+
+        /// <summary>
+        /// Emails the participants.
+        /// </summary>
+        /// <param name="opportunities">The opportunities.</param>
+        /// <param name="shouldOnlyEmailLeaders">if set to <c>true</c> [should only email leaders].</param>
+        private void EmailContacts( List<Reservation> reservations, string recipientType = "" )
+        {
+            var recipients = new List<int>();
+
+            if ( recipientType == GridAction.EmailAdminContacts || recipientType == GridAction.EmailAdminAndEventContacts )
+            {
+                recipients.AddRange( reservations.Select( r => r.AdministrativeContactPersonAlias.PersonId ) );
+            }
+
+            if ( recipientType == GridAction.EmailEventContacts || recipientType == GridAction.EmailAdminAndEventContacts )
+            {
+                recipients.AddRange( reservations.Select( r => r.EventContactPersonAlias.PersonId ) );
+            }
+
+            using ( var rockContext = new RockContext() )
+            using ( var communicationRecipientRockContext = new RockContext() )
+            {
+                var distinctPersonIds = recipients
+                    .Distinct()
+                    .ToList();
+
+                if ( !distinctPersonIds.Any() )
+                {
+                    mdGridWarning.Show( "Unable to send email, as no recipients were found.", ModalAlertType.Information );
+                    return;
+                }
+
+                // Get the primary aliases.
+                var personAliasService = new PersonAliasService( rockContext );
+                var distinctPrimaryAliases = new List<PersonAlias>( distinctPersonIds.Count );
+
+                // Get the data in chunks just in case we have a large list of PersonIds (to avoid a SQL Expression limit error).
+                var chunkedPersonIds = distinctPersonIds.Take( 1000 );
+                var skipCount = 0;
+                while ( chunkedPersonIds.Any() )
+                {
+                    var chunkedPrimaryAliases = personAliasService
+                        .Queryable()
+                        .AsNoTracking()
+                        .Where( pa => pa.PersonId == pa.AliasPersonId && chunkedPersonIds.Contains( pa.PersonId ) )
+                        .ToList();
+
+                    distinctPrimaryAliases.AddRange( chunkedPrimaryAliases );
+
+                    skipCount += 1000;
+                    chunkedPersonIds = distinctPersonIds.Skip( skipCount ).Take( 1000 );
+                }
+
+                var currentPersonAliasId = this.RockPage.CurrentPersonAliasId;
+
+                // Add custom merge fields.
+                var mergeFields = new List<string>
+                {
+                    MergeFieldKey.Reservations
+                };
+
+                // Create communication.
+                var communication = new Communication
+                {
+                    IsBulkCommunication = true,
+                    Status = CommunicationStatus.Transient,
+                    SenderPersonAliasId = currentPersonAliasId,
+                    AdditionalMergeFields = mergeFields
+                };
+
+                communication.UrlReferrer = this.RockPage.Request?.UrlProxySafe()?.AbsoluteUri?.TrimForMaxLength( communication, "UrlReferrer" );
+
+                var communicationService = new CommunicationService( rockContext );
+                communicationService.Add( communication );
+
+                // Save Communication to get ID.
+                rockContext.SaveChanges();
+
+                var now = RockDateTime.Now;
+
+                var communicationRecipientList = distinctPrimaryAliases
+                    .Select( alias =>
+                    {
+                        var personalReservations = new List<Reservation>();
+                        foreach ( var recipient in recipients.Where( p => p == alias.PersonId ) )
+                        {
+                            if ( recipientType == GridAction.EmailAdminContacts || recipientType == GridAction.EmailAdminAndEventContacts )
+                            {
+                                personalReservations.AddRange( reservations.Where( r => r.AdministrativeContactPersonAlias.PersonId == recipient ) );
+                            }
+
+                            if ( recipientType == GridAction.EmailEventContacts || recipientType == GridAction.EmailAdminAndEventContacts )
+                            {
+                                personalReservations.AddRange( reservations.Where( r => r.EventContactPersonAlias.PersonId == recipient ) );
+                            }
+                        }
+
+                        return new CommunicationRecipient
+                        {
+                            CommunicationId = communication.Id,
+                            PersonAliasId = alias.Id,
+                            AdditionalMergeValues = new Dictionary<string, object>
+                            {
+                                { MergeFieldKey.Reservations, personalReservations }
+                            },
+                            CreatedByPersonAliasId = currentPersonAliasId,
+                            ModifiedByPersonAliasId = currentPersonAliasId,
+                            CreatedDateTime = now,
+                            ModifiedDateTime = now
+                        };
+                    } )
+                    .ToList();
+
+                // BulkInsert to quickly insert the CommunicationRecipient records. Note: This is much faster, but will bypass EF and Rock processing.
+                communicationRecipientRockContext.BulkInsert( communicationRecipientList );
+
+                // Get the URL to the communication page.
+                var communicationPageRef = this.RockPage.Site.CommunicationPageReference;
+                string communicationUrl;
+                if ( communicationPageRef.PageId > 0 )
+                {
+                    communicationPageRef.Parameters.AddOrReplace( PageParameterKey.CommunicationId, communication.Id.ToString() );
+                    communicationUrl = communicationPageRef.BuildUrl();
+                }
+                else
+                {
+                    communicationUrl = "~/Communication/{0}";
+                }
+
+                Page.Response.Redirect( communicationUrl, false );
+                this.Context.ApplicationInstance.CompleteRequest();
+            }
         }
 
         #endregion

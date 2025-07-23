@@ -71,25 +71,21 @@ namespace Rock.Rest.Controllers
                 int id,
                 int rootCategoryId = 0,
                 bool getCategorizedItems = false,
-                int? reservationId = null,
-                string iCalendarContent = "",
-                int? setupTime = null,
-                int? cleanupTime = null,
                 string locationIds = "",
                 string entityQualifier = null,
                 string entityQualifierValue = null,
                 bool showUnnamedEntityItems = true,
                 bool showCategoriesThatHaveNoChildren = true,
-                bool includeAllCampuses = true,
-                int campusId = 0,
                 string includedCategoryIds = null,
                 string excludedCategoryIds = null,
-                string defaultIconCssClass = null )
+                string defaultIconCssClass = null,
+                int? resourceEntitySetId = null )
         {
             Person currentPerson = GetPerson();
             var locationIdsList = locationIds.SplitDelimitedValues().AsIntegerList();
             var includedCategoryIdList = includedCategoryIds.SplitDelimitedValues().AsIntegerList().Except( new List<int> { 0 } ).ToList();
             var excludedCategoryIdList = excludedCategoryIds.SplitDelimitedValues().AsIntegerList().Except( new List<int> { 0 } ).ToList();
+
             int entityTypeId = EntityTypeCache.Get( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESOURCE.AsGuid() ).Id;
             defaultIconCssClass = defaultIconCssClass ?? "fa fa-list-ol";
 
@@ -124,7 +120,10 @@ namespace Rock.Rest.Controllers
 
             qry = qry.Where( c => c.EntityTypeId == entityTypeId );
 
-            ResourceService resourceService = new ResourceService( new RockContext() );
+
+            var rockContext = new RockContext();
+            var entitySetItemService = new EntitySetItemService( rockContext );
+            var resourceService = new ResourceService( rockContext );
 
             List<Category> categoryList = qry.OrderBy( c => c.Order ).ThenBy( c => c.Name ).ToList();
             List<ScheduledCategoryItem> categoryItemList = new List<ScheduledCategoryItem>();
@@ -144,68 +143,61 @@ namespace Rock.Rest.Controllers
 
             if ( getCategorizedItems )
             {
-                var rockContext = new RockContext();
-                var reservationService = new ReservationService( rockContext );
                 // if id is zero and we have a rootCategory, show the children of that rootCategory (but don't show the rootCategory)
                 int parentItemId = id == 0 ? rootCategoryId : id;
 
-                var newReservation = new Reservation() { Id = reservationId ?? 0, Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarContent ), SetupTime = setupTime, CleanupTime = cleanupTime };
-                newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
-
-                var resourceQry = resourceService.Queryable().AsNoTracking();
-
-                if ( !includeAllCampuses && campusId != 0 && campusId != null )
+                var resourceQry = new List<ResourceAvailability>();
+                if ( resourceEntitySetId.HasValue )
                 {
-                    resourceQry = resourceQry.Where( r => r.CampusId == campusId || r.CampusId == null );
+                    if ( resourceEntitySetId.HasValue )
+                    {
+                        resourceQry = entitySetItemService
+                           .GetByEntitySetId( resourceEntitySetId.Value )
+                           .ToList()
+                           .Select( r => r.AdditionalMergeValuesJson.FromJsonOrNull<ResourceAvailability>() )
+                           .ToList();
+                    }
                 }
 
                 if ( resourceQry.Where( r => r.CategoryId == parentItemId ) != null )
                 {
-                    // Exclude any resources that are attached to locations other than the ones provided here.
-                    if ( locationIdsList.Any() )
-                    {
-                        resourceQry = resourceQry.Where( r => r.LocationId == null || locationIdsList.Contains( r.LocationId.Value ) );
-                    }
-
                     // do a ToList to load from database prior to ordering by name, just in case Name is a virtual property
                     var itemsList = resourceQry.Where( r => r.CategoryId == parentItemId ).ToList();
 
-                    foreach ( var categorizedItem in itemsList.OrderBy( i => i.Name ) )
+                    foreach ( var categorizedItem in itemsList.OrderBy( i => i.ResourceName ) )
                     {
-                        if ( categorizedItem != null && categorizedItem.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                        var resource = resourceService.Get( categorizedItem.ResourceId );
+                        if ( categorizedItem != null && resource != null && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
                         {
-                            var availableQuantityReserved = reservationService.GetAvailableResourceQuantity( categorizedItem, newReservation, false );
-                            var availableQuantityConflicted = reservationService.GetAvailableResourceQuantity( categorizedItem, newReservation, true );
-
                             var color = "Green";
-                            if ( availableQuantityReserved.HasValue && availableQuantityReserved <= 0 )
+                            if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0)
                             {
                                 color = "Red";
                             }
                             else
                             {
-                                if ( availableQuantityConflicted.HasValue && availableQuantityConflicted <= 0 )
+                                if ( categorizedItem.UnconflictedQuantity.HasValue && categorizedItem.UnconflictedQuantity <= 0 )
                                 {
                                     color = "Orange";
                                 }
                             }
 
                             var availableQuantity = string.Empty;
-                            if ( availableQuantityReserved.HasValue )
+                            if ( categorizedItem.UnreservedQuantity.HasValue )
                             {
-                                availableQuantity = string.Format( " ({0})", availableQuantityReserved );
+                                availableQuantity = string.Format( " ({0})", categorizedItem.UnreservedQuantity );
                             }
 
                             var scheduledCategoryItem = new ScheduledCategoryItem();
-                            scheduledCategoryItem.Id = categorizedItem.Id.ToString();
+                            scheduledCategoryItem.Id = resource.Id.ToString();
                             scheduledCategoryItem.IsActive = true;
                             scheduledCategoryItem.Name = String.Format( "<span style='color:{0};'>{1}{2} {3}</span>",
                                 color,
-                                categorizedItem.Name,
+                                resource.Name,
                                 availableQuantity,
-                                categorizedItem.Campus != null ? string.Format( "[{0}]", categorizedItem.Campus.Name ) : "" );
+                                resource.Campus != null ? string.Format( "[{0}]", resource.Campus.Name ) : "" );
                             scheduledCategoryItem.IsCategory = false;
-                            scheduledCategoryItem.IconCssClass = categorizedItem.GetPropertyValue( "IconCssClass" ) as string ?? defaultIconCssClass;
+                            scheduledCategoryItem.IconCssClass = resource.GetPropertyValue( "IconCssClass" ) as string ?? defaultIconCssClass;
                             scheduledCategoryItem.IconSmallUrl = string.Empty;
                             categoryItemList.Add( scheduledCategoryItem );
                         }

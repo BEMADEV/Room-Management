@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Text;
+using com.bemaservices.RoomManagement.Utility.RockInternalMethods;
 using Ical.Net;
 using Ical.Net.CalendarComponents;
 using Ical.Net.DataTypes;
@@ -46,7 +47,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="context">The context.</param>
         public ReservationService( RockContext context ) : base( context ) { }
 
-        #region Reservation Methods
+        #region Queryable Methods
 
         /// <summary>
         /// Gets an <see cref="T:System.Linq.IQueryable`1" /> list of all models
@@ -228,6 +229,10 @@ namespace com.bemaservices.RoomManagement.Model
             return qry;
         }
 
+        #endregion
+
+        #region General Reservation Methods
+
         /// <summary>
         /// Gets the reservation summaries.
         /// </summary>
@@ -241,6 +246,76 @@ namespace com.bemaservices.RoomManagement.Model
         {
             return qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, roundToDay, includeAttributes );
         }
+
+        /// <summary>
+        /// Create a new non-persisted reservation using an existing reservation as a template.
+        /// </summary>
+        /// <param name="reservationId">The identifier of a reservation to use as a template for the new reservation.</param>
+        /// <returns>Reservation.</returns>
+        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception"></exception>
+        /// <exception cref="System.Exception"></exception>
+        public Reservation GetNewFromTemplate( int reservationId )
+        {
+            var item = this.Queryable()
+                           .AsNoTracking()
+                           .FirstOrDefault( x => x.Id == reservationId );
+
+            if ( item == null )
+            {
+                throw new Exception( string.Format( "GetNewFromTemplate method failed. Reservation ID \"{0}\" could not be found.", reservationId ) );
+            }
+
+            // Deep-clone the Reservation and reset the properties that connect it to the permanent store.
+            var newItem = item.Clone( false );
+
+            newItem.Id = 0;
+            newItem.Guid = Guid.NewGuid();
+            newItem.ForeignId = null;
+            newItem.ForeignGuid = null;
+            newItem.ForeignKey = null;
+
+            newItem.CreatedByPersonAlias = null;
+            newItem.CreatedByPersonAliasId = null;
+            newItem.CreatedDateTime = RockDateTime.Now;
+            newItem.ModifiedByPersonAlias = null;
+            newItem.ModifiedByPersonAliasId = null;
+            newItem.ModifiedDateTime = RockDateTime.Now;
+
+            newItem.ReservationLinkages = new List<ReservationLinkage>();
+
+            // Clear the approval state since that would not be fair otherwise...
+            newItem.ApprovalState = ReservationApprovalState.PendingInitialApproval;
+            foreach ( var rl in newItem.ReservationLocations )
+            {
+                rl.ApprovalState = ReservationLocationApprovalState.Unapproved;
+            }
+
+            foreach ( var rr in newItem.ReservationResources )
+            {
+                rr.ApprovalState = ReservationResourceApprovalState.Unapproved;
+            }
+
+            if ( item.SetupPhoto != null )
+            {
+                using ( var rockContext = new RockContext() )
+                {
+                    var newPhoto = item.SetupPhoto.CloneWithoutIdentity();
+                    newPhoto.DatabaseData = item.SetupPhoto.DatabaseData.CloneWithoutIdentity();
+                    newPhoto.IsTemporary = true;
+                    var binaryFileService = new BinaryFileService( rockContext );
+                    binaryFileService.Add( newPhoto );
+                    rockContext.SaveChanges();
+                    newItem.SetupPhoto = newPhoto;
+                    newItem.SetupPhotoId = newPhoto.Id;
+                }
+            }
+
+            return newItem;
+        }
+
+        #endregion
+
+        #region Reservation Conflict Methods
 
         /// <summary>
         /// Gets the conflicting reservation summaries.
@@ -343,6 +418,312 @@ namespace com.bemaservices.RoomManagement.Model
                 return string.Empty;
             }
         }
+
+        #endregion
+
+        #region Location Conflict Methods
+
+        /// <summary>
+        /// Gets the  location ids for any existing non-denied reservations that have the a location as the ones in the given newReservation object.
+        /// </summary>
+        /// <param name="newReservation">The new reservation.</param>
+        /// <param name="filterByLocations">if set to <c>true</c> [filter by locations].</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <param name="areAncestorsReturned">if set to <c>true</c> [are ancestors returned].</param>
+        /// <returns>List&lt;System.Int32&gt;.</returns>
+        public List<int> GetReservedLocationIds( Reservation newReservation, bool filterByLocations = true, bool arePotentialConflictsReturned = false, bool areAncestorsReturned = true )
+        {
+            var locationService = new LocationService( new RockContext() );
+
+            // Get any Locations related to those reserved by the new Reservation
+            var newReservationLocationIds = newReservation.ReservationLocations.Select( rl => rl.LocationId ).ToList();
+            var relevantLocationIds = new List<int>();
+            relevantLocationIds.AddRange( newReservationLocationIds );
+            relevantLocationIds.AddRange( newReservationLocationIds.SelectMany( l => locationService.GetAllAncestorIds( l ) ) );
+            relevantLocationIds.AddRange( newReservationLocationIds.SelectMany( l => locationService.GetAllDescendentIds( l ) ) );
+
+            // Get any Reservations containing related Locations
+            var existingReservationQry = Queryable();
+            if ( filterByLocations )
+            {
+                existingReservationQry = existingReservationQry.Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
+            }
+
+            // Check existing Reservations for conflicts
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+
+            // Grab any locations booked by conflicting Reservations
+            var reservedLocationIds = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
+                    currentReservationSummary.ReservationLocations.Where( rl =>
+                        rl.ApprovalState != ReservationLocationApprovalState.Denied )
+                        .Select( rl => rl.LocationId )
+                        )
+                  .Distinct();
+
+            var reservedLocationAndChildIds = new List<int>();
+            reservedLocationAndChildIds.AddRange( reservedLocationIds );
+            reservedLocationAndChildIds.AddRange( reservedLocationIds.SelectMany( l => locationService.GetAllDescendentIds( l ) ) );
+
+            if ( areAncestorsReturned )
+            {
+                reservedLocationAndChildIds.AddRange( reservedLocationIds.SelectMany( l => locationService.GetAllAncestorIds( l ) ) );
+            }
+
+            return reservedLocationAndChildIds;
+        }
+
+        /// <summary>
+        /// Gets the conflicts for location identifier.
+        /// </summary>
+        /// <param name="locationId">The location identifier.</param>
+        /// <param name="newReservation">The new reservation.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>List&lt;ReservationConflict&gt;.</returns>
+        public List<ReservationConflict> GetConflictsForLocationId( int locationId, Reservation newReservation, bool arePotentialConflictsReturned = false )
+        {
+            var locationService = new LocationService( new RockContext() );
+
+            var relevantLocationIds = new List<int>();
+            relevantLocationIds.Add( locationId );
+            relevantLocationIds.AddRange( locationService.GetAllAncestorIds( locationId ) );
+            relevantLocationIds.AddRange( locationService.GetAllDescendentIds( locationId ) );
+
+            // Get any Reservations containing related Locations
+            var existingReservationQry = Queryable().Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
+
+            // Check existing Reservations for conflicts
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
+                    currentReservationSummary.ReservationLocations.Where( rl =>
+                        rl.ApprovalState != ReservationLocationApprovalState.Denied &&
+                        relevantLocationIds.Contains( rl.LocationId ) )
+                     .Select( rl => new ReservationConflict
+                     {
+                         LocationId = rl.LocationId,
+                         LocationName = rl.Location.Name,
+                         ReservationId = rl.ReservationId,
+                         ReservationName = rl.Reservation.Name,
+                         ReservationSchedule = rl.Reservation.Schedule.ToFriendlyScheduleText()
+                     } ) )
+                 .Distinct()
+                 .ToList();
+
+            return locationConflicts;
+        }
+
+        /// <summary>
+        /// Builds a conflict message string (as HTML List) and returns it if there are location conflicts.
+        /// </summary>
+        /// <param name="newReservation">The new reservation.</param>
+        /// <param name="locationId">The location identifier.</param>
+        /// <param name="detailPageRoute">The detail page route.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>an HTML List if conflicts exists; null otherwise.</returns>
+        public string BuildLocationConflictHtmlList( Reservation newReservation, int locationId, string detailPageRoute, bool arePotentialConflictsReturned = false )
+        {
+            var conflicts = GetConflictsForLocationId( locationId, newReservation, arePotentialConflictsReturned );
+
+            if ( conflicts.Any() )
+            {
+                StringBuilder sb = new StringBuilder();
+                detailPageRoute = detailPageRoute.StartsWith( "/" ) ? detailPageRoute : "/" + detailPageRoute;
+
+                foreach ( var conflict in conflicts )
+                {
+                    sb.AppendFormat( "<li>{0} [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
+                        conflict.LocationName,
+                        conflict.ReservationSchedule,
+                        conflict.ReservationId,
+                        conflict.ReservationName,
+                        detailPageRoute
+                        );
+                }
+                return sb.ToString();
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        #endregion
+
+        #region Resource Conflict Methods
+
+        /// <summary>
+        /// Gets the  location ids for any existing non-denied reservations that have the a location as the ones in the given newReservation object.
+        /// </summary>
+        /// <param name="newReservation">The new reservation.</param>
+        /// <param name="filterByLocations">if set to <c>true</c> [filter by locations].</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <param name="areAncestorsReturned">if set to <c>true</c> [are ancestors returned].</param>
+        /// <returns>List&lt;System.Int32&gt;.</returns>
+        public List<ResourceAvailability> GetResourceAvailabilities( Reservation newReservation,
+                bool includeAllCampuses = true,
+                int campusId = 0,
+                List<int> locationIds = null )
+        {
+            var availabilityList = new List<ResourceAvailability>();
+            using ( var rockContext = new RockContext() )
+            {
+                var resourceService = new ResourceService( rockContext );
+
+                var resourceQry = resourceService.Queryable().AsNoTracking();
+
+                if ( !includeAllCampuses && campusId != 0 )
+                {
+                    resourceQry = resourceQry.Where( r => r.CampusId == campusId || r.CampusId == null );
+                }
+
+                // Exclude any resources that are attached to locations other than the ones provided here.
+                if ( locationIds.Any() )
+                {
+                    resourceQry = resourceQry.Where( r => r.LocationId == null || locationIds.Contains( r.LocationId.Value ) );
+                }
+
+                var resourceList = resourceQry.ToList();
+                foreach ( var resource in resourceList )
+                {
+                    var resourceAvailability = new ResourceAvailability();
+                    resourceAvailability.ResourceId = resource.Id;
+                    resourceAvailability.ResourceName = resource.Name;
+                    resourceAvailability.CategoryId = resource.CategoryId;
+                    resourceAvailability.TotalQuantity = resource.Quantity;
+                    resourceAvailability.ReservedQuantity = GetBookedResourceQuantity( resource, newReservation, false );
+                    resourceAvailability.ConflictedQuantity = GetBookedResourceQuantity( resource, newReservation, true );
+                    availabilityList.Add( resourceAvailability );
+                }
+            }
+
+            return availabilityList;
+        }
+
+        /// <summary>
+        /// Gets the available resource quantity for the given resource, during the time (schedule)
+        /// of the given resource -- but excluding the ones used by the given resource.
+        /// </summary>
+        /// <param name="resource">The resource.</param>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>a quantity of available resources at</returns>
+        public int? GetAvailableResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
+        {
+            // For each new reservation summary, make sure that the quantities of existing summaries that come into contact with it
+            // do not exceed the resource's quantity
+
+            if ( !resource.Quantity.HasValue )
+            {
+                return null;
+            }
+            else
+            {
+                var maxReservedQuantity = GetBookedResourceQuantity( resource, reservation, arePotentialConflictsReturned );
+                return resource.Quantity - maxReservedQuantity;
+            }
+        }
+
+        /// <summary>
+        /// Gets the available resource quantity for the given resource, during the time (schedule)
+        /// of the given resource -- but excluding the ones used by the given resource.
+        /// </summary>
+        /// <param name="resource">The resource.</param>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>a quantity of available resources at</returns>
+        public int? GetBookedResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
+        {
+            var qryStartTime = reservation.FirstOccurrenceStartDateTime ?? RockDateTime.Now.AddMonths( -1 );
+            var qryEndTime = reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
+
+            // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
+            // now) which have the given resource in them.
+            var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
+            var existingReservationSummaries = existingValidReservations.GetReservationSummaries( qryStartTime, qryEndTime );
+
+            // Now narrow the reservations down to only the ones in the matching/overlapping time frame
+            var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
+            var newReservationSummaries = newReservationList.GetReservationSummaries( qryStartTime, qryEndTime );
+            var reservedQuantities = newReservationSummaries
+                .Select( newReservationSummary =>
+                    newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )
+               );
+
+            var maxReservedQuantity = reservedQuantities.Count() > 0 ? reservedQuantities.Max() : 0;
+            return maxReservedQuantity;
+        }
+
+        /// <summary>
+        /// Gets the conflicts for resource identifier.
+        /// </summary>
+        /// <param name="resourceId">The resource identifier.</param>
+        /// <param name="newReservation">The new reservation.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>List&lt;ReservationConflict&gt;.</returns>
+        public List<ReservationConflict> GetConflictsForResourceId( int resourceId, Reservation newReservation, bool arePotentialConflictsReturned = false )
+        {
+            // Get any Reservations containing related Locations
+            var existingReservationQry = Queryable().Where( r => r.ReservationResources.Any( rl => rl.ResourceId == resourceId ) );
+
+            // Check existing Reservations for conflicts
+            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
+            var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
+                    currentReservationSummary.ReservationResources.Where( rr =>
+                        rr.ApprovalState != ReservationResourceApprovalState.Denied &&
+                        rr.ResourceId == resourceId &&
+                        rr.Quantity.HasValue )
+                     .Select( rr => new ReservationConflict
+                     {
+                         ResourceId = rr.ResourceId,
+                         ResourceName = rr.Resource.Name,
+                         ResourceQuantity = rr.Quantity.Value,
+                         ReservationId = rr.ReservationId,
+                         ReservationName = rr.Reservation.Name,
+                         ReservationSchedule = rr.Reservation.Schedule.ToFriendlyScheduleText()
+                     } ) )
+                 .Distinct()
+                 .ToList();
+            return locationConflicts;
+        }
+
+        /// <summary>
+        /// Builds a conflict message string (as HTML List) and returns it if there are resource conflicts.
+        /// </summary>
+        /// <param name="newReservation">The new reservation.</param>
+        /// <param name="resourceId">The resource identifier.</param>
+        /// <param name="detailPageRoute">The detail page route.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <returns>an HTML List if conflicts exists; null otherwise.</returns>
+        public string BuildResourceConflictHtmlList( Reservation newReservation, int resourceId, string detailPageRoute, bool arePotentialConflictsReturned = false )
+        {
+            var conflicts = GetConflictsForResourceId( resourceId, newReservation, arePotentialConflictsReturned );
+
+            if ( conflicts.Any() )
+            {
+                StringBuilder sb = new StringBuilder();
+                detailPageRoute = detailPageRoute.StartsWith( "/" ) ? detailPageRoute : "/" + detailPageRoute;
+
+                foreach ( var conflict in conflicts )
+                {
+                    sb.AppendFormat( "<li>{0} ({5}) [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
+                        conflict.ResourceName,
+                        conflict.ReservationSchedule,
+                        conflict.ReservationId,
+                        conflict.ReservationName,
+                        detailPageRoute,
+                        conflict.ResourceQuantity
+                        );
+                }
+                return sb.ToString();
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        #endregion
+
+        #region Reservation Approval Methods
 
         /// <summary>
         /// Updates the approval.
@@ -513,37 +894,33 @@ namespace com.bemaservices.RoomManagement.Model
             return areChangesNeeded;
         }
 
+        #endregion
+
+        #region Location Approval Methods
+
         /// <summary>
-        /// Determines whether this instance [can person approve reservation resource] the specified person.
+        /// Gets the locations where the given person is in the location's approval group.
         /// </summary>
-        /// <param name="person">The person.</param>
-        /// <param name="hasOverrideApproval">if set to <c>true</c> [has override approval].</param>
-        /// <param name="reservationResource">The reservation resource.</param>
-        /// <returns><c>true</c> if this instance [can person approve reservation resource] the specified person; otherwise, <c>false</c>.</returns>
-        public static bool CanPersonApproveReservationResource( Person person, bool hasOverrideApproval, ReservationResource reservationResource )
+        /// <param name="personId">The person identifier.</param>
+        /// <returns>IEnumerable&lt;Location&gt;.</returns>
+        public IEnumerable<int> GetLocationIdsByApprovalGroupMembership( int personId )
         {
-            bool canApprove = false;
+            // select location where location.approvalgroup in (select group where group.groupmember contains person ) 
+            var rockContext = new RockContext();
+            var results = rockContext.Database.SqlQuery<int>(
+                $@"
+                Declare @PersonId int = {personId}
+                SELECT l.Id
+                FROM [Location] l
+                INNER JOIN [AttributeValue] av ON av.[EntityId] = l.[Id]
+                INNER JOIN [Attribute] a ON a.[Id] = av.[AttributeId] AND a.[Guid] = '96C07909-E34A-4379-854F-C05E79F772E4'
+                INNER JOIN [Group] g on g.Guid = Try_Cast(av.Value as uniqueidentifier) and g.IsActive = 1 and g.IsArchived = 0
+                INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id] and gm.IsArchived = 0 and gm.GroupMemberStatus = 1
+                Inner Join Person p on p.Id = gm.PersonId and p.Id = @PersonId
+                Group By l.Id
+                " ).ToList<int>();
 
-            if ( hasOverrideApproval )
-            {
-                canApprove = true;
-            }
-            else
-            {
-                if ( reservationResource.Resource.ApprovalGroupId == null )
-                {
-                    canApprove = true;
-                }
-                else
-                {
-                    if ( ReservationTypeService.IsPersonInGroupWithId( person, reservationResource.Resource.ApprovalGroupId ) )
-                    {
-                        canApprove = true;
-                    }
-                }
-            }
-
-            return canApprove;
+            return results;
         }
 
         /// <summary>
@@ -581,6 +958,70 @@ namespace com.bemaservices.RoomManagement.Model
 
             return canApprove;
         }
+
+        #endregion
+
+        #region Resource Approval Methods
+
+        /// <summary>
+        /// Gets the resources where the given person is in the resources's approval group.
+        /// </summary>
+        /// <param name="personId">The person identifier.</param>
+        /// <returns>IEnumerable&lt;Resource&gt;.</returns>
+        public IEnumerable<int> GetResourceIdsByApprovalGroupMembership( int personId )
+        {
+            //// select location where location.approvalgroup in (select group where group.groupmember contains person ) 
+            var rockContext = new RockContext();
+            var results = rockContext.Database.SqlQuery<int>(
+                $@"
+                Declare @PersonId int = {personId}
+                SELECT r.Id 
+                FROM [_com_bemaservices_RoomManagement_Resource] r
+                INNER JOIN [Group] g ON g.[Id] = r.[ApprovalGroupId] and g.IsActive = 1 and g.IsArchived = 0
+                INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id] and gm.IsArchived = 0 and gm.GroupMemberStatus = 1
+                Inner Join Person p on p.Id = gm.PersonId and p.Id = @PersonId
+                Group By r.Id
+                " ).ToList<int>();
+
+            return results;
+        }
+
+        /// <summary>
+        /// Determines whether this instance [can person approve reservation resource] the specified person.
+        /// </summary>
+        /// <param name="person">The person.</param>
+        /// <param name="hasOverrideApproval">if set to <c>true</c> [has override approval].</param>
+        /// <param name="reservationResource">The reservation resource.</param>
+        /// <returns><c>true</c> if this instance [can person approve reservation resource] the specified person; otherwise, <c>false</c>.</returns>
+        public static bool CanPersonApproveReservationResource( Person person, bool hasOverrideApproval, ReservationResource reservationResource )
+        {
+            bool canApprove = false;
+
+            if ( hasOverrideApproval )
+            {
+                canApprove = true;
+            }
+            else
+            {
+                if ( reservationResource.Resource.ApprovalGroupId == null )
+                {
+                    canApprove = true;
+                }
+                else
+                {
+                    if ( ReservationTypeService.IsPersonInGroupWithId( person, reservationResource.Resource.ApprovalGroupId ) )
+                    {
+                        canApprove = true;
+                    }
+                }
+            }
+
+            return canApprove;
+        }
+
+        #endregion
+
+        #region Schedule Methods
 
         /// <summary>
         /// Builds the content of the schedule from i cal.
@@ -720,302 +1161,10 @@ namespace com.bemaservices.RoomManagement.Model
 
         #endregion
 
-        #region Location Conflict Methods
-
-        /// <summary>
-        /// Gets the  location ids for any existing non-denied reservations that have the a location as the ones in the given newReservation object.
-        /// </summary>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="filterByLocations">if set to <c>true</c> [filter by locations].</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <param name="areAncestorsReturned">if set to <c>true</c> [are ancestors returned].</param>
-        /// <returns>List&lt;System.Int32&gt;.</returns>
-        public List<int> GetReservedLocationIds( Reservation newReservation, bool filterByLocations = true, bool arePotentialConflictsReturned = false, bool areAncestorsReturned = true )
-        {
-            var locationService = new LocationService( new RockContext() );
-
-            // Get any Locations related to those reserved by the new Reservation
-            var newReservationLocationIds = newReservation.ReservationLocations.Select( rl => rl.LocationId ).ToList();
-            var relevantLocationIds = new List<int>();
-            relevantLocationIds.AddRange( newReservationLocationIds );
-            relevantLocationIds.AddRange( newReservationLocationIds.SelectMany( l => locationService.GetAllAncestorIds( l ) ) );
-            relevantLocationIds.AddRange( newReservationLocationIds.SelectMany( l => locationService.GetAllDescendentIds( l ) ) );
-
-            // Get any Reservations containing related Locations
-            var existingReservationQry = Queryable();
-            if ( filterByLocations )
-            {
-                existingReservationQry = existingReservationQry.Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
-            }
-
-            // Check existing Reservations for conflicts
-            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
-
-            // Grab any locations booked by conflicting Reservations
-            var reservedLocationIds = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
-                    currentReservationSummary.ReservationLocations.Where( rl =>
-                        rl.ApprovalState != ReservationLocationApprovalState.Denied )
-                        .Select( rl => rl.LocationId )
-                        )
-                  .Distinct();
-
-            var reservedLocationAndChildIds = new List<int>();
-            reservedLocationAndChildIds.AddRange( reservedLocationIds );
-            reservedLocationAndChildIds.AddRange( reservedLocationIds.SelectMany( l => locationService.GetAllDescendentIds( l ) ) );
-
-            if ( areAncestorsReturned )
-            {
-                reservedLocationAndChildIds.AddRange( reservedLocationIds.SelectMany( l => locationService.GetAllAncestorIds( l ) ) );
-            }
-
-            return reservedLocationAndChildIds;
-        }
-
-        /// <summary>
-        /// Gets the conflicts for location identifier.
-        /// </summary>
-        /// <param name="locationId">The location identifier.</param>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>List&lt;ReservationConflict&gt;.</returns>
-        public List<ReservationConflict> GetConflictsForLocationId( int locationId, Reservation newReservation, bool arePotentialConflictsReturned = false )
-        {
-            var locationService = new LocationService( new RockContext() );
-
-            var relevantLocationIds = new List<int>();
-            relevantLocationIds.Add( locationId );
-            relevantLocationIds.AddRange( locationService.GetAllAncestorIds( locationId ) );
-            relevantLocationIds.AddRange( locationService.GetAllDescendentIds( locationId ) );
-
-            // Get any Reservations containing related Locations
-            var existingReservationQry = Queryable().Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
-
-            // Check existing Reservations for conflicts
-            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
-            var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
-                    currentReservationSummary.ReservationLocations.Where( rl =>
-                        rl.ApprovalState != ReservationLocationApprovalState.Denied &&
-                        relevantLocationIds.Contains( rl.LocationId ) )
-                     .Select( rl => new ReservationConflict
-                     {
-                         LocationId = rl.LocationId,
-                         LocationName = rl.Location.Name,
-                         ReservationId = rl.ReservationId,
-                         ReservationName = rl.Reservation.Name,
-                         ReservationSchedule = rl.Reservation.Schedule.ToFriendlyScheduleText()
-                     } ) )
-                 .Distinct()
-                 .ToList();
-
-            return locationConflicts;
-        }
-
-        /// <summary>
-        /// Builds a conflict message string (as HTML List) and returns it if there are location conflicts.
-        /// </summary>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="locationId">The location identifier.</param>
-        /// <param name="detailPageRoute">The detail page route.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>an HTML List if conflicts exists; null otherwise.</returns>
-        public string BuildLocationConflictHtmlList( Reservation newReservation, int locationId, string detailPageRoute, bool arePotentialConflictsReturned = false )
-        {
-            var conflicts = GetConflictsForLocationId( locationId, newReservation, arePotentialConflictsReturned );
-
-            if ( conflicts.Any() )
-            {
-                StringBuilder sb = new StringBuilder();
-                detailPageRoute = detailPageRoute.StartsWith( "/" ) ? detailPageRoute : "/" + detailPageRoute;
-
-                foreach ( var conflict in conflicts )
-                {
-                    sb.AppendFormat( "<li>{0} [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
-                        conflict.LocationName,
-                        conflict.ReservationSchedule,
-                        conflict.ReservationId,
-                        conflict.ReservationName,
-                        detailPageRoute
-                        );
-                }
-                return sb.ToString();
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Builds a conflict message string (as HTML List) and returns it if there are resource conflicts.
-        /// </summary>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="resourceId">The resource identifier.</param>
-        /// <param name="detailPageRoute">The detail page route.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>an HTML List if conflicts exists; null otherwise.</returns>
-        public string BuildResourceConflictHtmlList( Reservation newReservation, int resourceId, string detailPageRoute, bool arePotentialConflictsReturned = false )
-        {
-            var conflicts = GetConflictsForResourceId( resourceId, newReservation, arePotentialConflictsReturned );
-
-            if ( conflicts.Any() )
-            {
-                StringBuilder sb = new StringBuilder();
-                detailPageRoute = detailPageRoute.StartsWith( "/" ) ? detailPageRoute : "/" + detailPageRoute;
-
-                foreach ( var conflict in conflicts )
-                {
-                    sb.AppendFormat( "<li>{0} ({5}) [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
-                        conflict.ResourceName,
-                        conflict.ReservationSchedule,
-                        conflict.ReservationId,
-                        conflict.ReservationName,
-                        detailPageRoute,
-                        conflict.ResourceQuantity
-                        );
-                }
-                return sb.ToString();
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        #endregion
-
-        #region Resource Conflict Methods
-
-        /// <summary>
-        /// Gets the available resource quantity for the given resource, during the time (schedule)
-        /// of the given resource -- but excluding the ones used by the given resource.
-        /// </summary>
-        /// <param name="resource">The resource.</param>
-        /// <param name="reservation">The reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>a quantity of available resources at</returns>
-        public int? GetAvailableResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
-        {
-            // For each new reservation summary, make sure that the quantities of existing summaries that come into contact with it
-            // do not exceed the resource's quantity
-
-            if ( !resource.Quantity.HasValue )
-            {
-                return null;
-            }
-            else
-            {
-                var qryStartTime = reservation.FirstOccurrenceStartDateTime ?? RockDateTime.Now.AddMonths( -1 );
-                var qryEndTime = reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
-
-                // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
-                // now) which have the given resource in them.
-                var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
-                var existingReservationSummaries = existingValidReservations.GetReservationSummaries( qryStartTime, qryEndTime );
-
-                // Now narrow the reservations down to only the ones in the matching/overlapping time frame
-                var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
-                var newReservationSummaries = newReservationList.GetReservationSummaries( qryStartTime, qryEndTime );
-                var reservedQuantities = newReservationSummaries
-                    .Select( newReservationSummary =>
-                        newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )
-                   );
-
-                var maxReservedQuantity = reservedQuantities.Count() > 0 ? reservedQuantities.Max() : 0;
-                return resource.Quantity - maxReservedQuantity;
-            }
-        }
-
-        /// <summary>
-        /// Gets the conflicts for resource identifier.
-        /// </summary>
-        /// <param name="resourceId">The resource identifier.</param>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>List&lt;ReservationConflict&gt;.</returns>
-        public List<ReservationConflict> GetConflictsForResourceId( int resourceId, Reservation newReservation, bool arePotentialConflictsReturned = false )
-        {
-            // Get any Reservations containing related Locations
-            var existingReservationQry = Queryable().Where( r => r.ReservationResources.Any( rl => rl.ResourceId == resourceId ) );
-
-            // Check existing Reservations for conflicts
-            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
-            var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
-                    currentReservationSummary.ReservationResources.Where( rr =>
-                        rr.ApprovalState != ReservationResourceApprovalState.Denied &&
-                        rr.ResourceId == resourceId &&
-                        rr.Quantity.HasValue )
-                     .Select( rr => new ReservationConflict
-                     {
-                         ResourceId = rr.ResourceId,
-                         ResourceName = rr.Resource.Name,
-                         ResourceQuantity = rr.Quantity.Value,
-                         ReservationId = rr.ReservationId,
-                         ReservationName = rr.Reservation.Name,
-                         ReservationSchedule = rr.Reservation.Schedule.ToFriendlyScheduleText()
-                     } ) )
-                 .Distinct()
-                 .ToList();
-            return locationConflicts;
-        }
-
-        #endregion
-
-        #region Location & Resource Approval Helper Methods
-
-        /// <summary>
-        /// Gets the locations where the given person is in the location's approval group.
-        /// </summary>
-        /// <param name="personId">The person identifier.</param>
-        /// <returns>IEnumerable&lt;Location&gt;.</returns>
-        public IEnumerable<int> GetLocationIdsByApprovalGroupMembership( int personId )
-        {
-            // select location where location.approvalgroup in (select group where group.groupmember contains person ) 
-            var rockContext = new RockContext();
-            var results = rockContext.Database.SqlQuery<int>(
-                $@"
-                Declare @PersonId int = {personId}
-                SELECT l.Id
-                FROM [Location] l
-                INNER JOIN [AttributeValue] av ON av.[EntityId] = l.[Id]
-                INNER JOIN [Attribute] a ON a.[Id] = av.[AttributeId] AND a.[Guid] = '96C07909-E34A-4379-854F-C05E79F772E4'
-                INNER JOIN [Group] g on g.Guid = Try_Cast(av.Value as uniqueidentifier) and g.IsActive = 1 and g.IsArchived = 0
-                INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id] and gm.IsArchived = 0 and gm.GroupMemberStatus = 1
-                Inner Join Person p on p.Id = gm.PersonId and p.Id = @PersonId
-                Group By l.Id
-                " ).ToList<int>();
-
-            return results;
-        }
-
-        /// <summary>
-        /// Gets the resources where the given person is in the resources's approval group.
-        /// </summary>
-        /// <param name="personId">The person identifier.</param>
-        /// <returns>IEnumerable&lt;Resource&gt;.</returns>
-        public IEnumerable<int> GetResourceIdsByApprovalGroupMembership( int personId )
-        {
-            //// select location where location.approvalgroup in (select group where group.groupmember contains person ) 
-            var rockContext = new RockContext();
-            var results = rockContext.Database.SqlQuery<int>(
-                $@"
-                Declare @PersonId int = {personId}
-                SELECT r.Id 
-                FROM [_com_bemaservices_RoomManagement_Resource] r
-                INNER JOIN [Group] g ON g.[Id] = r.[ApprovalGroupId] and g.IsActive = 1 and g.IsArchived = 0
-                INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id] and gm.IsArchived = 0 and gm.GroupMemberStatus = 1
-                Inner Join Person p on p.Id = gm.PersonId and p.Id = @PersonId
-                Group By r.Id
-                " ).ToList<int>();
-
-            return results;
-        }
-
-        #endregion
-
         #region GetReservationCalendarFeed
 
         /// <summary>
-        /// Creates the i calendar.
+        /// Creates the iCalendar.
         /// </summary>
         /// <param name="reservationCalendarOptions">The reservation calendar options.</param>
         /// <returns>System.String.</returns>
@@ -1041,7 +1190,7 @@ namespace com.bemaservices.RoomManagement.Model
 
             foreach ( var reservation in reservations )
             {
-                var reservationSequenceNo = GetSequenceNumber( reservation.CreatedDateTime, reservation.ModifiedDateTime );
+                var reservationSequenceNo = EventCalendarServiceOverrides.GetSequenceNumber( reservation.CreatedDateTime, reservation.ModifiedDateTime );
 
                 if ( reservation.Schedule == null )
                 {
@@ -1061,13 +1210,13 @@ namespace com.bemaservices.RoomManagement.Model
 
                 var sequenceNo = reservationSequenceNo;
 
-                var occurrenceSequenceNo = GetSequenceNumber( reservation.CreatedDateTime, reservation.ModifiedDateTime );
+                var occurrenceSequenceNo = EventCalendarServiceOverrides.GetSequenceNumber( reservation.CreatedDateTime, reservation.ModifiedDateTime );
                 if ( sequenceNo < occurrenceSequenceNo )
                 {
                     sequenceNo = occurrenceSequenceNo;
                 }
 
-                var scheduleSequenceNo = GetSequenceNumber( reservation.Schedule.CreatedDateTime, reservation.Schedule.ModifiedDateTime );
+                var scheduleSequenceNo = EventCalendarServiceOverrides.GetSequenceNumber( reservation.Schedule.CreatedDateTime, reservation.Schedule.ModifiedDateTime );
                 if ( sequenceNo < scheduleSequenceNo )
                 {
                     sequenceNo = scheduleSequenceNo;
@@ -1098,7 +1247,7 @@ namespace com.bemaservices.RoomManagement.Model
 
                 // Create a new calendar event copy to prevent thread-safety issues. This might not be a legitimate
                 // concern, but we've historically done this, so it doesn't hurt to leave this behavior in place.
-                calendarEvent = CopyCalendarEvent( calendarEvent );
+                calendarEvent = EventCalendarServiceOverrides.CopyCalendarEvent( calendarEvent );
 
                 // Fill out the calendar event's details from this reservation.
                 SetCalendarEventDetailsFromReservation( calendarEvent, reservation, setEventDescription );
@@ -1121,11 +1270,11 @@ namespace com.bemaservices.RoomManagement.Model
 
                     foreach ( var startDateTime in startDateTimesAccordingToRock )
                     {
-                        var recurrenceCalendarEvent = CopyCalendarEvent( calendarEvent );
+                        var recurrenceCalendarEvent = EventCalendarServiceOverrides.CopyCalendarEvent( calendarEvent );
                         recurrenceCalendarEvent.Uid = $"{calendarEvent.Uid}_{startDateTime:s}";
-                        recurrenceCalendarEvent.DtStart = ConvertToCalDateTime( startDateTime, timeZoneId );
+                        recurrenceCalendarEvent.DtStart = EventCalendarServiceOverrides.ConvertToCalDateTime( startDateTime, timeZoneId );
 
-                        SetCalendarEventDateTimeInfo( recurrenceCalendarEvent, timeZoneId );
+                        EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( recurrenceCalendarEvent, timeZoneId );
                         iCalendar.Events.Add( recurrenceCalendarEvent );
                     }
 
@@ -1143,7 +1292,7 @@ namespace com.bemaservices.RoomManagement.Model
                     // To determine if this particular event is one of these scenarios, check to see if the schedule's
                     // start date follows the recurrence rules (by checking for an occurrence on the start date).
                     var startDateTime = calendarEvent.Start.Value;
-                    var startDateOccurrences = GetOccurrencesExcludingStartDate(
+                    var startDateOccurrences = InetCalendarHelperOverrides.GetOccurrencesExcludingStartDate(
                         reservation.Schedule.iCalendarContent,
                         startDateTime.StartOfDay(),
                         startDateTime.EndOfDay()
@@ -1152,11 +1301,11 @@ namespace com.bemaservices.RoomManagement.Model
                     if ( !startDateOccurrences.Any() )
                     {
                         // Add the start date as a one-time event (it will be disconnected from the rest of the series).
-                        var startDateCalendarEvent = CopyCalendarEvent( calendarEvent );
+                        var startDateCalendarEvent = EventCalendarServiceOverrides.CopyCalendarEvent( calendarEvent );
                         startDateCalendarEvent.Uid = $"{calendarEvent.Uid}_{startDateTime:s}";
                         startDateCalendarEvent.RecurrenceRules.Clear();
 
-                        SetCalendarEventDateTimeInfo( startDateCalendarEvent, timeZoneId );
+                        EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( startDateCalendarEvent, timeZoneId );
                         iCalendar.Events.Add( startDateCalendarEvent );
 
                         // If - for some reason - the start date was the only recurrence (should never happen),
@@ -1168,7 +1317,7 @@ namespace com.bemaservices.RoomManagement.Model
 
                         // Reassign the calendar event's start date to that of the first recurrence that matches the
                         // recurrence rules (bypass the original start date).
-                        calendarEvent.DtStart = ConvertToCalDateTime( startDateTimesAccordingToRock[1], timeZoneId );
+                        calendarEvent.DtStart = EventCalendarServiceOverrides.ConvertToCalDateTime( startDateTimesAccordingToRock[1], timeZoneId );
 
                         // Reduce any recurrence rule counts by 1, to account for the start date recurrence we already
                         // added manually, above.
@@ -1186,7 +1335,7 @@ namespace com.bemaservices.RoomManagement.Model
                             }
                         }
 
-                        SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
+                        EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
                         iCalendar.Events.Add( calendarEvent );
 
                         // This event item occurrence has been manually added; move on to the next one.
@@ -1200,7 +1349,7 @@ namespace com.bemaservices.RoomManagement.Model
                 // One-time events and recurrence rule-based events whose start date follows the recurrence rules
                 // can be added as a standard iCalendar event, as all supported calendar apps handle such events in
                 // a manner that matches Rock's internal event calendar behavior.
-                SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
+                EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
                 iCalendar.Events.Add( calendarEvent );
             }
 
@@ -1230,166 +1379,9 @@ namespace com.bemaservices.RoomManagement.Model
             iCalendar.AddTimeZone( VTimeZone.FromDateTimeZone( timeZoneId, earliestEventDateTime, includeHistoricalData: true ) );
 
             // Return a serialized iCalendar.
-            var serializer = new CalendarSerializer();
-            var calendarString = serializer.SerializeToString( iCalendar );
+            var iCalendarString = InetCalendarHelperOverrides.SerializeCalendarForExport( iCalendar );
 
-            return calendarString;
-        }
-
-        /// <summary>
-        /// Loads the occurrences for the specified iCalendar content string, excluding the occurrence that represents
-        /// the calendar event's start date/time, if it doesn't match the specified recurrence dates or recurrence rules.
-        /// </summary>
-        /// <param name="iCalendarContent">The RFC 5545 iCalendar content string.</param>
-        /// <param name="startDateTime">The start date time.</param>
-        /// <param name="endDateTime">The end date time.</param>
-        /// <returns>The occurrences.</returns>
-        /// <remarks>For example, this is helpful when considering a group member's preferred schedule template, with respect to
-        /// group scheduling. If we don't exclude start date/times that don't match the recurrence dates or rules in
-        /// such scenarios, this can lead to false positives and people being scheduled when they shouldn't be.</remarks>
-        internal static Occurrence[] GetOccurrencesExcludingStartDate( string iCalendarContent, DateTime startDateTime, DateTime? endDateTime )
-        {
-            var iCalEvent = InetCalendarHelper.CreateCalendarEvent( iCalendarContent );
-            if ( iCalEvent == null )
-            {
-                return new Occurrence[0];
-            }
-
-            /*
-                8/26/2024 - JPH
-
-                Issue #1:
-                ---------
-                The iCal.NET library we use to manage iCalendar events has a known issue where recurring events can
-                incorrectly-generate an extra occurrence for the specified `DtStart` date/time value, even if:
-
-                    1) `DtStart` doesn't qualify as a recurrence (for events with recurrence rules)
-                    2) `DtStart` doesn't appear in the list of specific dates (for events with recurrence dates)
-
-                https://github.com/rianjs/ical.net/issues/431
-
-                Furthermore, the iCal.NET library is no longer maintained, so it's clear we cannot count on this
-                issue being fixed on their end any time soon.
-
-                Workaround #1:
-                --------------
-                The `CalendarEvent` Type is an implementation of the `RecurringComponent` Type, which has a
-                `EvaluationIncludesReferenceDate` property that dictates whether to add the `DtStart` date/time
-                value as an `Occurrence` in the returned set of occurrences. Simply put, we ultimately need to set
-                this property to `false`. But the problem is that it's a readonly property, with the `CalendarEvent`
-                Type setting it to `true` upon instantiation. Luckily, the base `RecurringComponent` Type sets this
-                property to `false` upon instantiation.
-
-                All we need to do is create a new instance of `RecurringComponent`, copy all of the `CalendarEvent`
-                instance's property values over (using their handy `CopyFrom()` method) and get a new, refined set
-                of occurrences. We can then compare the two `Occurrence` sets and remove those occurrences from the
-                former set that don't appear in the latter. The reason we don't want to simply RETURN the latter
-                occurrence set directly, is because the iCal.NET library attaches the underlying Type instance to
-                each occurrence's `Source` property, and in local testing, returning an occurrence set with
-                `RecurringComponent` source objects can lead to unhandled exceptions being thrown by some downstream
-                Rock processes; better to play it safe and return the same object graph structure that's
-                historically been returned from this method.
-
-                Issue #2:
-                ---------
-                Related to Issue #1, events having recurrence rules that include a specified count (i.e. "End after n
-                occurrences"), will incorrectly count the `DtStart` occurrence as one of the "n" occurrences, which can
-                lead to the final, correct occurrence being excluded from the returned set (because the library thinks
-                it has already returned enough occurrences, since it incorrectly included the `DtStart` date/time value
-                as an occurrence.
-
-                Workaround #2:
-                --------------
-                We'll simply increase each recurrence rule count by 1 before getting the first ['CalendarEvent`] set of
-                occurrences, then reduce each recurrence rule count back to the original value before getting the second
-                [`RecurringComponent`] set of occurrences. This will ensure that the final, correct occurrence doesn't
-                get chopped from the set, and will be returned from this method.
-
-                Reason: Recurring Schedules sometimes return incorrect occurrences.
-                https://github.com/SparkDevNetwork/Rock/issues/5980
-            */
-
-            // Temporarily increase each recurrence rule count by 1, so we don't accidentally exclude the last, correct
-            // occurrence from the final set.
-            var rulesWithCounts = iCalEvent.RecurrenceRules?.Where( rr => rr.Count > 0 ).ToList();
-            if ( rulesWithCounts?.Any() == true )
-            {
-                rulesWithCounts.ForEach( rr => rr.Count++ );
-            }
-
-            // Get the original set of occurrences (which might incorrectly include the `DtStart` date/time value).
-            var occurrenceSet = endDateTime.HasValue
-                ? iCalEvent.GetOccurrences( startDateTime, endDateTime.Value )
-                : iCalEvent.GetOccurrences( startDateTime );
-
-            if ( iCalEvent.RecurrenceRules?.Any() == true || iCalEvent.RecurrenceDates?.Any() == true )
-            {
-                // Copy the `CalendarEvent` property values into a new `RecurringComponent` instance.
-                var recurringComponent = new RecurringComponent();
-                recurringComponent.CopyFrom( iCalEvent );
-
-                // Return each recurrence rule count to its original value, since the `RecurringComponent` object won't
-                // incorrectly include a non-matching `DtStart` date/time value as an occurrence.
-                rulesWithCounts = recurringComponent.RecurrenceRules?.Where( rr => rr.Count > 1 ).ToList();
-                if ( rulesWithCounts?.Any() == true )
-                {
-                    rulesWithCounts.ForEach( rr => rr.Count-- );
-                }
-
-                // Get the 2nd set of occurrences (which will not incorrectly include the `DtStart` date/time value).
-                var recurringOccurrences = endDateTime.HasValue
-                    ? recurringComponent.GetOccurrences( startDateTime, endDateTime.Value )
-                    : recurringComponent.GetOccurrences( startDateTime );
-
-                // Refine the final set of occurrences to only those that appear in both sets.
-                occurrenceSet = occurrenceSet
-                    .Where( o =>
-                        o.Period?.StartTime?.Value != null
-                        && recurringOccurrences.Any( ro => ro.Period?.StartTime?.Value == o.Period.StartTime.Value )
-                    )
-                    .OrderBy( o => o.Period.StartTime.Value )
-                    .ToHashSet();
-            }
-
-            var occurrences = occurrenceSet.ToArray();
-            return occurrences;
-        }
-
-        /// <summary>
-        /// Adjust the date and time information for this event to ensure that the serialized iCalendar data can be
-        /// processed by calendaring applications such as Microsoft Outlook Web, Google Calendar and Apple Calendar.
-        /// These applications require specific date/time formats and value combinations for a valid import format.
-        /// </summary>
-        /// <param name="iCalEvent">The iCal.NET calendar event.</param>
-        /// <param name="timeZoneId">The IANA time zone identifier.</param>
-        private void SetCalendarEventDateTimeInfo( CalendarEvent iCalEvent, string timeZoneId = null )
-        {
-            // Determine the start and end time for the event.
-            // For an all-day event, omit the End date.
-            // see https://stackoverflow.com/questions/1716237/single-day-all-day-appointments-in-ics-files
-            var start = iCalEvent.Start;
-
-            timeZoneId = timeZoneId ?? iCalEvent.Start.TzId;
-
-            iCalEvent.Start = ConvertToCalDateTime( start, timeZoneId );
-
-            // Determine if this is an all-day event. The Rock ScheduleBuilder component adopts a convention of
-            // assigning a 1 second duration to an event if the duration was not specified as part of the input.
-            // Therefore, if the event starts at midnight and has a duration of <= 1s, assume it is an all day event.
-            var startTime = new TimeSpan( start.Hour, start.Minute, start.Second );
-            if ( startTime.TotalSeconds == 0 && ( iCalEvent.Duration == null || iCalEvent.Duration.TotalSeconds <= 1 ) )
-            {
-                iCalEvent.IsAllDay = true;
-            }
-
-            if ( iCalEvent.IsAllDay )
-            {
-                iCalEvent.End = null;
-            }
-            else
-            {
-                iCalEvent.End = ConvertToCalDateTime( iCalEvent.Start.Add( iCalEvent.Duration ), timeZoneId );
-            }
+            return iCalendarString;
         }
 
         /// <summary>
@@ -1454,163 +1446,7 @@ namespace com.bemaservices.RoomManagement.Model
             return iCalEvent;
         }
 
-        /// <summary>
-        /// Converts to cal date time.
-        /// </summary>
-        /// <param name="newDateTime">The new date time.</param>
-        /// <param name="tzId">The tz identifier.</param>
-        /// <returns>CalDateTime.</returns>
-        private CalDateTime ConvertToCalDateTime( IDateTime newDateTime, string tzId )
-        {
-            if ( newDateTime is CalDateTime cdt )
-            {
-                if ( tzId != null )
-                {
-                    cdt.TzId = tzId;
-                }
-                return cdt;
-            }
-
-            var dateTime = new DateTime( newDateTime.Year, newDateTime.Month, newDateTime.Day, newDateTime.Hour, newDateTime.Minute, newDateTime.Second, newDateTime.Millisecond, DateTimeKind.Local );
-
-            var newDate = ConvertToCalDateTime( dateTime, tzId );
-
-            return newDate;
-        }
-
-        /// <summary>
-        /// Converts to cal date time.
-        /// </summary>
-        /// <param name="newDateTime">The new date time.</param>
-        /// <param name="tzId">The tz identifier.</param>
-        /// <returns>CalDateTime.</returns>
-        private CalDateTime ConvertToCalDateTime( DateTime newDateTime, string tzId )
-        {
-            var newDate = new CalDateTime( newDateTime );
-            if ( tzId != null )
-            {
-                newDate.TzId = tzId;
-            }
-
-            // Set the HasTime property to ensure that iCal.Net serializes the date value as an iCalendar "DATE" rather than a "PERIOD".
-            // Microsoft Outlook ignores date values that are expressed using the iCalendar "PERIOD" type.
-            // (see: MS-STANOICAL - v20210817 - 2.2.86)
-            newDate.HasTime = true;
-
-            return newDate;
-        }
-
-        /// <summary>
-        /// Gets the sequence number.
-        /// </summary>
-        /// <param name="createdDateTime">The created date time.</param>
-        /// <param name="modifiedDateTime">The modified date time.</param>
-        /// <returns>System.Int32.</returns>
-        private int GetSequenceNumber( DateTime? createdDateTime, DateTime? modifiedDateTime )
-        {
-            var minCreatedDateTime = RockDateTime.New( 2020, 1, 1 ).Value;
-
-            createdDateTime = createdDateTime ?? minCreatedDateTime;
-            if ( createdDateTime < minCreatedDateTime )
-            {
-                createdDateTime = minCreatedDateTime;
-            }
-
-            modifiedDateTime = modifiedDateTime ?? createdDateTime;
-            if ( modifiedDateTime < createdDateTime )
-            {
-                modifiedDateTime = createdDateTime;
-            }
-
-            var sequenceNo = ( int ) modifiedDateTime.Value.Subtract( createdDateTime.Value ).TotalSeconds;
-            return sequenceNo;
-        }
-
-        /// <summary>
-        /// Copies the calendar event.
-        /// </summary>
-        /// <param name="iCalEvent">The i cal event.</param>
-        /// <returns>CalendarEvent.</returns>
-        private CalendarEvent CopyCalendarEvent( CalendarEvent iCalEvent )
-        {
-            // The iCal.Net serializer is not thread-safe, so we need to create a new instance for each serialization.
-            // See https://github.com/rianjs/ical.net/issues/553.
-            var serializer = new CalendarSerializer();
-            var iCalString = serializer.SerializeToString( iCalEvent );
-
-            var eventCopy = Calendar.Load<CalendarEvent>( iCalString )
-                .FirstOrDefault();
-
-            return eventCopy;
-        }
-
         #endregion
-
-        /// <summary>
-        /// Create a new non-persisted reservation using an existing reservation as a template.
-        /// </summary>
-        /// <param name="reservationId">The identifier of a reservation to use as a template for the new reservation.</param>
-        /// <returns>Reservation.</returns>
-        /// <exception cref="Rock.Lava.LavaEngineExceptionEventArgs.Exception"></exception>
-        /// <exception cref="System.Exception"></exception>
-        public Reservation GetNewFromTemplate( int reservationId )
-        {
-            var item = this.Queryable()
-                           .AsNoTracking()
-                           .FirstOrDefault( x => x.Id == reservationId );
-
-            if ( item == null )
-            {
-                throw new Exception( string.Format( "GetNewFromTemplate method failed. Reservation ID \"{0}\" could not be found.", reservationId ) );
-            }
-
-            // Deep-clone the Reservation and reset the properties that connect it to the permanent store.
-            var newItem = item.Clone( false );
-
-            newItem.Id = 0;
-            newItem.Guid = Guid.NewGuid();
-            newItem.ForeignId = null;
-            newItem.ForeignGuid = null;
-            newItem.ForeignKey = null;
-
-            newItem.CreatedByPersonAlias = null;
-            newItem.CreatedByPersonAliasId = null;
-            newItem.CreatedDateTime = RockDateTime.Now;
-            newItem.ModifiedByPersonAlias = null;
-            newItem.ModifiedByPersonAliasId = null;
-            newItem.ModifiedDateTime = RockDateTime.Now;
-
-            newItem.ReservationLinkages = new List<ReservationLinkage>();
-
-            // Clear the approval state since that would not be fair otherwise...
-            newItem.ApprovalState = ReservationApprovalState.PendingInitialApproval;
-            foreach ( var rl in newItem.ReservationLocations )
-            {
-                rl.ApprovalState = ReservationLocationApprovalState.Unapproved;
-            }
-
-            foreach ( var rr in newItem.ReservationResources )
-            {
-                rr.ApprovalState = ReservationResourceApprovalState.Unapproved;
-            }
-
-            if ( item.SetupPhoto != null )
-            {
-                using ( var rockContext = new RockContext() )
-                {
-                    var newPhoto = item.SetupPhoto.CloneWithoutIdentity();
-                    newPhoto.DatabaseData = item.SetupPhoto.DatabaseData.CloneWithoutIdentity();
-                    newPhoto.IsTemporary = true;
-                    var binaryFileService = new BinaryFileService( rockContext );
-                    binaryFileService.Add( newPhoto );
-                    rockContext.SaveChanges();
-                    newItem.SetupPhoto = newPhoto;
-                    newItem.SetupPhotoId = newPhoto.Id;
-                }
-            }
-
-            return newItem;
-        }
 
         #region Helper Classes
 

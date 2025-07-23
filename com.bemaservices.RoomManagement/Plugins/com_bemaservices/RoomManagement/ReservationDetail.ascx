@@ -6,6 +6,12 @@
         $('#<%=hfActiveDialog.ClientID %>' ).val( '' );
     }
 </script>
+<style>
+/* Override overflow when picker-menu with display: block is present */
+div[id$="_upnlContent"].modal-open:has(div.picker-menu[style*="display: block"]) {
+    overflow: visible !important;
+}
+</style>
 <asp:UpdatePanel ID="upnlContent" runat="server">
     <ContentTemplate>
         <Rock:NotificationBox ID="nbNotAuthorized" runat="server" NotificationBoxType="Danger" />

@@ -39,10 +39,40 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block for viewing a list of conflicting reservations." )]
 
-    [LinkedPage( "Detail Page" )]
-    [TextField( "Related Entity Query String Parameter", "The query string parameter that holds id to the related entity.", false )]
+    [LinkedPage( "Detail Page",
+        Key = AttributeKey.DetailPage,
+        Order = 0
+        )]
+
+    [IntegerField(
+        "Database Timeout",
+        Key = AttributeKey.DatabaseTimeoutSeconds,
+        Description = "The number of seconds to wait before reporting a database timeout.",
+        IsRequired = false,
+        DefaultIntegerValue = 180,
+        Order = 1 )]
+
+    [TextField( "Related Entity Query String Parameter",
+        Description = "The query string parameter that holds id to the related entity.",
+        IsRequired = false,
+        Key = AttributeKey.RelatedEntityQueryStringParameter,
+        Order = 2 )]
     public partial class ConflictingReservationList : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// Attribute Keys
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string DetailPage = "DetailPage";
+            public const string RelatedEntityQueryStringParameter = "RelatedEntityQueryStringParameter";
+            public const string DatabaseTimeoutSeconds = "DatabaseTimeoutSeconds";
+        }
+
+        #endregion Keys
+
         #region Control Methods
 
         /// <summary>
@@ -61,6 +91,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gReservations.GridRebind += gReservations_GridRebind;
 
             this.BlockUpdated += Block_BlockUpdated;
+
+            //// Set postback timeout and request-timeout to whatever the DatabaseTimeout is plus an extra 5 seconds so that page doesn't timeout before the database does
+            int databaseTimeout = GetAttributeValue( AttributeKey.DatabaseTimeoutSeconds ).AsIntegerOrNull() ?? 180;
+            var sm = ScriptManager.GetCurrent( this.Page );
+            if ( sm.AsyncPostBackTimeout < databaseTimeout + 5 )
+            {
+                sm.AsyncPostBackTimeout = databaseTimeout + 5;
+                Server.ScriptTimeout = databaseTimeout + 5;
+            }
         }
 
         /// <summary>
@@ -91,7 +130,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var parms = new Dictionary<string, string>();
             parms.Add( "ReservationId", e.RowKeyValue.ToString() );
-            NavigateToLinkedPage( "DetailPage", parms );
+            NavigateToLinkedPage( AttributeKey.DetailPage, parms );
         }
 
         /// <summary>
@@ -380,78 +419,88 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             nbMessage.Visible = false;
 
-            var rockContext = new RockContext();
-            var reservationService = new ReservationService( rockContext );
-            var locationService = new LocationService( rockContext );
-
-            var reservationQueryOptions = new ReservationQueryOptions();
-            reservationQueryOptions.Name = tbName.Text;
-            reservationQueryOptions.CreatorPersonId = ppCreator.PersonId;
-            reservationQueryOptions.EventContactPersonId = ppEventContact.PersonId;
-            reservationQueryOptions.AdministrativeContactPersonId = ppAdminContact.PersonId;
-            reservationQueryOptions.MinistryNames = cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Text ).ToList();
-            reservationQueryOptions.ApprovalStates = cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>() ).ToList();
-            reservationQueryOptions.ReservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
-            reservationQueryOptions.ResourceIds = rpResource.SelectedValuesAsInt().ToList();
-
-            var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
-            foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
+            try
             {
-                locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
-                locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
-            }
-            reservationQueryOptions.LocationIds = locationIdList;
+                var rockContext = new RockContext();
+                rockContext.Database.CommandTimeout = this.GetAttributeValue( AttributeKey.DatabaseTimeoutSeconds ).AsIntegerOrNull() ?? 180;
 
-            var qry = reservationService.Queryable( reservationQueryOptions );
+                var reservationService = new ReservationService( rockContext );
+                var locationService = new LocationService( rockContext );
 
-            // Get the related entity query string parameter if it was configured
-            var relatedEntity = GetAttributeValue( "RelatedEntityQueryStringParameter" );
-            int? entityId = null;
-            if ( !string.IsNullOrWhiteSpace( relatedEntity ) )
-            {
-                entityId = PageParameter( relatedEntity ).AsIntegerOrNull();
+                var reservationQueryOptions = new ReservationQueryOptions();
+                reservationQueryOptions.Name = tbName.Text;
+                reservationQueryOptions.CreatorPersonId = ppCreator.PersonId;
+                reservationQueryOptions.EventContactPersonId = ppEventContact.PersonId;
+                reservationQueryOptions.AdministrativeContactPersonId = ppAdminContact.PersonId;
+                reservationQueryOptions.MinistryNames = cblMinistry.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Text ).ToList();
+                reservationQueryOptions.ApprovalStates = cblApproval.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.ConvertToEnum<ReservationApprovalState>() ).ToList();
+                reservationQueryOptions.ReservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
+                reservationQueryOptions.ResourceIds = rpResource.SelectedValuesAsInt().ToList();
 
-                if ( entityId != null && RelatedEntities.EventItemOccurrenceId.ToString() == relatedEntity )
+                var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
+                foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
                 {
-                    qry = qry.Where( r => r.ReservationLinkages.Any( rl => rl.EventItemOccurrenceId == entityId ) );
+                    locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
+                    locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
                 }
-                else
+                reservationQueryOptions.LocationIds = locationIdList;
+
+                var qry = reservationService.Queryable( reservationQueryOptions );
+
+                // Get the related entity query string parameter if it was configured
+                var relatedEntity = GetAttributeValue( AttributeKey.RelatedEntityQueryStringParameter );
+                int? entityId = null;
+                if ( !string.IsNullOrWhiteSpace( relatedEntity ) )
                 {
-                    ShowMessage( string.Format( "Unsupported Related Entity QueryString Parameter '{0}'", relatedEntity ) );
+                    entityId = PageParameter( relatedEntity ).AsIntegerOrNull();
+
+                    if ( entityId != null && RelatedEntities.EventItemOccurrenceId.ToString() == relatedEntity )
+                    {
+                        qry = qry.Where( r => r.ReservationLinkages.Any( rl => rl.EventItemOccurrenceId == entityId ) );
+                    }
+                    else
+                    {
+                        ShowMessage( string.Format( "Unsupported Related Entity QueryString Parameter '{0}'", relatedEntity ) );
+                    }
                 }
-            }
 
-            // Filter by Time
-            var today = RockDateTime.Today;
-            var defaultStartDateTime = today;
-            var defaultEndDateTime = today.AddMonths( 1 );
-            if ( entityId.HasValue )
-            {
-                defaultStartDateTime = today;
-                defaultEndDateTime = today.AddYears( 5 );
-            }
-            var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? defaultStartDateTime;
-            var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? defaultEndDateTime;
-            var reservationList = qry.ToList();
-
-            List<ConflictedReservation> conflictedReservationList = new List<ConflictedReservation>();
-            foreach ( var reservation in reservationList )
-            {
-                var conflictInfo = reservationService.GenerateConflictInfo( reservation, LinkedPageUrl( "DetailPage" ) );
-                if ( !string.IsNullOrWhiteSpace( conflictInfo ) )
+                // Filter by Time
+                var today = RockDateTime.Today;
+                var defaultStartDateTime = today;
+                var defaultEndDateTime = today.AddMonths( 1 );
+                if ( entityId.HasValue )
                 {
-                    ConflictedReservation conflictedReservation = new ConflictedReservation(reservation, conflictInfo);
-                    conflictedReservationList.Add( conflictedReservation );
+                    defaultStartDateTime = today;
+                    defaultEndDateTime = today.AddYears( 5 );
                 }
+                var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? defaultStartDateTime;
+                var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? defaultEndDateTime;
+                var reservationList = qry.ToList();
+
+                List<ConflictedReservation> conflictedReservationList = new List<ConflictedReservation>();
+                foreach ( var reservation in reservationList )
+                {
+                    var conflictInfo = reservationService.GenerateConflictInfo( reservation, LinkedPageUrl( AttributeKey.DetailPage ) );
+                    if ( !string.IsNullOrWhiteSpace( conflictInfo ) )
+                    {
+                        ConflictedReservation conflictedReservation = new ConflictedReservation( reservation, conflictInfo );
+                        conflictedReservationList.Add( conflictedReservation );
+                    }
+                }
+
+                // Bind to Grid
+                gReservations.DataSource = conflictedReservationList
+                    .OrderBy( r => r.StartDate )
+                    .ToList();
+                gReservations.EntityTypeId = EntityTypeCache.Get<Reservation>().Id;
+                gReservations.DataBind();
             }
-
-
-            // Bind to Grid
-            gReservations.DataSource = conflictedReservationList
-                .OrderBy( r => r.StartDate )
-                .ToList();
-            gReservations.EntityTypeId = EntityTypeCache.Get<Reservation>().Id;
-            gReservations.DataBind();
+            catch ( TimeoutException ex )
+            {
+                nbMessage.Visible = true;
+                nbMessage.Text = "There are too many reservations to analyze. Please narrow down your search or extend the timeout window in the block settings.";
+            }
+            
         }
 
         /// <summary>

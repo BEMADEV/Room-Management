@@ -24,7 +24,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
     /// Field Type used to display a list of connection states
     /// </summary>
     [Serializable]
-    public class ReservationApprovalStateFieldType : EnumFieldType<ReservationApprovalState>
+    public class ReservationApprovalStateFieldType : UniversalItemEnumPickerFieldType<ReservationApprovalState>
     {
     }
 }

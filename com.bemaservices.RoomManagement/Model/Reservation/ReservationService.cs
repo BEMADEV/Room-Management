@@ -102,6 +102,11 @@ namespace com.bemaservices.RoomManagement.Model
                 qry = qry.Where( r => reservationQueryOptions.ReservationTypeIds.Contains( r.ReservationTypeId ) );
             }
 
+            if ( reservationQueryOptions.ReservationTypeGuids.Where( g => g != Guid.Empty ).Any() )
+            {
+                qry = qry.Where( r => reservationQueryOptions.ReservationTypeGuids.Contains( r.ReservationType.Guid ) );
+            }
+
             if ( reservationQueryOptions.ReservationIds.Where( Id => Id != 0 ).Any() )
             {
                 qry = qry.Where( r => reservationQueryOptions.ReservationIds.Contains( r.Id ) );

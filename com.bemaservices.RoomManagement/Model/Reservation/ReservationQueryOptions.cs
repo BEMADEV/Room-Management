@@ -65,6 +65,9 @@ namespace com.bemaservices.RoomManagement.Model
         /// </summary>
         /// <value>The reservation type ids.</value>
         public List<int> ReservationTypeIds { get; set; } = new List<int>();
+
+        public List<Guid> ReservationTypeGuids { get; set; } = new List<Guid>();
+
         /// <summary>
         /// Gets or sets the reservation ids.
         /// </summary>

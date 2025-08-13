@@ -475,7 +475,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
                 var filterStartDateTime = dtpStartDateTime.SelectedDateTime ?? defaultStartDateTime;
                 var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? defaultEndDateTime;
-                var reservationList = qry.ToList();
+                var reservationIdList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false ).Select( rs => rs.ReservationId ).ToList();
+                var reservationList = qry.Where( r => reservationIdList.Contains( r.Id ) ).ToList();
 
                 List<ConflictedReservation> conflictedReservationList = new List<ConflictedReservation>();
                 foreach ( var reservation in reservationList )

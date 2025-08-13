@@ -45,7 +45,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
     [WorkflowAttribute( "Reservation Type Attribute", "The attribute that contains the reservation type of the reservation.",
         false, "", "", 1, null, new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationTypeFieldType" } )]
-    [ReservationTypeField( "Reservation Type", "The reservation type to use (if Reservation Type Attribute is not specified).", false, "", "", 2 )]
+    [ReservationTypeField( "Reservation Type", "The reservation type to use (if Reservation Type Attribute is not specified).", false, "", false, "", 2 )]
 
     [WorkflowAttribute( "Approval State Attribute", "The attribute that contains the reservation approval state.", false, "", "", 3, null,
         new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationApprovalStateFieldType" } )]

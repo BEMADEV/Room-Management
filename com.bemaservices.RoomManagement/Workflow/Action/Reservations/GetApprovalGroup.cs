@@ -41,7 +41,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
     [WorkflowAttribute( "Reservation Type Attribute", "The attribute that contains the reservation type to pull the approval group for",
         false, "", "", 1, null, new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationTypeFieldType" } )]
-    [ReservationTypeField( "Reservation Type", "The reservation type to pull the approval group for.", false, "", "", 2 )]
+    [ReservationTypeField( "Reservation Type", "The reservation type to pull the approval group for.", false, "", false, "", 2 )]
 
     [WorkflowAttribute( "Approval Group Type Attribute", "The attribute that contains the approval group type.", false, "", "", 3, null,
         new string[] { "Rock.Field.Types.EnumFieldType" } )]

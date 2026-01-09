@@ -27,7 +27,10 @@ using com.bemaservices.RoomManagement.Web.UI.Controls;
 using Rock;
 using Rock.Data;
 using Rock.Field;
+using Rock.Field.Types;
 using Rock.Reporting;
+using Rock.SystemGuid;
+using Rock.ViewModels.Utility;
 using Rock.Web.UI.Controls;
 
 namespace com.bemaservices.RoomManagement.Field.Types
@@ -36,306 +39,45 @@ namespace com.bemaservices.RoomManagement.Field.Types
     /// Field Type to select a single (or null) Reservation
     /// Stored as Reservation's Guid
     /// </summary>
-    public class ReservationFieldType : Rock.Field.FieldType, IEntityFieldType
+    [FieldTypeGuid( "66739D2C-1F39-44C4-BDBB-9AB181DA4ED7" )]
+    public class ReservationFieldType : UniversalItemPickerFieldType, IEntityFieldType
     {
 
-        #region Formatting
-
         /// <summary>
-        /// Returns the field's current value(s)
+        /// Gets the list of items to be displayed in the picker.
         /// </summary>
-        /// <param name="parentControl">The parent control.</param>
-        /// <param name="value">Information about the value</param>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="condensed">Flag indicating if the value should be condensed (i.e. for use in a grid column)</param>
-        /// <returns>System.String.</returns>
-        public override string FormatValue( System.Web.UI.Control parentControl, string value, Dictionary<string, ConfigurationValue> configurationValues, bool condensed )
+        /// <param name="privateConfigurationValues">The configuration values that describe the field type.</param>
+        /// <returns>A list of item bags that will be rendered in the picker.</returns>
+        protected override List<ListItemBag> GetListItems( Dictionary<string, string> privateConfigurationValues )
         {
-            string formattedValue = value;
-
-            if ( !string.IsNullOrWhiteSpace( value ) )
+            return new ReservationService( new RockContext() ).Queryable()
+            .Select( item => new ListItemBag
             {
-                var reservation = new ReservationService( new RockContext() ).Get( value.AsGuid() );
-                if ( reservation != null )
-                {
-                    formattedValue = reservation.Name;
-                }
-            }
-
-            return base.FormatValue( parentControl, formattedValue, configurationValues, condensed );
+                Value = item.Guid.ToString(),
+                Text = item.Name
+            } )
+            .ToList();
         }
 
-        #endregion
-
-        #region Edit Control
-
         /// <summary>
-        /// Creates the control(s) necessary for prompting user for a new value
+        /// Gets the item bags for the values. If an item is not found
+        /// (for example, no longer exists), then it should not be included
+        /// in the returned list.
         /// </summary>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="id">The id.</param>
-        /// <returns>The control</returns>
-        public override System.Web.UI.Control EditControl( Dictionary<string, ConfigurationValue> configurationValues, string id )
+        /// <param name="values">The individual values that should be retrieved.</param>
+        /// <param name="privateConfigurationValues">The private (database) configuration values.</param>
+        /// <returns>A list of <see cref="T:Rock.ViewModels.Utility.ListItemBag" /> objects that have the <see cref="P:Rock.ViewModels.Utility.ListItemBag.Value" /> and <see cref="P:Rock.ViewModels.Utility.ListItemBag.Text" /> properties filled in.</returns>
+        protected override List<ListItemBag> GetItemBags( IEnumerable<string> values, Dictionary<string, string> privateConfigurationValues )
         {
-            var reservationPicker = new ReservationPicker { ID = id };
-
-            var allReservations = new ReservationService( new RockContext() ).Queryable();
-
-            var reservationList = allReservations
-                .ToList();
-
-            if ( reservationList.Any() )
+            return new ReservationService( new RockContext() ).Queryable()
+            .Where( item => values.Contains( item.Guid.ToString() ) )
+            .Select( item => new ListItemBag
             {
-                reservationPicker.Reservations = reservationList;
-                return reservationPicker;
-            }
-
-            return null;
+                Value = item.Guid.ToString(),
+                Text = item.Name
+            } )
+            .ToList();
         }
-
-        /// <summary>
-        /// Reads new values entered by the user for the field
-        /// returns Reservation.Guid as string
-        /// </summary>
-        /// <param name="control">Parent control that controls were added to in the CreateEditControl() method</param>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <returns>System.String.</returns>
-        public override string GetEditValue( System.Web.UI.Control control, Dictionary<string, ConfigurationValue> configurationValues )
-        {
-            ReservationPicker reservationPicker = control as ReservationPicker;
-
-            if ( reservationPicker != null )
-            {
-                int? reservationId = reservationPicker.SelectedReservationId;
-                if ( reservationId.HasValue )
-                {
-                    var reservation = new ReservationService( new RockContext() ).Get( reservationId.Value );
-                    if ( reservation != null )
-                    {
-                        return reservation.Guid.ToString();
-                    }
-                }
-            }
-
-            return string.Empty;
-        }
-
-        /// <summary>
-        /// Sets the value.
-        /// Expects value as a Reservation.Guid as string
-        /// </summary>
-        /// <param name="control">The control.</param>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="value">The value.</param>
-        public override void SetEditValue( System.Web.UI.Control control, Dictionary<string, ConfigurationValue> configurationValues, string value )
-        {
-            ReservationPicker reservationPicker = control as ReservationPicker;
-
-            if ( reservationPicker != null )
-            {
-                Guid guid = value.AsGuid();
-
-                // get the item (or null) and set it
-                var reservation = new ReservationService( new RockContext() ).Get( guid );
-                reservationPicker.SetValue( reservation == null ? "0" : reservation.Id.ToString() );
-            }
-        }
-
-        #endregion
-
-        #region Filter Control
-
-        /// <summary>
-        /// Gets the filter compare control.
-        /// </summary>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="id">The identifier.</param>
-        /// <param name="required">if set to <c>true</c> [required].</param>
-        /// <param name="filterMode">The filter mode.</param>
-        /// <returns>Control.</returns>
-        public override Control FilterCompareControl( Dictionary<string, ConfigurationValue> configurationValues, string id, bool required, FilterMode filterMode )
-        {
-            var lbl = new Label();
-            lbl.ID = string.Format( "{0}_lIs", id );
-            lbl.AddCssClass( "data-view-filter-label" );
-            lbl.Text = "Is";
-
-            // hide the compare control when in SimpleFilter mode
-            lbl.Visible = filterMode != FilterMode.SimpleFilter;
-
-            return lbl;
-        }
-
-        /// <summary>
-        /// Gets the filter value control.
-        /// </summary>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="id">The identifier.</param>
-        /// <param name="required">if set to <c>true</c> [required].</param>
-        /// <param name="filterMode">The filter mode.</param>
-        /// <returns>Control.</returns>
-        public override Control FilterValueControl( Dictionary<string, ConfigurationValue> configurationValues, string id, bool required, FilterMode filterMode )
-        {
-            var cbList = new RockListBox();
-            cbList.ID = string.Format( "{0}_cbList", id );
-            cbList.AddCssClass( "js-filter-control" );
-
-            var reservationList = new ReservationService( new RockContext() ).Queryable();
-            if ( reservationList.Any() )
-            {
-                foreach ( var reservation in reservationList )
-                {
-                    ListItem listItem = new ListItem( reservation.Name, reservation.Guid.ToString() );
-                    cbList.Items.Add( listItem );
-                }
-
-                return cbList;
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Formats the filter value value.
-        /// </summary>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="value">The value.</param>
-        /// <returns>System.String.</returns>
-        public override string FormatFilterValueValue( Dictionary<string, ConfigurationValue> configurationValues, string value )
-        {
-            var reservationGuids = value.SplitDelimitedValues().AsGuidList();
-            var reservationService = new ReservationService( new RockContext() );
-
-            var reservations = reservationGuids.Select( a => reservationService.Get( a ) ).Where( c => c != null );
-            return reservations.Select( a => a.Name ).ToList().AsDelimited( ", ", " or " );
-        }
-
-        /// <summary>
-        /// Gets the filter compare value.
-        /// </summary>
-        /// <param name="control">The control.</param>
-        /// <param name="filterMode">The filter mode.</param>
-        /// <returns>System.String.</returns>
-        public override string GetFilterCompareValue( Control control, FilterMode filterMode )
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Gets the equal to compare value (types that don't support an equalto comparison (i.e. singleselect) should return null
-        /// </summary>
-        /// <returns>System.String.</returns>
-        public override string GetEqualToCompareValue()
-        {
-            return null;
-        }
-
-        /// <summary>
-        /// Gets the filter value value.
-        /// </summary>
-        /// <param name="control">The control.</param>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <returns>System.String.</returns>
-        public override string GetFilterValueValue( Control control, Dictionary<string, ConfigurationValue> configurationValues )
-        {
-            var values = new List<string>();
-
-            if ( control != null )
-            {
-                if ( control is CheckBoxList )
-                {
-                    CheckBoxList cbl = ( CheckBoxList ) control;
-                    foreach ( ListItem li in cbl.Items )
-                    {
-                        if ( li.Selected )
-                        {
-                            values.Add( li.Value );
-                        }
-                    }
-                }
-
-                if ( control is RockListBox )
-                {
-                    RockListBox rlb = ( RockListBox ) control;
-                    foreach ( ListItem li in rlb.Items )
-                    {
-                        if ( li.Selected )
-                        {
-                            values.Add( li.Value );
-                        }
-                    }
-                }
-
-            }
-
-            return values.AsDelimited( "," );
-        }
-
-        /// <summary>
-        /// Sets the filter compare value.
-        /// </summary>
-        /// <param name="control">The control.</param>
-        /// <param name="value">The value.</param>
-        public override void SetFilterCompareValue( Control control, string value )
-        {
-        }
-
-        /// <summary>
-        /// Sets the filter value value.
-        /// </summary>
-        /// <param name="control">The control.</param>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="value">The value.</param>
-        public override void SetFilterValueValue( Control control, Dictionary<string, ConfigurationValue> configurationValues, string value )
-        {
-            if ( control != null && value != null )
-            {
-                var values = value.Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ).ToList();
-
-                if ( control is CheckBoxList )
-                {
-                    CheckBoxList cbl = ( CheckBoxList ) control;
-                    foreach ( ListItem li in cbl.Items )
-                    {
-                        li.Selected = values.Contains( li.Value );
-                    }
-                }
-
-                if ( control is RockListBox )
-                {
-                    RockListBox rlb = ( RockListBox ) control;
-                    foreach ( ListItem li in rlb.Items )
-                    {
-                        li.Selected = values.Contains( li.Value );
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the filters expression.
-        /// </summary>
-        /// <param name="configurationValues">The configuration values.</param>
-        /// <param name="filterValues">The filter values.</param>
-        /// <param name="parameterExpression">The parameter expression.</param>
-        /// <returns>Expression.</returns>
-        public override Expression AttributeFilterExpression( Dictionary<string, ConfigurationValue> configurationValues, List<string> filterValues, ParameterExpression parameterExpression )
-        {
-            if ( filterValues.Count == 1 )
-            {
-                List<string> selectedValues = filterValues[0].Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ).ToList();
-                if ( selectedValues.Any() )
-                {
-                    MemberExpression propertyExpression = Expression.Property( parameterExpression, "Value" );
-                    ConstantExpression constantExpression = Expression.Constant( selectedValues, typeof( List<string> ) );
-                    return Expression.Call( constantExpression, typeof( List<string> ).GetMethod( "Contains", new Type[] { typeof( string ) } ), propertyExpression );
-                }
-            }
-
-            return null;
-        }
-
-        #endregion
 
         #region Entity Methods
 
@@ -344,7 +86,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// </summary>
         /// <param name="control">The control.</param>
         /// <param name="configurationValues">The configuration values.</param>
-        /// <returns>System.Nullable&lt;System.Int32&gt;.</returns>
+        /// <returns></returns>
         public int? GetEditValueAsEntityId( System.Web.UI.Control control, Dictionary<string, ConfigurationValue> configurationValues )
         {
             Guid guid = GetEditValue( control, configurationValues ).AsGuid();
@@ -373,7 +115,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// Gets the entity.
         /// </summary>
         /// <param name="value">The value.</param>
-        /// <returns>IEntity.</returns>
+        /// <returns></returns>
         public IEntity GetEntity( string value )
         {
             return GetEntity( value, null );
@@ -384,7 +126,7 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// </summary>
         /// <param name="value">The value.</param>
         /// <param name="rockContext">The rock context.</param>
-        /// <returns>IEntity.</returns>
+        /// <returns></returns>
         public IEntity GetEntity( string value, RockContext rockContext )
         {
             Guid? guid = value.AsGuidOrNull();

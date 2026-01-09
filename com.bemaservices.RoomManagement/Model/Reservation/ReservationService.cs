@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Entity;
 using System.Linq;
 using System.Text;
@@ -29,6 +30,7 @@ using Rock.Communication;
 using Rock.Data;
 using Rock.Model;
 using Rock.UniversalSearch.IndexModels;
+using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
 using TimeZoneConverter;
 
@@ -231,6 +233,16 @@ namespace com.bemaservices.RoomManagement.Model
                     );
             }
 
+            if ( reservationQueryOptions.DataViewId != null )
+            {
+                var dataView = DataViewCache.Get( reservationQueryOptions.DataViewId.Value );
+                if ( dataView != null )
+                {
+                    var dataViewReservationIds = dataView.GetQuery().Select( r => r.Id ).ToList();
+                    qry = qry.Where( r => dataViewReservationIds.Contains( r.Id ) );
+                }
+            }
+
             return qry;
         }
 
@@ -316,6 +328,11 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             return newItem;
+        }
+
+        public void SetReservationParticipants( int reservationId, List<PersonAlias> participants, string purposeKey )
+        {
+            this.RelatedEntities.SetRelatedToSourceEntity( reservationId, participants, purposeKey );
         }
 
         #endregion
@@ -1446,6 +1463,21 @@ namespace com.bemaservices.RoomManagement.Model
 
                 iCalEvent.Contacts.Add( contactInfo );
                 iCalEvent.Comments.Add( contactInfo );
+            }
+
+            var relatedPeople = this.RelatedEntities.GetRelatedToSourceEntity<PersonAlias>( reservation.Id, "Attendee" );
+            if ( relatedPeople.Any() )
+            {
+                iCalEvent.Attendees = new List<Attendee>();
+                foreach ( var relatedPerson in relatedPeople )
+                {
+                    var attendee = new Attendee
+                    {
+                        CommonName = relatedPerson.Person.FullName,
+                        Value = new Uri( string.Format( "mailto:{0}", relatedPerson.Person.Email ) )
+                    };
+                    iCalEvent.Attendees.Add( attendee );
+                }
             }
 
             return iCalEvent;

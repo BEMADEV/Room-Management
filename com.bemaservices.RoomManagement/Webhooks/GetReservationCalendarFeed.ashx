@@ -153,6 +153,7 @@ namespace com.bemaservices.Webhooks
             reservationCalendarOptions.CreatorPersonId = ( request.QueryString["creatorpersonid"] != null ? request.QueryString["creatorpersonid"] : string.Empty ).AsIntegerOrNull();
             reservationCalendarOptions.EventContactPersonId = ( request.QueryString["eventcontactpersonid"] != null ? request.QueryString["eventcontactpersonid"] : string.Empty ).AsIntegerOrNull();
             reservationCalendarOptions.AdministrativeContactPersonId = ( request.QueryString["administrativecontactpersonid"] != null ? request.QueryString["administrativecontactpersonid"] : string.Empty ).AsIntegerOrNull();
+            reservationCalendarOptions.DataViewId = ( request.QueryString["dataviewid"] != null ? request.QueryString["dataviewid"] : string.Empty ).AsIntegerOrNull();
 
             reservationCalendarOptions.ReservationTypeIds = ( request.QueryString["reservationtypeids"] != null ? request.QueryString["reservationtypeids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();
             reservationCalendarOptions.ReservationIds = ( request.QueryString["reservationids"] != null ? request.QueryString["reservationids"] : string.Empty ).SplitDelimitedValues().AsIntegerList();

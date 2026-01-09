@@ -235,7 +235,6 @@
     <Compile Include="Utility\RockInternalMethods\Calendars\EventCalendarServiceOverrides.cs" />
     <Compile Include="Utility\RockInternalMethods\Calendars\InetCalendarHelperOverrides.cs" />
     <Compile Include="VersionInfo.cs" />
-    <Compile Include="Web\UI\Controls\Pickers\ReportTemplatePicker.cs" />
     <Compile Include="Web\UI\Controls\Pickers\ReservationTypePicker.cs" />
     <Compile Include="Web\UI\Controls\Pickers\ReservationPicker.cs" />
     <Compile Include="Web\UI\Controls\Pickers\ScheduledLocationItemPicker.cs" />
@@ -255,9 +254,13 @@
       <Project>{61dece2b-0434-435e-8d65-49a4fdf98365}</Project>
       <Name>Rock.Enums</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\BemaRockV14\Rock.Lava\Rock.Lava.csproj">
+    <ProjectReference Include="$(SolutionDir)\Rock.Lava\Rock.Lava.csproj">
       <Project>{37E293DD-F282-4A34-91FA-5FB8503D5672}</Project>
       <Name>Rock.Lava</Name>
+    </ProjectReference>
+    <ProjectReference Include="$(SolutionDir)\Rock.ViewModels\Rock.ViewModels.csproj">
+      <Project>{05BAAF85-9C53-4CCD-A535-036427B0DF72}</Project>
+      <Name>Rock.ViewModels</Name>
     </ProjectReference>
     <ProjectReference Include="..\com.centralaz.RoomManagement\com.centralaz.RoomManagement.csproj">
       <Project>{7034b83c-c331-436c-aa16-e87ad280b0e9}</Project>

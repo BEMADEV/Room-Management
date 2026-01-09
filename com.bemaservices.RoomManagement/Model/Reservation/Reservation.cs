@@ -24,6 +24,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Web;
+using Ical.Net.DataTypes;
 using Rock;
 using Rock.Data;
 using Rock.Lava;
@@ -851,6 +852,39 @@ namespace com.bemaservices.RoomManagement.Model
                                 {
                                     sb.AppendFormat( " to {0}", lastOccurrenceEndDateTime.Value.ToShortDateString() );
                                 }
+                            }
+                        }
+                        catch ( Exception ex )
+                        {
+                            ExceptionLogService.LogException( ex );
+                        }
+
+                        try
+                        { // Exclusions
+                            if ( calendarEvent.ExceptionDates.Count > 0 )
+                            {
+                                // convert individual ExceptionDates into a list of Date Ranges
+                                var exDateRanges = new List<Period>();
+                                var dates = calendarEvent.ExceptionDates[0].Select( a => a.StartTime ).OrderBy( a => a ).ToList();
+                                var previousDate = dates[0].AddDays( -1 );
+                                var dateRange = new Period { StartTime = dates[0] };
+                                foreach ( var date in dates )
+                                {
+                                    if ( !date.Equals( previousDate.AddDays( 1 ) ) )
+                                    {
+                                        dateRange.EndTime = previousDate;
+                                        exDateRanges.Add( dateRange );
+                                        dateRange = new Period { StartTime = date };
+                                    }
+
+                                    previousDate = date;
+                                }
+
+                                dateRange.EndTime = dates.Last();
+                                exDateRanges.Add( dateRange );
+
+                                var exDateRangesString = exDateRanges.Select( a => string.Format( "<li>{0} - {1}</li>", a.StartTime, a.EndTime ) ).ToList().AsDelimited( "" );
+                                sb.AppendFormat( " except for: <ul>{0}</ul>", exDateRangesString );
                             }
                         }
                         catch ( Exception ex )

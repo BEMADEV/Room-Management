@@ -44,7 +44,7 @@ namespace com.bemaservices.RoomManagement.Attribute
         /// <param name="key">The key.</param>
         /// <param name="fieldTypeAssembly">The field type assembly.</param>
         public ReservationTypeFieldAttribute( string name = "Reservation Type", string description = "", bool required = true, string defaultReservationTypeId = "", bool includeInactive = false, string category = "", int order = 0, string key = null, string fieldTypeAssembly = "com.bemaservices.RoomManagement" )
-            : base( name, description, required, defaultReservationTypeId, category, order, key, typeof( com.bemaservices.RoomManagement.Field.Types.ReservationTypeFieldType ).FullName )
+            : base( name, description, required, defaultReservationTypeId, category, order, key, typeof( com.bemaservices.RoomManagement.Field.Types.ReservationTypeFieldType ).FullName, "com.bemaservices.RoomManagement" )
         {
             var includeInactiveConfigValue = new Rock.Field.ConfigurationValue( "False" );
             FieldConfigurationValues.Add( INCLUDE_INACTIVE_KEY, includeInactiveConfigValue );

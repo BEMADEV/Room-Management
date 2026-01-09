@@ -130,6 +130,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                 reservation.ApprovalState = ReservationApprovalState.ChangesNeeded;
             }
             else
+
             {
                 reservationResource.ApprovalState = ReservationResourceApprovalState.Unapproved;
             }

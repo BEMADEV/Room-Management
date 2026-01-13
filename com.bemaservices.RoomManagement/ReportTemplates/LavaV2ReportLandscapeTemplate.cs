@@ -15,8 +15,6 @@
 // </copyright>
 //
 using System.ComponentModel.Composition;
-
-using iTextSharp.text;
 using PuppeteerSharp.Media;
 
 namespace com.bemaservices.RoomManagement.ReportTemplates

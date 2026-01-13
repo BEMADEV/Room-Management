@@ -1,10 +1,6 @@
 ﻿
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Runtime.Caching;
-using System.Text.RegularExpressions;
 
 using Ical.Net;
 using Ical.Net.CalendarComponents;

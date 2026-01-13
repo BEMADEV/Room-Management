@@ -1,0 +1,4 @@
+*.*
+!*.ascx
+!*.ascx.cs
+!.gitignore

@@ -11,6 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Owin" Version="4.0.0" />
     <PackageReference Include="SparkDevNetwork.Rock.Build.Tasks" Version="1.0.4" />
     <PackageReference Include="SparkDevNetwork.Rock.Analyzers" Version="1.0.4" />
     <PackageReference Include="RockRMS.Rock" Version="17.6.1" />

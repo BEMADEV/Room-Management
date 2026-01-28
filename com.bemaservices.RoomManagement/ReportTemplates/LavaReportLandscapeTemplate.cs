@@ -16,8 +16,6 @@
 //
 using System.ComponentModel.Composition;
 
-using iTextSharp.text;
-
 namespace com.bemaservices.RoomManagement.ReportTemplates
 {
     /// <summary>
@@ -28,12 +26,8 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [System.ComponentModel.Description( "The lava report template in landscape" )]
     [Export( typeof( ReportTemplate ) )]
     [ExportMetadata( "ComponentName", "Lava Landscape" )]
-    public class LavaReportLandscapeTemplate : LavaReportTemplate
+    public class LavaReportLandscapeTemplate : LavaV2ReportLandscapeTemplate
     {
-        /// <summary>
-        /// Gets the size of the page.
-        /// </summary>
-        /// <value>The size of the page.</value>
-        protected override Rectangle PageSize => base.PageSize.Rotate();
+        
     }
 }

@@ -28,8 +28,6 @@ using Rock.Model;
 using Rock.Pdf;
 using Rock.Web.Cache;
 
-using Document = iTextSharp.text.Document;
-
 namespace com.bemaservices.RoomManagement.ReportTemplates
 {
     /// <summary>

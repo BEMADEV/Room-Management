@@ -673,12 +673,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( recipientType == GridAction.EmailAdminContacts || recipientType == GridAction.EmailAdminAndEventContacts )
             {
-                recipients.AddRange( reservations.Select( r => r.AdministrativeContactPersonAlias.PersonId ) );
+                recipients.AddRange( reservations.Where(r=> r.AdministrativeContactPersonAliasId != null).Select( r => r.AdministrativeContactPersonAlias.PersonId ) );
             }
 
             if ( recipientType == GridAction.EmailEventContacts || recipientType == GridAction.EmailAdminAndEventContacts )
             {
-                recipients.AddRange( reservations.Select( r => r.EventContactPersonAlias.PersonId ) );
+                recipients.AddRange( reservations.Where( r => r.EventContactPersonAliasId != null ).Select( r => r.EventContactPersonAlias.PersonId ) );
             }
 
             using ( var rockContext = new RockContext() )

@@ -6,6 +6,7 @@ namespace com.bemaservices.RoomManagement.Migrations
     /// <summary>
     /// Migration for SchedulingProvider and related tables.
     /// </summary>
+    [MigrationNumber( 049, "1.17.6" )]
     public partial class AddSchedulingProvider : Migration
     {
         public override void Up()
@@ -21,6 +22,7 @@ namespace com.bemaservices.RoomManagement.Migrations
                     Description = c.String( maxLength: null ),
                     EntityTypeId = c.Int( nullable: false ),
                     IsActive = c.Boolean( nullable: false ),
+                    MappingsJson = c.String( maxLength: null ),
                     Guid = c.Guid( nullable: false, defaultValueSql: "NEWID()" ),
                     CreatedDateTime = c.DateTime(),
                     ModifiedDateTime = c.DateTime(),
@@ -55,7 +57,7 @@ namespace com.bemaservices.RoomManagement.Migrations
                 } );
             AddPrimaryKey( schedulingProviderReservationTableName, "Id" );
             AddForeignKey( schedulingProviderReservationTableName, "SchedulingProviderId", schedulingProviderTableName, "Id", true );
-            AddForeignKey( schedulingProviderReservationTableName, "ReservationId", "dbo.Reservation", "Id", true );
+            AddForeignKey( schedulingProviderReservationTableName, "ReservationId", "dbo._com_bemaservices_RoomManagement_Reservation", "Id", true );
             AddIndex( schedulingProviderReservationTableName, "SchedulingProviderId" );
             AddIndex( schedulingProviderReservationTableName, "ReservationId" );
 

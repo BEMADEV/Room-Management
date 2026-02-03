@@ -28,7 +28,6 @@ using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
 using Rock.Workflow;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 {
@@ -39,7 +38,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     [Description( "Gets an approval group." )]
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "Get Approval Group" )]
-    [EntityTypeGuid( "3A8010E3-C836-423F-B5DD-37D7BEE2815C" )]
+    [Rock.SystemGuid.EntityTypeGuid( "3A8010E3-C836-423F-B5DD-37D7BEE2815C" )]
 
     [WorkflowAttribute( "Reservation Type Attribute", "The attribute that contains the reservation type to pull the approval group for",
         false, "", "", 1, null, new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationTypeFieldType" } )]

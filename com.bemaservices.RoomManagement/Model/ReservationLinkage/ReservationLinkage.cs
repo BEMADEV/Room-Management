@@ -22,7 +22,6 @@ using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Lava;
 using Rock.Model;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -31,7 +30,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_ReservationLinkage" )]
     [DataContract]
-    [EntityTypeGuid( "2EF1C046-4E6F-4C71-8347-EF871FE21E94" )]
+    [Rock.SystemGuid.EntityTypeGuid( "2EF1C046-4E6F-4C71-8347-EF871FE21E94" )]
     public class ReservationLinkage : Rock.Data.Model<ReservationLinkage>, Rock.Data.IRockEntity
     {
         #region Entity Properties

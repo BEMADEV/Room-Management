@@ -19,7 +19,6 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -30,7 +29,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// <seealso cref="Rock.Data.IRockEntity" />
     [Table( "_com_bemaservices_RoomManagement_ReservationWorkflow" )]
     [DataContract]
-    [EntityTypeGuid( "3660E6A9-B3DA-4CCB-8FC8-B182BC1A2587" )]
+    [Rock.SystemGuid.EntityTypeGuid( "3660E6A9-B3DA-4CCB-8FC8-B182BC1A2587" )]
     public class ReservationWorkflow : Rock.Data.Model<ReservationWorkflow>, Rock.Data.IRockEntity
     {
         #region Entity Properties

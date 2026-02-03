@@ -28,7 +28,6 @@ using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
 using Rock.Workflow;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 {
@@ -39,7 +38,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     [Description( "Sets the states of a reservation's resources." )]
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "Reservation Resources Set States" )]
-    [EntityTypeGuid( "A87C07F7-8E94-4BC5-96BF-40B817EDC0AC" )]
+    [Rock.SystemGuid.EntityTypeGuid( "A87C07F7-8E94-4BC5-96BF-40B817EDC0AC" )]
 
     [WorkflowAttribute( "Reservation Attribute", "The attribute that contains the reservation.", true, "", "", 0, null,
         new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationFieldType" } )]

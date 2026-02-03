@@ -15,7 +15,6 @@
 // </copyright>
 //
 using System.ComponentModel.Composition;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.ReportTemplates
 {
@@ -27,7 +26,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [System.ComponentModel.Description( "The lava report template in landscape" )]
     [Export( typeof( ReportTemplate ) )]
     [ExportMetadata( "ComponentName", "Lava Landscape" )]
-    [EntityTypeGuid( "8F58019A-7826-499F-A8C4-204DAE9AD7DA" )]
+    [Rock.SystemGuid.EntityTypeGuid( "8F58019A-7826-499F-A8C4-204DAE9AD7DA" )]
     public class LavaReportLandscapeTemplate : LavaV2ReportLandscapeTemplate
     {
         

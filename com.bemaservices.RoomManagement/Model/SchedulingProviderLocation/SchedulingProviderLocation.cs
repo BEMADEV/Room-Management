@@ -20,7 +20,6 @@ using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Model;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -29,16 +28,22 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_SchedulingProviderLocation" )]
     [DataContract]
-    [EntityTypeGuid( "B89C5287-5468-49F1-8871-590AC20D8AF2" )]
+    [Rock.SystemGuid.EntityTypeGuid( "B89C5287-5468-49F1-8871-590AC20D8AF2" )]
     public class SchedulingProviderLocation : Model<SchedulingProviderLocation>
     {
         #region Entity Properties
 
+        [DataMember]
         [Required]
         public int SchedulingProviderId { get; set; }
 
+        [DataMember]
         [Required]
         public int LocationId { get; set; }
+
+        [DataMember]
+        [Required]
+        public string ExternalId { get; set; }
 
         #endregion
 

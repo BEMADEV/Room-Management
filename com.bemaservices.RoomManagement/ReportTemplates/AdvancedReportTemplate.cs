@@ -15,7 +15,6 @@
 // </copyright>
 //
 using System.ComponentModel.Composition;
-using Rock.SystemGuid;
 
 
 namespace com.bemaservices.RoomManagement.ReportTemplates
@@ -28,7 +27,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [System.ComponentModel.Description( "The advanced report template" )]
     [Export( typeof( ReportTemplate ) )]
     [ExportMetadata( "ComponentName", "Advanced" )]
-    [EntityTypeGuid( "97A7FFDA-1B75-473F-A680-C9A7602B5C60" )]
+    [Rock.SystemGuid.EntityTypeGuid( "97A7FFDA-1B75-473F-A680-C9A7602B5C60" )]
     public class AdvancedReportTemplate : LavaV2ReportLandscapeTemplate
     {        
     }

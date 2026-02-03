@@ -1,0 +1,162 @@
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data.Entity;
+using System.Linq;
+
+using Rock;
+using Rock.Attribute;
+using Rock.Blocks;
+using Rock.Data;
+using Rock.Model;
+using Rock.Obsidian.UI;
+using Rock.Security;
+using Rock.ViewModels.Blocks;
+using Rock.Web.Cache;
+
+using com.bemaservices.RoomManagement.Model;
+using com.bemaservices.RoomManagement.ViewModels;
+
+namespace com.bemaservices.RoomManagement.Blocks
+{
+    /// <summary>
+    /// Displays a list of scheduling provider reservations.
+    /// </summary>
+
+    [DisplayName( "Scheduling Provider Reservation List" )]
+    [Category( "BEMA Software Services > Room Management" )]
+    [Description( "Displays a list of scheduling provider reservations." )]
+    [IconCssClass( "fa fa-list" )]
+    [SupportedSiteTypes( SiteType.Web )]
+
+    [LinkedPage( "Detail Page",
+        Description = "The page that will show the scheduling provider reservation details.",
+        Key = AttributeKey.DetailPage )]
+
+    [Rock.SystemGuid.EntityTypeGuid( "be083e25-a366-449d-b21c-fc467ca10ec3" )]
+    [Rock.SystemGuid.BlockTypeGuid( "13cdf65b-bcee-4e7d-8d42-298a8f6676be" )]
+    [CustomizedGrid]
+    public class SchedulingProviderReservationList : RockEntityListBlockType<SchedulingProviderReservation>
+    {
+        #region Keys
+
+        private static class AttributeKey
+        {
+            public const string DetailPage = "DetailPage";
+        }
+
+        private static class NavigationUrlKey
+        {
+            public const string DetailPage = "DetailPage";
+        }
+
+        #endregion Keys
+
+        #region Properties
+
+        /// <inheritdoc/>
+        public override string ObsidianFileUrl => "~/Plugins/com_bemaservices/RoomManagement/schedulingProviderReservationList.obs";
+
+        #endregion
+
+        #region Methods
+
+        /// <inheritdoc/>
+        public override object GetObsidianBlockInitialization()
+        {
+            var box = new ListBlockBox<SchedulingProviderReservationListOptionsBag>();
+            var builder = GetGridBuilder();
+
+            box.IsAddEnabled = GetIsAddEnabled();
+            box.IsDeleteEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            box.ExpectedRowCount = null;
+            box.NavigationUrls = GetBoxNavigationUrls();
+            box.Options = GetBoxOptions();
+            box.GridDefinition = builder.BuildDefinition();
+
+            return box;
+        }
+
+        /// <summary>
+        /// Gets the box options required for the component to render the list.
+        /// </summary>
+        /// <returns>The options that provide additional details to the block.</returns>
+        private SchedulingProviderReservationListOptionsBag GetBoxOptions()
+        {
+            var options = new SchedulingProviderReservationListOptionsBag();
+
+            return options;
+        }
+
+        /// <summary>
+        /// Determines if the add button should be enabled in the grid.
+        /// </summary>
+        /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
+        private bool GetIsAddEnabled()
+        {
+            return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+        }
+
+        /// <summary>
+        /// Gets the box navigation URLs required for the page to operate.
+        /// </summary>
+        /// <returns>A dictionary of key names and URL values.</returns>
+        private Dictionary<string, string> GetBoxNavigationUrls()
+        {
+            return new Dictionary<string, string>
+            {
+                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "SchedulingProviderReservationId", "((Key))" )
+            };
+        }
+
+        /// <inheritdoc/>
+        protected override IQueryable<SchedulingProviderReservation> GetListQueryable( RockContext rockContext )
+        {
+            return base.GetListQueryable( rockContext )
+                .Include( a => a.SchedulingProvider );
+        }
+
+        /// <inheritdoc/>
+        protected override GridBuilder<SchedulingProviderReservation> GetGridBuilder()
+        {
+            return new GridBuilder<SchedulingProviderReservation>()
+                .WithBlock( this )
+                .AddTextField( "idKey", a => a.IdKey )
+                .AddField( "externalId", a => a.ExternalId )
+                .AddTextField( "schedulingProvider", a => a.SchedulingProvider?.Name )
+                .AddAttributeFields( GetGridAttributes() );
+        }
+
+        #endregion
+
+        #region Block Actions
+
+        /// <summary>
+        /// Deletes the specified entity.
+        /// </summary>
+        /// <param name="key">The identifier of the entity to be deleted.</param>
+        /// <returns>An empty result that indicates if the operation succeeded.</returns>
+        [BlockAction]
+        public BlockActionResult Delete( string key )
+        {
+            var entityService = new SchedulingProviderReservationService( RockContext );
+            var entity = entityService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( entity == null )
+            {
+                return ActionBadRequest( $"{SchedulingProviderReservation.FriendlyTypeName} not found." );
+            }
+
+            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( $"Not authorized to delete {SchedulingProviderReservation.FriendlyTypeName}." );
+            }
+
+            entityService.Delete( entity );
+            RockContext.SaveChanges();
+
+            return ActionOk();
+        }
+
+        #endregion
+    }
+}

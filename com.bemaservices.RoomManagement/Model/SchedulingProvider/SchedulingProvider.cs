@@ -21,7 +21,6 @@ using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Model;
-using Rock.SystemGuid;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -31,13 +30,14 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_SchedulingProvider" )]
     [DataContract]
-    [EntityTypeGuid( "1D4CFE5A-E0D2-4077-A822-9B2C01CC0A0F" )]
+    [Rock.SystemGuid.EntityTypeGuid( "1D4CFE5A-E0D2-4077-A822-9B2C01CC0A0F" )]
     public class SchedulingProvider : Model<SchedulingProvider>
     {
         #region Entity Properties
         /// <summary>
         /// Gets or sets the name of the scheduling provider.
         /// </summary>
+        [DataMember]
         [Required]
         [MaxLength( 100 )]
         public string Name { get; set; }
@@ -45,18 +45,22 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Gets or sets the description of the scheduling provider.
         /// </summary>
+        [DataMember]
         [MaxLength( 500 )]
         public string Description { get; set; }
 
         /// <summary>
         /// Gets or sets the entity type identifier.
         /// </summary>
+        [DataMember]
         [Required]
         public int EntityTypeId { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this scheduling provider is active.
         /// </summary>
+        [DataMember] 
+        [Required]
         public bool IsActive { get; set; }
 
         public string MappingsJson { get; set; }

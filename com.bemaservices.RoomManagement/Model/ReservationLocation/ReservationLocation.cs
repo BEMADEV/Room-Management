@@ -25,7 +25,6 @@ using Rock;
 using Rock.Lava;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -34,7 +33,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_ReservationLocation" )]
     [DataContract]
-    [EntityTypeGuid( "07084E96-2907-4741-80DF-016AB5981D12" )]
+    [Rock.SystemGuid.EntityTypeGuid( "07084E96-2907-4741-80DF-016AB5981D12" )]
     public class ReservationLocation : Rock.Data.Model<ReservationLocation>, Rock.Data.IRockEntity
     {
 

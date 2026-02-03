@@ -20,16 +20,15 @@ using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 using Rock;
 using Rock.Model;
-using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
     /// <summary>
     /// A Reservation Ministry
     /// </summary>
-    [EntityTypeGuid( "A9CFE2C0-20DF-4CF7-A4D1-45D12EB87AA6" )]
     [Table( "_com_bemaservices_RoomManagement_ReservationApprovalGroup" )]
     [DataContract]
+    [Rock.SystemGuid.EntityTypeGuid( "A9CFE2C0-20DF-4CF7-A4D1-45D12EB87AA6" )]
     public class ReservationApprovalGroup : Rock.Data.Model<ReservationApprovalGroup>, Rock.Data.IRockEntity
     {
 

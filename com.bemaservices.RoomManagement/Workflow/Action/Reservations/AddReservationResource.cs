@@ -28,6 +28,7 @@ using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
 using Rock.Workflow;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 {
@@ -38,6 +39,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     [Description( "Adds a resource to a reservation." )]
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "Reservation Add Resource" )]
+    [EntityTypeGuid( "2441F4FC-3812-4511-9E55-6BA46141D767" )]
 
     [WorkflowAttribute( "Reservation Attribute", "The attribute that contains the reservation.", true, "", "", 0, null,
         new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationFieldType" } )]
@@ -49,7 +51,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
     [WorkflowAttribute( "Location Attribute", "Rock will try to find a ReservationLocation with this location, and will ignore it if one is not found.", false, "", "", 1, null,
         new string[] { "Rock.Field.Types.LocationFieldType" } )]
-
     public class AddReservationResource : ActionComponent
     {
         /// <summary>

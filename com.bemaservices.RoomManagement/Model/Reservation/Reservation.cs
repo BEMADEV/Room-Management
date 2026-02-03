@@ -30,12 +30,14 @@ using Rock.Data;
 using Rock.Lava;
 using Rock.Model;
 using Rock.Security;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
     /// <summary>
     /// A Room Reservation
     /// </summary>
+    [EntityTypeGuid( "839768A3-10D6-446C-A65B-B8F9EFD7808F" )]
     [Table( "_com_bemaservices_RoomManagement_Reservation" )]
     [DataContract]
     public class Reservation : Rock.Data.Model<Reservation>, Rock.Data.IRockEntity

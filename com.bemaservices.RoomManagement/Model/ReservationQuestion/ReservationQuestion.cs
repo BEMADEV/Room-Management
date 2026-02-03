@@ -20,6 +20,7 @@ using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 
 using Rock.Model;
+using Rock.SystemGuid;
 namespace com.bemaservices.RoomManagement.Model
 {
     /// <summary>
@@ -27,6 +28,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_Question" )]
     [DataContract]
+    [EntityTypeGuid( "B87BE26D-1273-40CF-83A8-9E179665B4D2" )]
     public class ReservationQuestion : Rock.Data.Model<ReservationQuestion>, Rock.Data.IRockEntity
     {
 

@@ -28,6 +28,7 @@ using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
 using Rock.Workflow;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 {
@@ -38,6 +39,7 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     [Description( "Creates a reservation." )]
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "Reservation Create" )]
+    [EntityTypeGuid( "36B233BE-A202-4D58-B1AE-00A49EC20D44" )]
 
     // Reservation Property Fields
     [WorkflowTextOrAttribute( "Name", "Attribute Value", "The name or an attribute that contains the name of the reservation. <span class='tip tip-lava'></span>",
@@ -57,7 +59,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     // New Reservation Attribute
     [WorkflowAttribute( "Reservation Attribute", "The reservation attribute to set the value to the reservation created.", true, "", "", 6, null,
         new string[] { "com.bemaservices.RoomManagement.Field.Types.ReservationFieldType" } )]
-
     public class CreateReservation : ActionComponent
     {
         /// <summary>

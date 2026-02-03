@@ -16,6 +16,7 @@
 //
 using System.ComponentModel.Composition;
 using PuppeteerSharp.Media;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.ReportTemplates
 {
@@ -27,6 +28,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [System.ComponentModel.Description( "The lava v2 report template in landscape" )]
     [Export( typeof( ReportTemplate ) )]
     [ExportMetadata( "ComponentName", "Lava V2 Landscape" )]
+    [EntityTypeGuid( "BF66FE07-E6F1-417B-BAA4-A7C31BEE4239" )]
     public class LavaV2ReportLandscapeTemplate : LavaV2ReportTemplate
     {
         /// <summary>

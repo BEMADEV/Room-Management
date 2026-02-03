@@ -15,6 +15,7 @@
 // </copyright>
 //
 using System.ComponentModel.Composition;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.ReportTemplates
 {
@@ -26,6 +27,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [System.ComponentModel.Description( "The default report template" )]
     [Export( typeof( ReportTemplate ) )]
     [ExportMetadata( "ComponentName", "Default" )]
+    [EntityTypeGuid( "9B74314A-37E0-40F2-906C-2862C93F8888" )]
     public class DefaultReportTemplate : LavaV2ReportTemplate
     {
     }

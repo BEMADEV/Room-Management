@@ -26,6 +26,7 @@ using Rock;
 using Rock.Data;
 using Rock.Model;
 using Rock.Pdf;
+using Rock.SystemGuid;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.ReportTemplates
@@ -38,6 +39,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
     [System.ComponentModel.Description( "The lava v2 report template" )]
     [Export( typeof( ReportTemplate ) )]
     [ExportMetadata( "ComponentName", "Lava V2" )]
+    [EntityTypeGuid( "BFDEFC3D-3D1D-431C-B20A-92E56FADD7CC" )]
     public class LavaV2ReportTemplate : ReportTemplate
     {
         /// <summary>

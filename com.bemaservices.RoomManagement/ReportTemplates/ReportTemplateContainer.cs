@@ -17,30 +17,38 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
-using com.bemaservices.RoomManagement.SchedulingProviders;
 using Rock.Extension;
 
-namespace com.bemaservices.RoomManagement.SchedulingProviders
+namespace com.bemaservices.RoomManagement.ReportTemplates
 {
-   
-    public class SchedulingProviderContainer : Container<SchedulingProvider, IComponentData>
+    /// <summary>
+    /// Class ReportTemplateContainer.
+    /// Implements the <see cref="Rock.Extension.Container{com.bemaservices.RoomManagement.ReportTemplates.ReportTemplate, Rock.Extension.IComponentData}" />
+    /// </summary>
+    /// <seealso cref="Rock.Extension.Container{com.bemaservices.RoomManagement.ReportTemplates.ReportTemplate, Rock.Extension.IComponentData}" />
+    public class ReportTemplateContainer : Container<ReportTemplate, IComponentData>
     {
         /// <summary>
         /// Singleton instance
         /// </summary>
-        private static readonly Lazy<SchedulingProviderContainer> instance =
-            new Lazy<SchedulingProviderContainer>( () => new SchedulingProviderContainer() );
+        private static readonly Lazy<ReportTemplateContainer> instance =
+            new Lazy<ReportTemplateContainer>( () => new ReportTemplateContainer() );
 
         /// <summary>
         /// Gets the instance.
         /// </summary>
         /// <value>The instance.</value>
-        public static SchedulingProviderContainer Instance
+        public static ReportTemplateContainer Instance
         {
             get { return instance.Value; }
         }
 
-        public static SchedulingProvider GetComponent( string entityType )
+        /// <summary>
+        /// Gets the component with the matching Entity Type Name.
+        /// </summary>
+        /// <param name="entityType">Type of the entity.</param>
+        /// <returns>ReportTemplate.</returns>
+        public static ReportTemplate GetComponent( string entityType )
         {
             return Instance.GetComponentByEntity( entityType );
         }
@@ -55,7 +63,11 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             return Instance.GetComponentNameByEntity( entityType );
         }
 
-        [ImportMany( typeof( SchedulingProvider ) )]
-        protected override IEnumerable<Lazy<SchedulingProvider, IComponentData>> MEFComponents { get; set; }
+        /// <summary>
+        /// Gets or sets the ReportTemplate MEF components.
+        /// </summary>
+        /// <value>The MEF components.</value>
+        [ImportMany( typeof( ReportTemplate ) )]
+        protected override IEnumerable<Lazy<ReportTemplate, IComponentData>> MEFComponents { get; set; }
     }
 }

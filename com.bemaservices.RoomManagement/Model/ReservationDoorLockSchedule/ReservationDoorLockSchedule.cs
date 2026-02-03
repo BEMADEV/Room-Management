@@ -25,6 +25,7 @@ using Rock;
 using Rock.Lava;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -33,6 +34,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_ReservationDoorLockSchedule" )]
     [DataContract]
+    [EntityTypeGuid( "9B9F1E7F-E815-4859-BD7D-1DE03D1D81BB" )]
     public class ReservationDoorLockSchedule : Rock.Data.Model<ReservationDoorLockSchedule>, Rock.Data.IRockEntity
     {
         #region Entity Properties

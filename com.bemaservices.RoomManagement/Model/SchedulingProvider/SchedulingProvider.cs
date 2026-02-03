@@ -17,9 +17,11 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
 using Rock.Data;
 using Rock.Model;
+using Rock.SystemGuid;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -27,7 +29,9 @@ namespace com.bemaservices.RoomManagement.Model
     /// <summary>
     /// Represents a scheduling provider configuration.
     /// </summary>
-    [Table( "SchedulingProvider" )]
+    [Table( "_com_bemaservices_RoomManagement_SchedulingProvider" )]
+    [DataContract]
+    [EntityTypeGuid( "1D4CFE5A-E0D2-4077-A822-9B2C01CC0A0F" )]
     public class SchedulingProvider : Model<SchedulingProvider>
     {
         #region Entity Properties
@@ -70,17 +74,17 @@ namespace com.bemaservices.RoomManagement.Model
 
     #region Entity Configuration
 
-    /// <summary>
-    /// FinancialGateway Configuration class.
-    /// </summary>
-    public partial class FinancialGatewayConfiguration : EntityTypeConfiguration<FinancialGateway>
+    public partial class SchedulingProviderConfiguration : EntityTypeConfiguration<SchedulingProvider>
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="FinancialGatewayConfiguration"/> class.
+        /// Initializes a new instance of the <see cref="SchedulingProviderConfiguration"/> class.
         /// </summary>
-        public FinancialGatewayConfiguration()
+        public SchedulingProviderConfiguration()
         {
             this.HasRequired( g => g.EntityType ).WithMany().HasForeignKey( a => a.EntityTypeId ).WillCascadeOnDelete( false );
+
+            // IMPORTANT!!
+            this.HasEntitySetName( "SchedulingProvider" );
         }
     }
 

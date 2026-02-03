@@ -24,6 +24,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Web;
 using System.Text;
 using Rock.Lava;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Model
 {
@@ -32,6 +33,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// </summary>
     [Table( "_com_bemaservices_RoomManagement_LocationLayout" )]
     [DataContract]
+    [EntityTypeGuid( "79991D84-88EB-4384-8D09-1E514BC3B2BD" )]
     public class LocationLayout : Rock.Data.Model<LocationLayout>, Rock.Data.IRockEntity
     {
         #region Entity Properties

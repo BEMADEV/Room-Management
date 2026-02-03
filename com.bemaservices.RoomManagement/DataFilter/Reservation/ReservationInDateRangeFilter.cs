@@ -30,6 +30,7 @@ using com.bemaservices.RoomManagement.Web.UI.Controls;
 using Rock;
 using Rock.Data;
 using Rock.Reporting;
+using Rock.SystemGuid;
 using Rock.Web.UI.Controls;
 
 namespace com.bemaservices.RoomManagement.DataFilter.Reservation
@@ -41,6 +42,7 @@ namespace com.bemaservices.RoomManagement.DataFilter.Reservation
     [Description( "Filter reservations on a date range" )]
     [Export( typeof( DataFilterComponent ) )]
     [ExportMetadata( "ComponentName", "Reservation In Date Range Filter" )]
+    [EntityTypeGuid( "9B2E908E-824D-4C5D-9975-A5E2B72ACC8F" )]
     public class ReservationInDateRangeFilter : DataFilterComponent
     {
         #region Properties

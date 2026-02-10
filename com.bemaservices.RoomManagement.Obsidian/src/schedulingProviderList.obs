@@ -25,7 +25,7 @@
                     visiblePriority="xs" />
 
         <TextColumn name="entityType"
-                    title="Entity Type"
+                    title="Provider Type"
                     field="entityType"
                     :filter="textValueFilter"
                     visiblePriority="xs" />

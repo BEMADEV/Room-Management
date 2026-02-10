@@ -124,7 +124,7 @@ namespace com.bemaservices.RoomManagement.Blocks
                 .WithBlock( this )
                 .AddTextField( "idKey", a => a.IdKey )
                 .AddField( "description", a => a.Description )
-                .AddTextField( "entityType", a => a.EntityType?.Name )
+                .AddTextField( "entityType", a => a.EntityType?.FriendlyName )
                 .AddField( "isActive", a => a.IsActive )
                 .AddField( "name", a => a.Name )
                 .AddField( "isSecurityDisabled", a => !a.IsAuthorized( Authorization.ADMINISTRATE, RequestContext.CurrentPerson ) )

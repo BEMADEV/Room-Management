@@ -20,6 +20,7 @@ using System.ComponentModel.Composition;
 using com.bemaservices.RoomManagement.Model;
 using com.bemaservices.RoomManagement.SchedulingProviders;
 using Rock.Extension;
+using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.SchedulingProviders
 {

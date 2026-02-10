@@ -19,8 +19,10 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity.ModelConfiguration;
 using System.Runtime.Serialization;
+using com.bemaservices.RoomManagement.SchedulingProviders;
 using Rock.Data;
 using Rock.Model;
+using Rock.Storage.AssetStorage;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Model
@@ -59,7 +61,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <summary>
         /// Gets or sets a value indicating whether this scheduling provider is active.
         /// </summary>
-        [DataMember] 
+        [DataMember]
         [Required]
         public bool IsActive { get; set; }
 
@@ -68,12 +70,42 @@ namespace com.bemaservices.RoomManagement.Model
         #endregion Entity Properties
 
         #region Navigation Properties
-       
+
         [DataMember]
         public virtual EntityType EntityType { get; set; }
 
 
         #endregion Navigation Properties
+
+        #region Public Methods
+
+        /// <summary>
+        /// Gets the asset storage component.
+        /// </summary>
+        /// <returns></returns>
+        public virtual SchedulingProviderComponent GetSchedulingComponent()
+        {
+            var entityType = EntityTypeCache.Get( EntityTypeId );
+            if ( entityType != null )
+            {
+                return SchedulingProviderContainer.GetComponent( entityType.Name );
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns a <see cref="System.String" /> that represents this instance.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="System.String" /> that represents this instance.
+        /// </returns>
+        public override string ToString()
+        {
+            return this.Name;
+        }
+
+        #endregion Public Methods
     }
 
     #region Entity Configuration

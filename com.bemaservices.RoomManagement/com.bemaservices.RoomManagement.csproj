@@ -11,6 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Apis" Version="1.73.0" />
+    <PackageReference Include="Google.Apis.Admin.Directory.directory_v1" Version="1.73.0.4030" />
+    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.73.0.3993" />
     <PackageReference Include="Microsoft.Owin" Version="4.0.0" />
     <PackageReference Include="SparkDevNetwork.Rock.Build.Tasks" Version="1.0.4" />
     <PackageReference Include="SparkDevNetwork.Rock.Analyzers" Version="1.0.4" />

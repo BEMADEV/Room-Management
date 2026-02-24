@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using com.bemaservices.RoomManagement.Model;
 using com.bemaservices.RoomManagement.SchedulingProviders;
+using Rock.Data;
 using Rock.Extension;
 using Rock.Web.Cache;
 
@@ -40,6 +41,23 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         public static SchedulingProviderContainer Instance
         {
             get { return instance.Value; }
+        }
+
+        public override void Refresh()
+        {
+            base.Refresh();
+
+            // Create any attributes that need to be created
+            int schedulingProviderEntityTypeId = EntityTypeCache.Get( typeof( Model.SchedulingProvider ) ).Id;
+            using ( var rockContext = new RockContext() )
+            {
+                foreach ( var providerComponent in this.Components )
+                {
+                    Type providerComponentType = providerComponent.Value.Value.GetType();
+                    int providerComponentEntityTypeId = EntityTypeCache.Get( providerComponentType ).Id;
+                    Rock.Attribute.Helper.UpdateAttributes( providerComponentType, schedulingProviderEntityTypeId, "EntityTypeId", providerComponentEntityTypeId.ToString(), rockContext );
+                }
+            }
         }
 
         public static SchedulingProviderComponent GetComponent( string entityType )

@@ -118,6 +118,8 @@ namespace com.bemaservices.RoomManagement.Blocks
             var isViewable = entity.IsAuthorized( Authorization.VIEW, RequestContext.CurrentPerson );
             box.IsEditable = entity.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
 
+            entity.LoadAttributes( RockContext );
+
             if ( entity.Id != 0 )
             {
                 // Existing entity was found, prepare for view mode by default.
@@ -183,7 +185,7 @@ namespace com.bemaservices.RoomManagement.Blocks
                 entity.LoadAttributes( RockContext );
             }
 
-            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true );
+            bag.LoadAttributesAndValuesForPublicView( entity, RequestContext.CurrentPerson, enforceSecurity: true, attributeFilter: IsAttributeIncluded );
 
             return bag;
         }
@@ -203,9 +205,21 @@ namespace com.bemaservices.RoomManagement.Blocks
                 entity.LoadAttributes( RockContext );
             }
 
-            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true );
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: true, attributeFilter: IsAttributeIncluded );
 
             return bag;
+        }
+
+        /// <summary>
+        /// Ensures the order and active attributes are not included in the attributes for edit.
+        /// </summary>
+        /// <param name="attribute">The attribute.</param>
+        /// <returns>
+        ///   <c>true</c> if [is attribute included] [the specified attribute]; otherwise, <c>false</c>.
+        /// </returns>
+        private bool IsAttributeIncluded( AttributeCache attribute )
+        {
+            return attribute.Key != "Order" && attribute.Key != "Active";
         }
 
         /// <inheritdoc/>
@@ -233,7 +247,7 @@ namespace com.bemaservices.RoomManagement.Blocks
                 {
                     entity.LoadAttributes( RockContext );
 
-                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true );
+                    entity.SetPublicAttributeValues( box.Bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: true, attributeFilter: IsAttributeIncluded );
                 } );
 
             return true;

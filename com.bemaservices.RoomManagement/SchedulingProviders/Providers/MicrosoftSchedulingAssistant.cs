@@ -26,6 +26,7 @@ using com.bemaservices.RoomManagement.Model;
 using com.bemaservices.RoomManagement.SchedulingProviders.Data;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Rock;
 using Rock.Attribute;
 
 namespace com.bemaservices.RoomManagement.SchedulingProviders
@@ -336,6 +337,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             try
             {
+                schedulingProvider.LoadAttributes();
                 var tenantId = schedulingProvider.GetAttributeValue( "TenantId" );
                 var clientId = schedulingProvider.GetAttributeValue( "ClientId" );
                 var clientSecret = schedulingProvider.GetAttributeValue( "ClientSecret" );

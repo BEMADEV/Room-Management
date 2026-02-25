@@ -1,44 +1,73 @@
 <template>
-    <Grid :definition="config.gridDefinition ?? undefined"
+    <Grid v-if="config.options?.isBlockVisible"
+          :definition="config.gridDefinition ?? undefined"
           :data="gridDataSource"
           keyField="idKey"
+          :title="itemTerm"
           itemTerm="Scheduling Provider Location"
           entityTypeGuid="b89c5287-5468-49f1-8871-590ac20d8af2"
           stickyHeader
           liveUpdates
           :onAddItem="config.isAddEnabled ? onAddItem : undefined"
           @selectItem="onSelectItem">
-        <SelectColumn />
 
-        <TextColumn name="externalId"
-                    title="External Id"
-                    field="externalId"
-                    :filter="textValueFilter"
-                    visiblePriority="xs" />
+      <TextColumn name="schedulingProvider"
+                  title="Scheduling Provider"
+                  field="schedulingProvider"
+                  :filter="textValueFilter"
+                  visiblePriority="xs" />
 
-        <TextColumn name="schedulingProvider"
-                    title="Scheduling Provider"
-                    field="schedulingProvider"
-                    :filter="textValueFilter"
-                    visiblePriority="xs" />
+      <TextColumn name="externalId"
+                  title="External Id"
+                  field="externalId"
+                  :filter="textValueFilter"
+                  visiblePriority="xs" />
 
         <AttributeColumns :attributes="config.gridDefinition?.attributeFields ?? []" />
 
         <DeleteColumn v-if="config.isDeleteEnabled" @click="onDeleteClick" />
     </Grid>
+
+    <Modal v-model="isModalOpen" title="Scheduling Provider Location" :subtitle="`Id: ${id}`" saveText="Save" @save="onSaveSchedulingProviderLocation">
+      <legend>
+        {{ modalTitle }}
+      </legend>
+      <fieldset>
+
+        <SchedulingProvider
+                        v-model="schedulingProvider"
+                        label="Scheduling Provider"
+                        :multiple="false" />
+
+        <TextBox v-model="externalId"
+                 label="External Id"
+                 rules="required" />
+
+        <AttributeValuesContainer v-model="attributeValues"
+                                  :attributes="attributes"
+                                  :showCategoryLabel="false"
+                                  :isEditMode="true" />
+
+      </fieldset>
+    </Modal>
 </template>
 
 <script setup lang="ts">
-import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
-import Grid, { AttributeColumns, TextColumn, textValueFilter, DeleteColumn, SelectColumn } from "@Obsidian/Controls/grid";
-import { alert } from "@Obsidian/Utility/dialogs";
-import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
-import { SchedulingProviderLocationListOptionsBag } from "./viewModels";
-import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
-import { NavigationUrlKey } from "./SchedulingProviderLocationList/types.partial";
-import { reactive, ref } from "vue";
+  import { onConfigurationValuesChanged, useConfigurationValues, useInvokeBlockAction, useReloadBlock } from "@Obsidian/Utility/block";
+  import Grid, { AttributeColumns, TextColumn, textValueFilter, DeleteColumn } from "@Obsidian/Controls/grid";
+  import { alert } from "@Obsidian/Utility/dialogs";
+  import { ListBlockBox } from "@Obsidian/ViewModels/Blocks/listBlockBox";
+  import Modal from "@Obsidian/Controls/modal.obs";
+  import TextBox from "@Obsidian/Controls/textBox.obs";
+  import AttributeValuesContainer from "@Obsidian/Controls/attributeValuesContainer.obs";
+  import { SchedulingProviderLocationListOptionsBag } from "./viewModels";
+  import { SchedulingProviderLocationBag } from "./viewModels";
+  import { GridDataBag } from "@Obsidian/ViewModels/Core/Grid/gridDataBag";
+  import { computed, reactive, ref, watch } from "vue";
+  import { ListItemBag } from "@Obsidian/ViewModels/Utility/listItemBag";
+  import { PublicAttributeBag } from "@Obsidian/ViewModels/Utility/publicAttributeBag";
 
-const config = useConfigurationValues<ListBlockBox<SchedulingProviderLocationListOptionsBag>>();
+  const config = useConfigurationValues<ListBlockBox<SchedulingProviderLocationListOptionsBag>>();
 const invokeBlockAction = useInvokeBlockAction();
 
 // All blocks auto reload when changing block settings unless there is an
@@ -48,8 +77,29 @@ onConfigurationValuesChanged(useReloadBlock());
 
 // #region Values
 
-const gridDataSource = ref<Promise<GridDataBag>>();
-let gridData: GridDataBag | undefined;
+    const gridDataSource = ref<Promise<GridDataBag>>();
+    let gridData: GridDataBag | undefined;
+    const isModalOpen = ref(false);
+    const idKey = ref("");
+    const id = ref(0);
+    const externalId = ref("");
+    const schedulingProvider = ref<ListItemBag | undefined>();
+    const locationId = ref(0);
+    const attributes = ref<Record<string, PublicAttributeBag>>({});
+    const attributeValues = ref<Record<string, string>>({});
+
+    // #endregion
+
+    //# region Computed Values
+
+    const itemTerm = computed((): string => {
+        return config.options?.locationName ? config.options?.locationName + " Scheduling Provider Ids" : "Scheduling Provider Ids";
+    });
+
+    const modalTitle = computed((): string => {
+        const operation = idKey.value ? "Edit" : "Add";
+        return `${operation} Scheduling Provider Id for ${config.options?.locationName}`;
+    });
 
 // #endregion
 
@@ -74,16 +124,32 @@ async function loadGridData(): Promise<GridDataBag> {
 
 // #region Event Handlers
 
-/**
- * Called when a row has been selected by the individual.
- *
- * @param key The key of the row that was selected.
- */
-function onSelectItem(key: string): void {
-    if (config.navigationUrls?.[NavigationUrlKey.DetailPage]) {
-        window.location.href = config.navigationUrls[NavigationUrlKey.DetailPage].replace("((Key))", key);
+    /**
+     * Called when a row has been selected by the individual.
+     *
+     * @param key The key of the row that was selected.
+     */
+    async function onSelectItem(key: string): Promise<void> {
+
+        const result = await invokeBlockAction<SchedulingProviderLocationBag>("Edit", {
+            key
+        });
+
+        if (result.isSuccess && result.data) {
+            idKey.value = result.data.idKey ?? "";
+            locationId.value = result.data.locationId ?? 0;
+            externalId.value = result.data.externalId ?? "";
+            schedulingProvider.value = result.data.schedulingProvider ?? {};
+            attributes.value = result.data.attributes ?? {};
+            attributeValues.value = result.data.attributeValues ?? {};
+            id.value = result.data.id;
+
+            isModalOpen.value = true;
+        }
+        else {
+            await alert(result.errorMessage ?? "Unknown error while trying to edit scheduling provider location.");
+        }
     }
-}
 
 /**
  * Called when a row's delete button has been clicked by the individual. This
@@ -108,16 +174,58 @@ async function onDeleteClick(key: string): Promise<void> {
     }
 }
 
-/**
- * Called when the Add button has been clicked by the individual.
- */
-function onAddItem(): void {
-    if (config.navigationUrls?.[NavigationUrlKey.DetailPage]) {
-        window.location.href = config.navigationUrls[NavigationUrlKey.DetailPage].replace("((Key))", "0");
+    /**
+     * Called when the Add button has been clicked by the indivual.
+     */
+    async function onAddItem(): Promise<void> {
+        await onSelectItem("");
     }
-}
+
+    /**
+    * Sends a request to the server the save the Scheduling Provider Location.
+    */
+    async function onSaveSchedulingProviderLocation(): Promise<void> {
+        const bag: SchedulingProviderLocationBag = {
+            id: id.value,
+            idKey: idKey.value,
+            locationId: locationId.value,
+            schedulingProvider: schedulingProvider.value,
+            externalId: externalId.value,
+            attributes: attributes.value,
+            attributeValues: attributeValues.value
+        };
+
+        const result = await invokeBlockAction<string>("Save", {
+            bag
+        });
+
+        if (result.isSuccess) {
+            gridDataSource.value = loadGridData();
+            isModalOpen.value = false;
+        }
+        else {
+            await alert(result.errorMessage ?? "Unknown error while trying to save Scheduling Provider Location.");
+        }
+    }
+
+    /**
+    * Resets the Scheduling Provider Location Modal values.
+    */
+    function resetModal(): void {
+        idKey.value = "";
+        externalId.value = "";
+        schedulingProvider.value = {};
+        attributes.value = {};
+        attributeValues.value = {};
+    }
 
 // #endregion
 
-gridDataSource.value = loadGridData();
+    watch(isModalOpen, () => {
+        if (!isModalOpen) {
+            resetModal();
+        }
+    });
+
+    gridDataSource.value = loadGridData();
 </script>

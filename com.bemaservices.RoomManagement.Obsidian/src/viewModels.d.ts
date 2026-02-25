@@ -25,7 +25,30 @@ export type SchedulingProviderDetailOptionsBag = {
 export type SchedulingProviderListOptionsBag = {
 };
 
+export type SchedulingProviderLocationBag = {
+    attributes?: Record<string, PublicAttributeBag> | null;
+
+    attributeValues?: Record<string, string> | null;
+
+    externalId?: string | null;
+
+    id: number;
+
+    idKey?: string | null;
+
+    locationId?: number | null;
+
+    schedulingProvider?: ListItemBag | null;
+
+    schedulingProviderId?: number | null;
+};
+
 export type SchedulingProviderLocationListOptionsBag = {
+    isBlockVisible: boolean;
+
+    locationId?: string | null;
+
+    locationName?: string | null;
 };
 
 export type SchedulingProviderReservationListOptionsBag = {

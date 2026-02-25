@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data.Entity;
 using System.Linq;
-
+using com.bemaservices.RoomManagement.Model;
+using com.bemaservices.RoomManagement.ViewModels;
 using Rock;
 using Rock.Attribute;
 using Rock.Blocks;
@@ -11,10 +13,8 @@ using Rock.Model;
 using Rock.Obsidian.UI;
 using Rock.Security;
 using Rock.ViewModels.Blocks;
+using Rock.ViewModels.Blocks.Core.DefinedValueList;
 using Rock.Web.Cache;
-
-using com.bemaservices.RoomManagement.Model;
-using com.bemaservices.RoomManagement.ViewModels;
 
 namespace com.bemaservices.RoomManagement.Blocks
 {
@@ -28,10 +28,6 @@ namespace com.bemaservices.RoomManagement.Blocks
     [IconCssClass( "fa fa-list" )]
     [SupportedSiteTypes( SiteType.Web )]
 
-    [LinkedPage( "Detail Page",
-        Description = "The page that will show the scheduling provider location details.",
-        Key = AttributeKey.DetailPage )]
-
     [Rock.SystemGuid.EntityTypeGuid( "4812453e-a541-4007-9d9b-deaad8c5d15d" )]
     [Rock.SystemGuid.BlockTypeGuid( "9cc1b275-670e-43cc-b8c1-aa91ce0fa41d" )]
     [CustomizedGrid]
@@ -44,12 +40,21 @@ namespace com.bemaservices.RoomManagement.Blocks
             public const string DetailPage = "DetailPage";
         }
 
-        private static class NavigationUrlKey
+        private static class PageParameterKey
         {
-            public const string DetailPage = "DetailPage";
+            public const string LocationId = "LocationId";
         }
 
         #endregion Keys
+
+        #region Fields
+
+        /// <summary>
+        /// Cached value of the current Defined Type, should be access via the <see cref="GetDefinedType(RockContext)"/> method.
+        /// </summary>
+        private Location _location;
+
+        #endregion
 
         #region Properties
 
@@ -66,10 +71,10 @@ namespace com.bemaservices.RoomManagement.Blocks
             var box = new ListBlockBox<SchedulingProviderLocationListOptionsBag>();
             var builder = GetGridBuilder();
 
-            box.IsAddEnabled = GetIsAddEnabled();
-            box.IsDeleteEnabled = BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
+            var isAddDeleteEnabled = GetIsAddDeleteEnabled();
+            box.IsAddEnabled = isAddDeleteEnabled;
+            box.IsDeleteEnabled = isAddDeleteEnabled;
             box.ExpectedRowCount = null;
-            box.NavigationUrls = GetBoxNavigationUrls();
             box.Options = GetBoxOptions();
             box.GridDefinition = builder.BuildDefinition();
 
@@ -82,7 +87,13 @@ namespace com.bemaservices.RoomManagement.Blocks
         /// <returns>The options that provide additional details to the block.</returns>
         private SchedulingProviderLocationListOptionsBag GetBoxOptions()
         {
-            var options = new SchedulingProviderLocationListOptionsBag();
+            var location = GetLocation();
+            var options = new SchedulingProviderLocationListOptionsBag()
+            {
+                IsBlockVisible = location != null,
+                LocationName = location?.Name,
+                LocationId = location?.Id.ToString()
+            };
 
             return options;
         }
@@ -91,28 +102,25 @@ namespace com.bemaservices.RoomManagement.Blocks
         /// Determines if the add button should be enabled in the grid.
         /// </summary>
         /// <returns>A boolean value that indicates if the add button should be enabled.</returns>
-        private bool GetIsAddEnabled()
+        private bool GetIsAddDeleteEnabled()
         {
             return BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson );
-        }
-
-        /// <summary>
-        /// Gets the box navigation URLs required for the page to operate.
-        /// </summary>
-        /// <returns>A dictionary of key names and URL values.</returns>
-        private Dictionary<string, string> GetBoxNavigationUrls()
-        {
-            return new Dictionary<string, string>
-            {
-                [NavigationUrlKey.DetailPage] = this.GetLinkedPageUrl( AttributeKey.DetailPage, "SchedulingProviderLocationId", "((Key))" )
-            };
         }
 
         /// <inheritdoc/>
         protected override IQueryable<SchedulingProviderLocation> GetListQueryable( RockContext rockContext )
         {
-            return base.GetListQueryable( rockContext )
-                .Include( a => a.SchedulingProvider );
+            var location = GetLocation();
+            IEnumerable<SchedulingProviderLocation> locations = new List<SchedulingProviderLocation>();
+
+            if ( location != null )
+            {
+                locations = new SchedulingProviderLocationService( rockContext ).Queryable()
+                    .Include( a => a.SchedulingProvider )
+                    .Where( a => a.LocationId == location.Id );
+            }
+
+            return locations.AsQueryable();
         }
 
         /// <inheritdoc/>
@@ -124,6 +132,39 @@ namespace com.bemaservices.RoomManagement.Blocks
                 .AddField( "externalId", a => a.ExternalId )
                 .AddTextField( "schedulingProvider", a => a.SchedulingProvider?.Name )
                 .AddAttributeFields( GetGridAttributes() );
+        }
+
+        private Location GetLocation()
+        {
+            if ( _location == null )
+            {
+                var locationService = new LocationService( RockContext );
+                _location = locationService.Get( PageParameter( PageParameterKey.LocationId ) );
+            }
+
+            return _location;
+        }
+
+        private SchedulingProviderLocationBag GetEntityBagForEdit( SchedulingProviderLocation entity )
+        {
+            if ( entity == null )
+            {
+                return null;
+            }
+
+            var bag = new SchedulingProviderLocationBag()
+            {
+                SchedulingProvider = entity.SchedulingProvider.ToListItemBag(),
+                SchedulingProviderId = entity.SchedulingProviderId,
+                ExternalId = entity.ExternalId,
+                LocationId = entity.LocationId,
+                IdKey = entity.IdKey,
+                Id = entity.Id
+            };
+
+            bag.LoadAttributesAndValuesForPublicEdit( entity, RequestContext.CurrentPerson, enforceSecurity: false );
+
+            return bag;
         }
 
         #endregion
@@ -153,6 +194,101 @@ namespace com.bemaservices.RoomManagement.Blocks
 
             entityService.Delete( entity );
             RockContext.SaveChanges();
+
+            return ActionOk();
+        }
+
+        /// <summary>
+        /// Gets the specified entity for editing.
+        /// </summary>
+        /// <param name="key">The identifier of the entity to be edited.</param>
+        [BlockAction]
+        public BlockActionResult Edit( string key )
+        {
+            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( $"Not authorized to edit ${SchedulingProviderLocation.FriendlyTypeName}." );
+            }
+
+            var entityService = new SchedulingProviderLocationService( RockContext );
+            var entity = entityService.Get( key, !PageCache.Layout.Site.DisablePredictableIds );
+
+            if ( entity == null )
+            {
+                var location = GetLocation();
+
+                entity = new SchedulingProviderLocation
+                {
+                    Id = 0,
+                    LocationId = location.Id
+                };
+            }
+
+            entity.LoadAttributes();
+
+            return ActionOk( GetEntityBagForEdit( entity ) );
+        }
+
+        /// <summary>
+        /// Saves the specified entity.
+        /// </summary>
+        /// <param name="bag">The bag that contains all the information required to save.</param>
+        /// <returns>An empty result that indicates if the operation succeeded.</returns>
+        [BlockAction]
+        public BlockActionResult Save( SchedulingProviderLocationBag bag )
+        {
+            var location = GetLocation();
+            var entityService = new SchedulingProviderLocationService( RockContext );
+            SchedulingProviderLocation entity;
+
+            if ( !BlockCache.IsAuthorized( Authorization.EDIT, RequestContext.CurrentPerson ) )
+            {
+                return ActionBadRequest( $"Not authorized to edit ${SchedulingProviderLocation.FriendlyTypeName}." );
+            }
+
+            if ( bag.IdKey.IsNullOrWhiteSpace() )
+            {
+                entity = new SchedulingProviderLocation
+                {
+                    Id = 0,
+                    LocationId = location.Id
+                };
+            }
+            else
+            {
+                entity = entityService.Get( bag.IdKey, !PageCache.Layout.Site.DisablePredictableIds );
+            }
+
+            if ( entity == null )
+            {
+                return ActionBadRequest( $"{SchedulingProviderLocation.FriendlyTypeName} not found." );
+            }
+
+            entity.LoadAttributes( RockContext );
+            entity.ExternalId = bag.ExternalId;
+            entity.SchedulingProviderId = bag.SchedulingProvider.GetEntityId<SchedulingProvider>( RockContext ).Value;
+
+            if ( bag.AttributeValues != null )
+            {
+                entity.SetPublicAttributeValues( bag.AttributeValues, RequestContext.CurrentPerson, enforceSecurity: false );
+            }
+
+            if ( !entity.IsValid )
+            {
+                return ActionBadRequest( entity.ValidationResults.Select( r => r.ErrorMessage ).FirstOrDefault() );
+            }
+
+            RockContext.WrapTransaction( () =>
+            {
+                if ( entity.Id.Equals( 0 ) )
+                {
+                    entityService.Add( entity );
+                }
+
+                RockContext.SaveChanges();
+
+                entity.SaveAttributeValues( RockContext );
+            } );
 
             return ActionOk();
         }

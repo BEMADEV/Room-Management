@@ -1,2 +1,10 @@
-/bin
-/obj
+/bin/
+/obj/
+/dist/
+/*.suo
+/*.user
+/coverage
+/node_modules
+.cache
+*.map
+/packages

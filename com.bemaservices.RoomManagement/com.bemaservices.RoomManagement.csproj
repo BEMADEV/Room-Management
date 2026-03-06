@@ -14,13 +14,27 @@
     <PackageReference Include="Google.Apis" Version="1.73.0" />
     <PackageReference Include="Google.Apis.Admin.Directory.directory_v1" Version="1.73.0.4030" />
     <PackageReference Include="Google.Apis.Calendar.v3" Version="1.73.0.3993" />
-    <PackageReference Include="Microsoft.Owin" Version="4.0.0" />
+    <PackageReference Include="Microsoft.Owin" Version="4.2.2" />
     <PackageReference Include="SparkDevNetwork.Rock.Build.Tasks" Version="1.0.4" />
     <PackageReference Include="SparkDevNetwork.Rock.Analyzers" Version="1.0.4" />
     <PackageReference Include="RockRMS.Rock" Version="17.6.1" />
     <PackageReference Include="RockRMS.Rock.Blocks" Version="17.6.1" />
     <PackageReference Include="RockRMS.Rock.Rest" Version="17.6.1" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Core" Version="5.2.3" />
+
+
+    <PackageReference Include="Azure.Core" Version="1.44.1" />
+    <PackageReference Include="Azure.Identity" Version="1.12.0" />
+
+    <PackageReference Include="Microsoft.Graph" Version="5.56.0" />
+    <PackageReference Include="Microsoft.Graph.Core" Version="3.1.14" />
+    <PackageReference Include="Microsoft.Kiota.Abstractions" Version="1.9.11" />
+    <PackageReference Include="Microsoft.Kiota.Authentication.Azure" Version="1.9.11" />
+    <PackageReference Include="Microsoft.Kiota.Http.HttpClientLibrary" Version="1.9.11" />
+    <PackageReference Include="Microsoft.Kiota.Serialization.Form" Version="1.9.11" />
+    <PackageReference Include="Microsoft.Kiota.Serialization.Json" Version="1.9.11" />
+    <PackageReference Include="Microsoft.Kiota.Serialization.Multipart" Version="1.9.11" />
+    <PackageReference Include="Microsoft.Kiota.Serialization.Text" Version="1.9.11" />
   </ItemGroup>
 
   <ItemGroup>

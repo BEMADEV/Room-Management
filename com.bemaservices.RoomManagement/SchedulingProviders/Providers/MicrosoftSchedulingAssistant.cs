@@ -20,14 +20,27 @@ using System.ComponentModel.Composition;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading.Tasks;
+using Azure.Identity;
 using com.bemaservices.RoomManagement.Model;
 using com.bemaservices.RoomManagement.SchedulingProviders.Data;
+using com.bemaservices.RoomManagement.Utility.RockInternalMethods;
+using DotLiquid.Tags;
+using Ical.Net;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ExternalConnectors;
+using Microsoft.Graph.Users.Item.Calendar;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rock;
 using Rock.Attribute;
+using Rock.Model;
+using Rock.Security;
+using TimeZoneConverter;
+using static com.bemaservices.RoomManagement.Model.ReservationService;
 
 namespace com.bemaservices.RoomManagement.SchedulingProviders
 {
@@ -37,20 +50,60 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
     [Export( typeof( SchedulingProviderComponent ) )]
     [ExportMetadata( "ComponentName", "Microsoft Scheduling Assistant" )]
     [Rock.SystemGuid.EntityTypeGuid( "3ED7D672-76A4-41F4-9788-0404B997CC48" )]
-    [TextField( "Tenant ID", "The Azure AD Tenant ID for your organization.", true, order: 0, key: "TenantId" )]
-    [TextField( "Client ID", "The Application (client) ID from your Azure AD app registration.", true, order: 1, key: "ClientId" )]
-    [TextField( "Client Secret", "The client secret from your Azure AD app registration.", true, order: 2, key: "ClientSecret" )]
+    [EncryptedTextField( "Microsoft Graph Tenant Id",
+        IsRequired = true,
+        IsPassword = true,
+        Category = CategoryKey.MicrosoftGraphSettings,
+        Key = AttributeKey.TenantId,
+        Order = 0 )]
+    [EncryptedTextField( "Microsoft Graph Client Id",
+        IsRequired = true,
+        IsPassword = true,
+        Category = CategoryKey.MicrosoftGraphSettings,
+        Key = AttributeKey.ClientId,
+        Order = 0 )]
+    [EncryptedTextField( "Microsoft Graph Client Secret",
+        IsRequired = true,
+        IsPassword = true,
+        Category = CategoryKey.MicrosoftGraphSettings,
+        Key = AttributeKey.ClientSecret,
+        Order = 0 )]
+    [EncryptedTextField( "Microsoft Graph UserPrincipalName",
+        IsRequired = true,
+        IsPassword = true,
+        Description = "The username of the Microsoft Graph principal (user or application) that will be used to authenticate API calls. This is typically the email address of the user.",
+        Category = CategoryKey.MicrosoftGraphSettings,
+        Key = AttributeKey.UserPrincipalName,
+        Order = 0 )]
     public class MicrosoftSchedulingAssistant : SchedulingProviderComponent
     {
         private const string GraphApiBaseUrl = "https://graph.microsoft.com/v1.0";
         private const string AuthUrl = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
+        public const string ROCK_EVENT_KEY_ID = "String {92f6867e-8c6b-4c0c-b679-4fbaae2a6e09} Name RockReservationProviderKey";
+
+        #region Keys
+        private static class CategoryKey
+        {
+            public const string MicrosoftGraphSettings = "Microsoft Graph Settings";
+        }
+
+        private static class AttributeKey
+        {
+            // Microsoft Graph Settings
+            public const string TenantId = "TenantId";
+            public const string ClientId = "ClientId";
+            public const string ClientSecret = "ClientSecret";
+            public const string UserPrincipalName = "UserPrincipalName";
+        }
+
+        #endregion
 
         /// <summary>
         /// Gets provider events for a specific location from Microsoft Graph.
         /// </summary>
         public override List<SchedulingProviderEvent> GetProviderEventsForLocation(
             SchedulingProvider schedulingProvider,
-            string externalId,
+            string externalLocationId,
             DateTime? startDate,
             DateTime? endDate,
             out List<string> errorMessages )
@@ -60,35 +113,32 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             try
             {
-                var accessToken = GetAccessToken( schedulingProvider, out var authErrors );
+                var calendarRequestBuilder = GetCalendarRequestBuilder( schedulingProvider, out var authErrors );
                 if ( authErrors.Any() )
                 {
                     errorMessages.AddRange( authErrors );
                     return events;
                 }
 
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( "Bearer", accessToken );
-
-                var filter = BuildDateFilter( startDate, endDate );
-                var url = $"{GraphApiBaseUrl}/users/{externalId}/events{filter}";
-
-                var response = client.GetAsync( url ).Result;
-                if ( !response.IsSuccessStatusCode )
+                var getExistingEventsResponse = calendarRequestBuilder.CalendarView.GetAsync( ( requestConfiguration ) =>
                 {
-                    errorMessages.Add( $"Failed to get events: {response.StatusCode} - {response.Content.ReadAsStringAsync().Result}" );
-                    return events;
-                }
-
-                var content = response.Content.ReadAsStringAsync().Result;
-                var json = JObject.Parse( content );
-                var eventItems = json["value"] as JArray;
-
-                if ( eventItems != null )
-                {
-                    foreach ( var item in eventItems )
+                    if ( startDate.HasValue )
                     {
-                        events.Add( ConvertFromGraphEvent( item as JObject, externalId ) );
+                        requestConfiguration.QueryParameters.StartDateTime = startDate.Value.ToISO8601DateString();
+                    }
+                    if ( endDate.HasValue )
+                    {
+                        requestConfiguration.QueryParameters.EndDateTime = endDate.Value.ToISO8601DateString();
+                    }
+                } ).Result;
+
+                var existingEvents = getExistingEventsResponse.Value;
+
+                if ( existingEvents != null )
+                {
+                    foreach ( var existingEvent in existingEvents )
+                    {
+                        events.Add( ConvertFromGraphEvent( existingEvent ) );
                     }
                 }
             }
@@ -112,41 +162,23 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             try
             {
-                var accessToken = GetAccessToken( schedulingProvider, out var authErrors );
+                var calendarRequestBuilder = GetCalendarRequestBuilder( schedulingProvider, out var authErrors );
                 if ( authErrors.Any() )
                 {
                     errorMessages.AddRange( authErrors );
                     return null;
                 }
 
-                // Extract room email from the event ID metadata or use default approach
-                // For now, we'll need to parse from metadata - this might need adjustment based on your implementation
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( "Bearer", accessToken );
+                var existingEvent = calendarRequestBuilder.Events[externalEventId].GetAsync().Result;
 
-                // Note: This assumes the externalEventId is in format "roomEmail|eventId"
-                var parts = externalEventId.Split( '|' );
-                if ( parts.Length != 2 )
+                if ( existingEvent == null )
                 {
-                    errorMessages.Add( "Invalid external event ID format" );
+                    errorMessages.Add( $"Failed to get event" );
                     return null;
                 }
 
-                var roomEmail = parts[0];
-                var eventId = parts[1];
-
-                var url = $"{GraphApiBaseUrl}/users/{roomEmail}/events/{eventId}";
-                var response = client.GetAsync( url ).Result;
-
-                if ( !response.IsSuccessStatusCode )
-                {
-                    errorMessages.Add( $"Failed to get event: {response.StatusCode}" );
-                    return null;
-                }
-
-                var content = response.Content.ReadAsStringAsync().Result;
-                var eventJson = JObject.Parse( content );
-                return ConvertFromGraphEvent( eventJson, roomEmail );
+                var schedulingProviderEvent = ConvertFromGraphEvent( existingEvent );
+                return schedulingProviderEvent;
             }
             catch ( Exception ex )
             {
@@ -167,12 +199,162 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             try
             {
-                var accessToken = GetAccessToken( schedulingProvider, out var authErrors );
+                var calendarRequestBuilder = GetCalendarRequestBuilder( schedulingProvider, out var authErrors );
                 if ( authErrors.Any() )
                 {
                     errorMessages.AddRange( authErrors );
                     return null;
                 }
+
+                // Build Event
+                var requestBody = new Event();
+                requestBody.Subject = providerEvent.Title;
+                requestBody.Body = new ItemBody
+                {
+                    ContentType = BodyType.Text,
+                    Content = providerEvent.Description
+                };
+
+                // Add Event Contact as Attendee
+                requestBody.Attendees = new List<Attendee>();
+
+                if ( providerEvent.Organizer != null )
+                {
+                    requestBody.Attendees.Add( new Attendee
+                    {
+                        EmailAddress = new EmailAddress
+                        {
+                            Address = providerEvent.Organizer.Email,
+                            Name = providerEvent.Organizer.DisplayName,
+                        },
+                        Type = AttendeeType.Required,
+                    } );
+
+                    requestBody.Organizer = new Recipient
+                    {
+                        EmailAddress = new EmailAddress
+                        {
+                            Address = providerEvent.Organizer.Email,
+                            Name = providerEvent.Organizer.DisplayName,
+                        }
+                    };
+                    requestBody.IsOrganizer = false;
+                }
+
+                // Add Rooms as Attendees
+                if ( providerEvent.Locations != null )
+                {
+                    foreach ( var location in providerEvent.Locations )
+                    {
+                        requestBody.Attendees.Add( new Attendee
+                        {
+                            EmailAddress = new EmailAddress
+                            {
+                                Address = location.Email,
+                                Name = location.DisplayName,
+                            },
+                            Type = AttendeeType.Resource,
+                        } );
+                    }
+                }
+
+                // Build Schedule
+                var calendarEvent = providerEvent.CalendarEvent;
+                if ( calendarEvent != null )
+                {
+                    var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
+                    EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
+
+                    requestBody.IsAllDay = calendarEvent.IsAllDay;
+                    requestBody.Start = new DateTimeTimeZone
+                    {
+                        DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
+                        TimeZone = timeZoneId,
+                    };
+                    requestBody.End = new DateTimeTimeZone
+                    {
+                        DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
+                        TimeZone = timeZoneId,
+                    };
+
+                    // Graph recurrence mapping can get complex (BYDAY/BYMONTHDAY/INTERVAL/UNTIL/COUNT/EXDATE).
+                    // This implementation covers a common subset: a single RRULE with frequency/interval/until/count/byday.
+                    PatternedRecurrence graphRecurrence = null;
+                    var eventRecurrenceRule = calendarEvent.RecurrenceRules?.FirstOrDefault();
+                    if ( eventRecurrenceRule != null )
+                    {
+                        var graphPattern = new RecurrencePattern
+                        {
+                            Interval = eventRecurrenceRule.Interval <= 0 ? 1 : eventRecurrenceRule.Interval,
+                            Type = MapRecurrenceType( eventRecurrenceRule.Frequency )
+                        };
+
+                        // BYDAY (weekly patterns)
+                        if ( eventRecurrenceRule.ByDay != null && eventRecurrenceRule.ByDay.Count > 0 )
+                        {
+                            graphPattern.DaysOfWeek = eventRecurrenceRule.ByDay
+                                .Select( d => MapDayOfWeek( d.DayOfWeek ) )
+                                .Distinct()
+                                .ToList();
+                        }
+
+                        var range = new RecurrenceRange
+                        {
+                            Type = MapRangeType( eventRecurrenceRule ),
+                            StartDate = DateOnly.FromDateTime( icalEvent.DtStart.Value.Date )
+                        };
+
+                        if ( eventRecurrenceRule.Count > 0 )
+                            range.NumberOfOccurrences = eventRecurrenceRule.Count;
+
+                        if ( eventRecurrenceRule.Until != null )
+                            range.EndDate = eventRecurrenceRule.Until.Date;
+
+                        graphRecurrence = new PatternedRecurrence
+                        {
+                            Pattern = graphPattern,
+                            Range = range
+                        };
+                    }
+
+                    requestBody.Recurrence = graphRecurrence;                 
+                  
+                }
+                else
+                {
+                    // If iCalendar content is not available or failed to parse, fall back to using StartDateTime and EndDateTime
+                }
+
+                requestBody.Start = new DateTimeTimeZone
+                {
+                    DateTime = reservationSummary.ReservationStartDateTime.ToISO8601DateString(),
+                    TimeZone = "Pacific Standard Time",
+                };
+                requestBody.End = new DateTimeTimeZone
+                {
+                    DateTime = reservationSummary.ReservationEndDateTime.ToISO8601DateString(),
+                    TimeZone = "Pacific Standard Time",
+                };
+
+                requestBody.Locations = new List<Microsoft.Graph.Models.Location>();
+                foreach ( var reservationLocation in reservation.ReservationLocations )
+                {
+                    requestBody.Locations.Add( new Microsoft.Graph.Models.Location { DisplayName = reservationLocation.Location.Name } );
+                }
+
+                requestBody.Attendees = new List<Attendee>();
+
+                requestBody.Attendees.Add( new Attendee
+                {
+                    EmailAddress = new EmailAddress
+                    {
+                        Address = userPrincipalName,
+                        Name = reservationAttendee.Person.FullName,
+                    },
+                    Type = AttendeeType.Required,
+                } );
+
+                var existingEvent = graphClient.Users[externalLocationId].Calendar.Events[externalEventId].GetAsync().Result;
 
                 // Get the first location to determine which calendar to create the event in
                 var primaryLocation = providerEvent.Locations.FirstOrDefault();
@@ -331,49 +513,23 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Gets an access token for Microsoft Graph API.
         /// </summary>
-        private string GetAccessToken( SchedulingProvider schedulingProvider, out List<string> errorMessages )
+        private CalendarRequestBuilder GetCalendarRequestBuilder( SchedulingProvider schedulingProvider, out List<string> errorMessages )
         {
             errorMessages = new List<string>();
 
             try
             {
                 schedulingProvider.LoadAttributes();
-                var tenantId = schedulingProvider.GetAttributeValue( "TenantId" );
-                var clientId = schedulingProvider.GetAttributeValue( "ClientId" );
-                var clientSecret = schedulingProvider.GetAttributeValue( "ClientSecret" );
-
-                if ( string.IsNullOrWhiteSpace( tenantId ) || string.IsNullOrWhiteSpace( clientId ) || string.IsNullOrWhiteSpace( clientSecret ) )
+                var graphClient = GetGraphClient( schedulingProvider, out var authErrors );
+                if ( authErrors.Any() )
                 {
-                    errorMessages.Add( "Missing required authentication configuration" );
+                    errorMessages.AddRange( authErrors );
                     return null;
                 }
 
-                var client = new HttpClient();
-                var tokenUrl = string.Format( AuthUrl, tenantId );
+                var userPrincipalName = schedulingProvider.GetAttributeValue( AttributeKey.UserPrincipalName );
 
-                var requestData = new Dictionary<string, string>
-                {
-                    { "client_id", clientId },
-                    { "client_secret", clientSecret },
-                    { "scope", "https://graph.microsoft.com/.default" },
-                    { "grant_type", "client_credentials" }
-                };
-
-                var request = new HttpRequestMessage( HttpMethod.Post, tokenUrl )
-                {
-                    Content = new FormUrlEncodedContent( requestData )
-                };
-
-                var response = client.SendAsync( request ).Result;
-                if ( !response.IsSuccessStatusCode )
-                {
-                    errorMessages.Add( $"Failed to authenticate: {response.StatusCode}" );
-                    return null;
-                }
-
-                var content = response.Content.ReadAsStringAsync().Result;
-                var json = JObject.Parse( content );
-                return json["access_token"]?.ToString();
+                return graphClient.Users[userPrincipalName].Calendar;
             }
             catch ( Exception ex )
             {
@@ -383,29 +539,37 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         }
 
         /// <summary>
-        /// Builds a date filter for the Graph API query.
+        /// Gets an access token for Microsoft Graph API.
         /// </summary>
-        private string BuildDateFilter( DateTime? startDate, DateTime? endDate )
+        private GraphServiceClient GetGraphClient( SchedulingProvider schedulingProvider, out List<string> errorMessages )
         {
-            var filters = new List<string>();
+            errorMessages = new List<string>();
 
-            if ( startDate.HasValue )
+            try
             {
-                filters.Add( $"start/dateTime ge '{startDate.Value:yyyy-MM-ddTHH:mm:ss}'" );
-            }
+                var encryptedTenantId = schedulingProvider.GetAttributeValue( AttributeKey.TenantId );
+                var encryptedClientId = schedulingProvider.GetAttributeValue( AttributeKey.ClientId );
+                var encryptedClientSecret = schedulingProvider.GetAttributeValue( AttributeKey.ClientSecret );
+                var tenantId = Encryption.DecryptString( encryptedTenantId ) ?? encryptedTenantId;
+                var clientId = Encryption.DecryptString( encryptedClientId ) ?? encryptedClientId;
+                var clientSecret = Encryption.DecryptString( encryptedClientSecret ) ?? encryptedClientSecret;
 
-            if ( endDate.HasValue )
+                var scopes = new[] { "https://graph.microsoft.com/.default" };
+                var clientSecretCredential = new ClientSecretCredential( tenantId, clientId, clientSecret );
+                var graphClient = new GraphServiceClient( clientSecretCredential, scopes );
+                return graphClient;
+            }
+            catch ( Exception ex )
             {
-                filters.Add( $"end/dateTime le '{endDate.Value:yyyy-MM-ddTHH:mm:ss}'" );
+                errorMessages.Add( $"Exception during authentication: {ex.Message}" );
+                return null;
             }
-
-            return filters.Any() ? $"?$filter={string.Join( " and ", filters )}" : string.Empty;
         }
 
         /// <summary>
         /// Converts a Microsoft Graph event to a SchedulingProviderEvent.
         /// </summary>
-        private SchedulingProviderEvent ConvertFromGraphEvent( JObject graphEvent, string roomEmail )
+        private SchedulingProviderEvent ConvertFromGraphEvent( Event graphEvent )
         {
             var providerEvent = new SchedulingProviderEvent
             {
@@ -939,6 +1103,52 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return string.Empty;
             }
         }
+
+        private static RecurrencePatternType MapRecurrenceType( Ical.Net.FrequencyType freq )
+        {
+            switch ( freq )
+            {
+                case Ical.Net.FrequencyType.Daily:
+                    return RecurrencePatternType.Daily;
+                case Ical.Net.FrequencyType.Weekly:
+                    return RecurrencePatternType.Weekly;
+                case Ical.Net.FrequencyType.Monthly:
+                    return RecurrencePatternType.AbsoluteMonthly;
+                case Ical.Net.FrequencyType.Yearly:
+                    return RecurrencePatternType.AbsoluteYearly;
+                default:
+                    return RecurrencePatternType.Daily;
+            }
+        }
+
+        private static RecurrenceRangeType MapRangeType( Ical.Net.RecurrencePattern rrule )
+        {
+            if ( rrule.Count > 0 ) return RecurrenceRangeType.Numbered;
+            if ( rrule.Until != null ) return RecurrenceRangeType.EndDate;
+            return RecurrenceRangeType.NoEnd;
+        }
+
+        private static Microsoft.Graph.Models.DayOfWeekObject? MapDayOfWeek( DayOfWeek day )
+            {
+            switch (day )
+            {
+                case DayOfWeek.Monday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Monday;
+                case DayOfWeek.Tuesday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Tuesday;
+                case DayOfWeek.Wednesday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Wednesday;
+                case DayOfWeek.Thursday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Thursday;
+                case DayOfWeek.Friday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Friday;
+                case DayOfWeek.Saturday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Saturday;
+                case DayOfWeek.Sunday:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Sunday;
+                default:
+                    return Microsoft.Graph.Models.DayOfWeekObject.Monday;
+            };
 
         #endregion
     }

@@ -39,7 +39,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         /// <summary>
         /// Gets or sets the name of the location/room.
         /// </summary>
-        public string Name { get; set; }
+        public string DisplayName { get; set; }
 
         /// <summary>
         /// Gets or sets the description of the location/room.

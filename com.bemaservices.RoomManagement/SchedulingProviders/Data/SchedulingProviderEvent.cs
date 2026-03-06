@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using Ical.Net.CalendarComponents;
 
 namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
 {
@@ -42,17 +43,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         /// </summary>
         public string Description { get; set; }
 
-        /// <summary>
-        /// Gets or sets the start date time.
-        /// </summary>
-        public DateTime? StartDateTime { get; set; }
 
-        /// <summary>
-        /// Gets or sets the end date time.
-        /// </summary>
-        public DateTime? EndDateTime { get; set; }
-
-        public string ICalendarContent { get; set; }
+        public CalendarEvent CalendarEvent { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether this event is an all-day event.
@@ -68,11 +60,6 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         /// Gets or sets the organizer information.
         /// </summary>
         public SchedulingProviderPerson Organizer { get; set; }
-
-        /// <summary>
-        /// Gets or sets the attendees.
-        /// </summary>
-        public List<SchedulingProviderPerson> Attendees { get; set; }
 
         /// <summary>
         /// Gets or sets the recurrence rule (iCalendar RRULE format if applicable).
@@ -113,7 +100,6 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         public SchedulingProviderEvent()
         {
             Locations = new List<SchedulingProviderLocation>();
-            Attendees = new List<SchedulingProviderPerson>();
             Metadata = new Dictionary<string, object>();
         }
     }

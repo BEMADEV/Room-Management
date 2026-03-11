@@ -25,7 +25,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
     /// This class serves as an intermediary format between provider-specific event formats
     /// (Google Calendar, Microsoft Outlook, etc.) and Rock reservations.
     /// </summary>
-    public class SchedulingProviderEvent
+    public class EventDTO
     {
         /// <summary>
         /// Gets or sets the external identifier.
@@ -43,46 +43,20 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         /// </summary>
         public string Description { get; set; }
 
-
-        public CalendarEvent CalendarEvent { get; set; }
-
         /// <summary>
-        /// Gets or sets a value indicating whether this event is an all-day event.
+        /// Gets or sets the calendar event with schedule information.
         /// </summary>
-        public bool IsAllDay { get; set; }
+        public CalendarEvent CalendarEvent { get; set; }
 
         /// <summary>
         /// Gets or sets the locations/rooms associated with this event.
         /// </summary>
-        public List<SchedulingProviderLocation> Locations { get; set; }
+        public List<LocationDTO> Locations { get; set; }
 
         /// <summary>
         /// Gets or sets the organizer information.
         /// </summary>
-        public SchedulingProviderPerson Organizer { get; set; }
-
-        /// <summary>
-        /// Gets or sets the recurrence rule (iCalendar RRULE format if applicable).
-        /// </summary>
-        public string RecurrenceRule { get; set; }
-
-        /// <summary>
-        /// Gets or sets the status.
-        /// Common values: "confirmed", "tentative", "cancelled"
-        /// </summary>
-        public string Status { get; set; }
-
-        /// <summary>
-        /// Gets or sets the visibility.
-        /// Common values: "public", "private", "confidential"
-        /// </summary>
-        public string Visibility { get; set; }
-
-        /// <summary>
-        /// Gets or sets the provider-specific metadata.
-        /// This dictionary can store additional provider-specific properties that don't map to standard fields.
-        /// </summary>
-        public Dictionary<string, object> Metadata { get; set; }
+        public PersonDTO Organizer { get; set; }
 
         /// <summary>
         /// Gets or sets the created date time from the provider.
@@ -95,12 +69,11 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         public DateTime? ModifiedDateTime { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SchedulingProviderEvent"/> class.
+        /// Initializes a new instance of the <see cref="EventDTO"/> class.
         /// </summary>
-        public SchedulingProviderEvent()
+        public EventDTO()
         {
-            Locations = new List<SchedulingProviderLocation>();
-            Metadata = new Dictionary<string, object>();
+            Locations = new List<LocationDTO>();
         }
     }
 }

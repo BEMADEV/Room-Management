@@ -45,7 +45,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <param name="endDate">The end date to filter events. If null, no upper bound is applied.</param>
         /// <param name="errorMessages">The collection of error messages encountered during the operation.</param>
         /// <returns>List of provider events for the specified location and date range.</returns>
-        public virtual List<SchedulingProviderEvent> GetProviderEventsForLocation(
+        public virtual List<EventDTO> GetProviderEventsForLocation(
             SchedulingProvider schedulingProvider,
             string externalId,
             DateTime? startDate,
@@ -53,7 +53,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             out List<string> errorMessages )
         {
             errorMessages = new List<string> { "GetProviderEventsForLocation is not implemented for this provider." };
-            return new List<SchedulingProviderEvent>();
+            return new List<EventDTO>();
         }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <param name="externalEventId">The external event identifier from the provider's system.</param>
         /// <param name="errorMessages">The collection of error messages encountered during the operation.</param>
         /// <returns>The provider event if found; otherwise, null.</returns>
-        public virtual SchedulingProviderEvent GetProviderEvent(
+        public virtual EventDTO GetProviderEvent(
             SchedulingProvider schedulingProvider,
             string externalEventId,
             out List<string> errorMessages )
@@ -83,9 +83,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <param name="providerEvent">The provider event to create containing event details and locations.</param>
         /// <param name="errorMessages">The collection of error messages encountered during the operation.</param>
         /// <returns>The created provider event with ExternalId populated if successful; otherwise, null.</returns>
-        public virtual SchedulingProviderEvent CreateProviderEvent(
+        public virtual EventDTO CreateProviderEvent(
             SchedulingProvider schedulingProvider,
-            SchedulingProviderEvent providerEvent,
+            EventDTO providerEvent,
             out List<string> errorMessages )
         {
             errorMessages = new List<string> { "CreateProviderEvent is not implemented for this provider." };
@@ -100,14 +100,14 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <param name="schedulingProvider">The scheduling provider containing connection details and settings.</param>
         /// <param name="providerEvent">The provider event to update. The ExternalId must be populated.</param>
         /// <param name="errorMessages">The collection of error messages encountered during the operation.</param>
-        /// <returns><c>true</c> if the update was successful; otherwise, <c>false</c>.</returns>
-        public virtual bool UpdateProviderEvent(
+        /// <returns>The updated provider event if successful; otherwise, null.</returns>
+        public virtual EventDTO UpdateProviderEvent(
             SchedulingProvider schedulingProvider,
-            SchedulingProviderEvent providerEvent,
+            EventDTO providerEvent,
             out List<string> errorMessages )
         {
             errorMessages = new List<string> { "UpdateProviderEvent is not implemented for this provider." };
-            return false;
+            return null;
         }
 
         /// <summary>

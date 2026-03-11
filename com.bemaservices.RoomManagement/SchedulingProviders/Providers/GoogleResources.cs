@@ -25,6 +25,10 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Calendar.v3;
 using Google.Apis.Calendar.v3.Data;
 using Google.Apis.Services;
+using Rock.Security;
+using Ical.Net;
+using TimeZoneConverter;
+using Rock;
 
 namespace com.bemaservices.RoomManagement.SchedulingProviders
 {
@@ -34,23 +38,57 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
     [Export( typeof( SchedulingProviderComponent ) )]
     [ExportMetadata( "ComponentName", "Google Calendar Resources" )]
     [Rock.SystemGuid.EntityTypeGuid( "A8F7D8B3-2C1E-4F9A-8D3B-1E5C6A7F8B9C" )]
-    [TextField( "Service Account Email", "The service account email for Google API authentication.", true, order: 0, key: "ServiceAccountEmail" )]
-    [TextField( "Service Account Private Key", "The private key for the Google service account (P12 format or JSON key).", true, order: 1, key: "ServiceAccountPrivateKey" )]
-    [TextField( "Admin User Email", "The admin user email to impersonate for accessing Google Workspace resources.", true, order: 2, key: "AdminUserEmail" )]
+    [EncryptedTextField( "Service Account Email",
+        IsRequired = true,
+        IsPassword = true,
+        Description = "The service account email for Google API authentication.",
+        Category = CategoryKey.GoogleCalendarSettings,
+        Key = AttributeKey.ServiceAccountEmail,
+        Order = 0 )]
+    [EncryptedTextField( "Service Account Private Key",
+        IsRequired = true,
+        IsPassword = true,
+        Description = "The private key for the Google service account (P12 format or JSON key).",
+        Category = CategoryKey.GoogleCalendarSettings,
+        Key = AttributeKey.ServiceAccountPrivateKey,
+        Order = 1 )]
+    [EncryptedTextField( "Admin User Email",
+        IsRequired = true,
+        IsPassword = true,
+        Description = "The admin user email to impersonate for accessing Google Workspace resources.",
+        Category = CategoryKey.GoogleCalendarSettings,
+        Key = AttributeKey.AdminUserEmail,
+        Order = 2 )]
     public class GoogleCalendarResources : SchedulingProviderComponent
     {
+        #region Keys
+        private static class CategoryKey
+        {
+            public const string GoogleCalendarSettings = "Google Calendar Settings";
+        }
+
+        private static class AttributeKey
+        {
+            public const string ServiceAccountEmail = "ServiceAccountEmail";
+            public const string ServiceAccountPrivateKey = "ServiceAccountPrivateKey";
+            public const string AdminUserEmail = "AdminUserEmail";
+        }
+
+        #endregion
+
+        #region Provider Overrides
         /// <summary>
         /// Gets provider events for a specific location (room) from Google Calendar.
         /// </summary>
-        public override List<SchedulingProviderEvent> GetProviderEventsForLocation(
+        public override List<EventDTO> GetProviderEventsForLocation(
             SchedulingProvider schedulingProvider,
-            string externalId,
+            string externalLocationId,
             DateTime? startDate,
             DateTime? endDate,
             out List<string> errorMessages )
         {
             errorMessages = new List<string>();
-            var events = new List<SchedulingProviderEvent>();
+            var events = new List<EventDTO>();
 
             try
             {
@@ -61,7 +99,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return events;
                 }
 
-                var eventsRequest = calendarService.Events.List( externalId );
+                var eventsRequest = calendarService.Events.List( externalLocationId );
 
                 if ( startDate.HasValue )
                 {
@@ -82,7 +120,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 {
                     foreach ( var googleEvent in eventsResult.Items )
                     {
-                        events.Add( ConvertFromGoogleEvent( googleEvent, externalId ) );
+                        events.Add( ConvertFromGoogleEvent( googleEvent, externalLocationId ) );
                     }
                 }
             }
@@ -97,7 +135,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Gets a single provider event by its external identifier.
         /// </summary>
-        public override SchedulingProviderEvent GetProviderEvent(
+        public override EventDTO GetProviderEvent(
             SchedulingProvider schedulingProvider,
             string externalEventId,
             out List<string> errorMessages )
@@ -144,9 +182,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Creates a new event in Google Calendar.
         /// </summary>
-        public override SchedulingProviderEvent CreateProviderEvent(
+        public override EventDTO CreateProviderEvent(
             SchedulingProvider schedulingProvider,
-            SchedulingProviderEvent providerEvent,
+            EventDTO providerEvent,
             out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -193,9 +231,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Updates an existing event in Google Calendar.
         /// </summary>
-        public override bool UpdateProviderEvent(
+        public override EventDTO UpdateProviderEvent(
             SchedulingProvider schedulingProvider,
-            SchedulingProviderEvent providerEvent,
+            EventDTO providerEvent,
             out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -206,20 +244,20 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 if ( serviceErrors.Any() )
                 {
                     errorMessages.AddRange( serviceErrors );
-                    return false;
+                    return null;
                 }
 
                 if ( string.IsNullOrWhiteSpace( providerEvent.ExternalId ) )
                 {
                     errorMessages.Add( "External ID is required for update" );
-                    return false;
+                    return null;
                 }
 
                 var parts = providerEvent.ExternalId.Split( '|' );
                 if ( parts.Length != 2 )
                 {
                     errorMessages.Add( "Invalid external event ID format" );
-                    return false;
+                    return null;   
                 }
 
                 var calendarId = parts[0];
@@ -229,19 +267,28 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 googleEvent.Id = eventId;
 
                 var updateRequest = calendarService.Events.Update( googleEvent, calendarId, eventId );
-                updateRequest.Execute();
+                var updatedEvent = updateRequest.Execute();
 
-                return true;
+                if ( updatedEvent != null )
+                {
+                    var result = ConvertFromGoogleEvent( updatedEvent, calendarId );
+                    return result;
+                }
+                else
+                {
+                    errorMessages.Add( "Failed to update event" );
+                    return null;
+                }
             }
             catch ( Google.GoogleApiException ex )
             {
                 errorMessages.Add( $"Google API error: {ex.Message}" );
-                return false;
+                return null;
             }
             catch ( Exception ex )
             {
                 errorMessages.Add( $"Exception updating event: {ex.Message}" );
-                return false;
+                return null;
             }
         }
 
@@ -291,7 +338,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
         }
 
-        #region Helper Methods
+        #endregion
+
+        #region API Client Methods
 
         /// <summary>
         /// Gets an authenticated Google Calendar service.
@@ -302,9 +351,14 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             try
             {
-                var serviceAccountEmail = schedulingProvider.GetAttributeValue( "ServiceAccountEmail" );
-                var serviceAccountPrivateKey = schedulingProvider.GetAttributeValue( "ServiceAccountPrivateKey" );
-                var adminUserEmail = schedulingProvider.GetAttributeValue( "AdminUserEmail" );
+                schedulingProvider.LoadAttributes();
+                var encryptedServiceAccountEmail = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountEmail );
+                var encryptedServiceAccountPrivateKey = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountPrivateKey );
+                var encryptedAdminUserEmail = schedulingProvider.GetAttributeValue( AttributeKey.AdminUserEmail );
+
+                var serviceAccountEmail = Encryption.DecryptString( encryptedServiceAccountEmail ) ?? encryptedServiceAccountEmail;
+                var serviceAccountPrivateKey = Encryption.DecryptString( encryptedServiceAccountPrivateKey ) ?? encryptedServiceAccountPrivateKey;
+                var adminUserEmail = Encryption.DecryptString( encryptedAdminUserEmail ) ?? encryptedAdminUserEmail;
 
                 if ( string.IsNullOrWhiteSpace( serviceAccountEmail ) ||
                      string.IsNullOrWhiteSpace( serviceAccountPrivateKey ) ||
@@ -337,35 +391,61 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
         }
 
+        #endregion
+
+        #region Provider Event Conversion Methods
+
         /// <summary>
         /// Converts a Google Calendar event to a SchedulingProviderEvent.
         /// </summary>
-        private SchedulingProviderEvent ConvertFromGoogleEvent( Event googleEvent, string calendarId )
+        private EventDTO ConvertFromGoogleEvent( Event googleEvent, string calendarId )
         {
-            var providerEvent = new SchedulingProviderEvent
+            var providerEvent = new EventDTO();
+            providerEvent.ExternalId = $"{calendarId}|{googleEvent.Id}"; 
+            providerEvent.Title = googleEvent.Summary;
+            providerEvent.Description = googleEvent.Description;
+            providerEvent.CreatedDateTime = googleEvent.Created;
+            providerEvent.ModifiedDateTime = googleEvent.Updated;
+
+            // Parse organizer
+            if ( googleEvent.Organizer != null )
             {
-                ExternalId = $"{calendarId}|{googleEvent.Id}",
-                Title = googleEvent.Summary,
-                Description = googleEvent.Description,
-                Status = googleEvent.Status,
-                Visibility = googleEvent.Visibility,
-                RecurrenceRule = googleEvent.Recurrence != null ? string.Join( ";", googleEvent.Recurrence ) : null,
-                CreatedDateTime = googleEvent.Created,
-                ModifiedDateTime = googleEvent.Updated,
-                ICalendarContent = GenerateICalendarContent( googleEvent )
-            };
+                providerEvent.Organizer = new PersonDTO
+                {
+                    DisplayName = googleEvent.Organizer.DisplayName,
+                    Email = googleEvent.Organizer.Email
+                };
+            }
+
+            // Parse attendees - filter out resources and add them to Locations
+            if ( googleEvent.Attendees != null )
+            {
+                var resourceAttendees = googleEvent.Attendees.Where( a => a.Resource == true ).ToList();
+                if ( resourceAttendees.Any() )
+                {
+                    providerEvent.Locations = resourceAttendees.Select( a => new LocationDTO
+                    {
+                        DisplayName = a.DisplayName ?? a.Email,
+                        ExternalId = a.Email
+                    } ).ToList();
+                }
+            }
+
+            // Build CalendarEvent
+            var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent();
+            var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
 
             // Parse start and end times
             if ( googleEvent.Start != null )
             {
                 if ( googleEvent.Start.DateTime.HasValue )
                 {
-                    providerEvent.StartDateTime = googleEvent.Start.DateTime.Value;
+                    calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( googleEvent.Start.DateTime.Value );
                 }
                 else if ( !string.IsNullOrWhiteSpace( googleEvent.Start.Date ) )
                 {
-                    providerEvent.StartDateTime = DateTime.Parse( googleEvent.Start.Date );
-                    providerEvent.IsAllDay = true;
+                    calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( DateTime.Parse( googleEvent.Start.Date ) );
+                    calendarEvent.IsAllDay = true;
                 }
             }
 
@@ -373,51 +453,30 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             {
                 if ( googleEvent.End.DateTime.HasValue )
                 {
-                    providerEvent.EndDateTime = googleEvent.End.DateTime.Value;
+                    calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( googleEvent.End.DateTime.Value );
                 }
                 else if ( !string.IsNullOrWhiteSpace( googleEvent.End.Date ) )
                 {
-                    providerEvent.EndDateTime = DateTime.Parse( googleEvent.End.Date );
+                    calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( DateTime.Parse( googleEvent.End.Date ) );
                 }
             }
 
-            // Parse organizer
-            if ( googleEvent.Organizer != null )
+            // Parse recurrence
+            if ( googleEvent.Recurrence != null && googleEvent.Recurrence.Any() )
             {
-                providerEvent.Organizer = new SchedulingProviderPerson
+                // Parse RRULE from Google's recurrence array
+                foreach ( var recurrenceRule in googleEvent.Recurrence )
                 {
-                    DisplayName = googleEvent.Organizer.DisplayName,
-                    Email = googleEvent.Organizer.Email
-                };
-            }
-
-            // Parse attendees
-            if ( googleEvent.Attendees != null )
-            {
-                foreach ( var attendee in googleEvent.Attendees )
-                {
-                    providerEvent.Attendees.Add( new SchedulingProviderPerson
+                    if ( recurrenceRule.StartsWith( "RRULE:" ) )
                     {
-                        DisplayName = attendee.DisplayName,
-                        Email = attendee.Email,
-                        Metadata = new Dictionary<string, object>
-                        {
-                            { "ResponseStatus", attendee.ResponseStatus },
-                            { "IsResource", attendee.Resource ?? false }
-                        }
-                    } );
+                        var rruleString = recurrenceRule.Substring( 6 ); // Remove "RRULE:" prefix
+                        var recurrencePattern = new Ical.Net.DataTypes.RecurrencePattern( rruleString );
+                        calendarEvent.RecurrenceRules = new List<Ical.Net.DataTypes.RecurrencePattern> { recurrencePattern };
+                    }
                 }
             }
 
-            // Parse location
-            if ( !string.IsNullOrWhiteSpace( googleEvent.Location ) )
-            {
-                providerEvent.Locations.Add( new Data.SchedulingProviderLocation
-                {
-                    Name = googleEvent.Location,
-                    ExternalId = calendarId
-                } );
-            }
+            providerEvent.CalendarEvent = calendarEvent;
 
             return providerEvent;
         }
@@ -425,66 +484,27 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Converts a SchedulingProviderEvent to a Google Calendar event.
         /// </summary>
-        private Event ConvertToGoogleEvent( SchedulingProviderEvent providerEvent )
+        private Event ConvertToGoogleEvent( EventDTO providerEvent )
         {
-            var googleEvent = new Event
-            {
-                Summary = providerEvent.Title,
-                Description = providerEvent.Description,
-                Status = providerEvent.Status ?? "confirmed",
-                Visibility = providerEvent.Visibility
-            };
-
-            // Set start and end times
-            if ( providerEvent.StartDateTime.HasValue )
-            {
-                googleEvent.Start = new EventDateTime();
-                if ( providerEvent.IsAllDay )
-                {
-                    googleEvent.Start.Date = providerEvent.StartDateTime.Value.ToString( "yyyy-MM-dd" );
-                }
-                else
-                {
-                    googleEvent.Start.DateTime = providerEvent.StartDateTime.Value;
-                }
-            }
-
-            if ( providerEvent.EndDateTime.HasValue )
-            {
-                googleEvent.End = new EventDateTime();
-                if ( providerEvent.IsAllDay )
-                {
-                    googleEvent.End.Date = providerEvent.EndDateTime.Value.ToString( "yyyy-MM-dd" );
-                }
-                else
-                {
-                    googleEvent.End.DateTime = providerEvent.EndDateTime.Value;
-                }
-            }
+            var googleEvent = new Event();
+            googleEvent.Id = providerEvent.ExternalId?.Split( '|' ).LastOrDefault();
+            googleEvent.Summary = providerEvent.Title;
+            googleEvent.Description = providerEvent.Description;
 
             // Set attendees (including room resources)
-            if ( providerEvent.Attendees.Any() || providerEvent.Locations.Any() )
+            if ( providerEvent.Locations.Any() )
             {
                 googleEvent.Attendees = new List<EventAttendee>();
-
-                foreach ( var attendee in providerEvent.Attendees )
-                {
-                    googleEvent.Attendees.Add( new EventAttendee
-                    {
-                        DisplayName = attendee.DisplayName,
-                        Email = attendee.Email
-                    } );
-                }
 
                 // Add locations as resource attendees
                 foreach ( var location in providerEvent.Locations )
                 {
-                    if ( !string.IsNullOrWhiteSpace( location.Email ) )
+                    if ( !string.IsNullOrWhiteSpace( location.ExternalId ) )
                     {
                         googleEvent.Attendees.Add( new EventAttendee
                         {
-                            DisplayName = location.Name,
-                            Email = location.Email,
+                            DisplayName = location.DisplayName,
+                            Email = location.ExternalId,
                             Resource = true
                         } );
                     }
@@ -494,186 +514,37 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             // Set location string
             if ( providerEvent.Locations.Any() )
             {
-                googleEvent.Location = string.Join( ", ", providerEvent.Locations.Select( l => l.Name ) );
+                googleEvent.Location = string.Join( ", ", providerEvent.Locations.Select( l => l.DisplayName ) );
             }
 
-            // Set recurrence if provided
-            if ( !string.IsNullOrWhiteSpace( providerEvent.RecurrenceRule ) )
+            // Build schedule from CalendarEvent
+            var calendarEvent = providerEvent.CalendarEvent;
+            if ( calendarEvent != null )
             {
-                googleEvent.Recurrence = new List<string> { providerEvent.RecurrenceRule };
+                googleEvent.Start = new EventDateTime();
+                googleEvent.End = new EventDateTime();
+
+                if ( calendarEvent.IsAllDay )
+                {
+                    googleEvent.Start.Date = calendarEvent.Start.Value.ToString( "yyyy-MM-dd" );
+                    googleEvent.End.Date = calendarEvent.End.Value.ToString( "yyyy-MM-dd" );
+                }
+                else
+                {
+                    googleEvent.Start.DateTime = calendarEvent.Start.Value;
+                    googleEvent.End.DateTime = calendarEvent.End.Value;
+                }
+
+                // Handle recurrence
+                var eventRecurrenceRule = calendarEvent.RecurrenceRules?.FirstOrDefault();
+                if ( eventRecurrenceRule != null )
+                {
+                    var rruleString = "RRULE:" + eventRecurrenceRule.ToString();
+                    googleEvent.Recurrence = new List<string> { rruleString };
+                }
             }
 
             return googleEvent;
-        }
-
-        /// <summary>
-        /// Generates iCalendar (ICS) content from a Google Calendar event.
-        /// </summary>
-        private string GenerateICalendarContent( Event googleEvent )
-        {
-            if ( googleEvent == null )
-            {
-                return null;
-            }
-
-            var icsBuilder = new System.Text.StringBuilder();
-            icsBuilder.AppendLine( "BEGIN:VCALENDAR" );
-            icsBuilder.AppendLine( "VERSION:2.0" );
-            icsBuilder.AppendLine( "PRODID:-//Rock RMS//Room Management//EN" );
-            icsBuilder.AppendLine( "BEGIN:VEVENT" );
-
-            // UID
-            if ( !string.IsNullOrWhiteSpace( googleEvent.ICalUID ) )
-            {
-                icsBuilder.AppendLine( $"UID:{googleEvent.ICalUID}" );
-            }
-
-            // Summary
-            if ( !string.IsNullOrWhiteSpace( googleEvent.Summary ) )
-            {
-                icsBuilder.AppendLine( $"SUMMARY:{EscapeICalText( googleEvent.Summary )}" );
-            }
-
-            // Description
-            if ( !string.IsNullOrWhiteSpace( googleEvent.Description ) )
-            {
-                icsBuilder.AppendLine( $"DESCRIPTION:{EscapeICalText( googleEvent.Description )}" );
-            }
-
-            // Start time
-            if ( googleEvent.Start != null )
-            {
-                if ( googleEvent.Start.DateTime.HasValue )
-                {
-                    var dtStart = googleEvent.Start.DateTime.Value.ToUniversalTime();
-                    icsBuilder.AppendLine( $"DTSTART:{dtStart:yyyyMMddTHHmmss}Z" );
-                }
-                else if ( !string.IsNullOrWhiteSpace( googleEvent.Start.Date ) )
-                {
-                    icsBuilder.AppendLine( $"DTSTART;VALUE=DATE:{googleEvent.Start.Date.Replace( "-", "" )}" );
-                }
-            }
-
-            // End time
-            if ( googleEvent.End != null )
-            {
-                if ( googleEvent.End.DateTime.HasValue )
-                {
-                    var dtEnd = googleEvent.End.DateTime.Value.ToUniversalTime();
-                    icsBuilder.AppendLine( $"DTEND:{dtEnd:yyyyMMddTHHmmss}Z" );
-                }
-                else if ( !string.IsNullOrWhiteSpace( googleEvent.End.Date ) )
-                {
-                    icsBuilder.AppendLine( $"DTEND;VALUE=DATE:{googleEvent.End.Date.Replace( "-", "" )}" );
-                }
-            }
-
-            // Location
-            if ( !string.IsNullOrWhiteSpace( googleEvent.Location ) )
-            {
-                icsBuilder.AppendLine( $"LOCATION:{EscapeICalText( googleEvent.Location )}" );
-            }
-
-            // Status
-            if ( !string.IsNullOrWhiteSpace( googleEvent.Status ) )
-            {
-                icsBuilder.AppendLine( $"STATUS:{googleEvent.Status.ToUpper()}" );
-            }
-
-            // Created
-            if ( googleEvent.Created.HasValue )
-            {
-                var created = googleEvent.Created.Value.ToUniversalTime();
-                icsBuilder.AppendLine( $"CREATED:{created:yyyyMMddTHHmmss}Z" );
-            }
-
-            // Last Modified
-            if ( googleEvent.Updated.HasValue )
-            {
-                var updated = googleEvent.Updated.Value.ToUniversalTime();
-                icsBuilder.AppendLine( $"LAST-MODIFIED:{updated:yyyyMMddTHHmmss}Z" );
-            }
-
-            // Organizer
-            if ( googleEvent.Organizer != null && !string.IsNullOrWhiteSpace( googleEvent.Organizer.Email ) )
-            {
-                var organizerLine = $"ORGANIZER;CN={EscapeICalText( googleEvent.Organizer.DisplayName ?? googleEvent.Organizer.Email )}:mailto:{googleEvent.Organizer.Email}";
-                icsBuilder.AppendLine( organizerLine );
-            }
-
-            // Attendees
-            if ( googleEvent.Attendees != null )
-            {
-                foreach ( var attendee in googleEvent.Attendees )
-                {
-                    if ( !string.IsNullOrWhiteSpace( attendee.Email ) )
-                    {
-                        var role = attendee.Resource == true ? "NON-PARTICIPANT" : "REQ-PARTICIPANT";
-                        var partstat = ConvertResponseStatus( attendee.ResponseStatus );
-                        var attendeeLine = $"ATTENDEE;ROLE={role};PARTSTAT={partstat};CN={EscapeICalText( attendee.DisplayName ?? attendee.Email )}:mailto:{attendee.Email}";
-                        icsBuilder.AppendLine( attendeeLine );
-                    }
-                }
-            }
-
-            // Recurrence rules and dates
-            if ( googleEvent.Recurrence != null && googleEvent.Recurrence.Any() )
-            {
-                foreach ( var rule in googleEvent.Recurrence )
-                {
-                    // Google stores RRULE, EXRULE, RDATE, and EXDATE in the recurrence array
-                    // We'll pass them through as-is since they're already in iCalendar format
-                    if ( !string.IsNullOrWhiteSpace( rule ) )
-                    {
-                        icsBuilder.AppendLine( rule );
-                    }
-                }
-            }
-
-            icsBuilder.AppendLine( "END:VEVENT" );
-            icsBuilder.AppendLine( "END:VCALENDAR" );
-
-            return icsBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Escapes special characters in iCalendar text.
-        /// </summary>
-        private string EscapeICalText( string text )
-        {
-            if ( string.IsNullOrWhiteSpace( text ) )
-            {
-                return string.Empty;
-            }
-
-            return text
-                .Replace( "\\", "\\\\" )
-                .Replace( ",", "\\," )
-                .Replace( ";", "\\;" )
-                .Replace( "\n", "\\n" );
-        }
-
-        /// <summary>
-        /// Converts Google Calendar response status to iCalendar PARTSTAT.
-        /// </summary>
-        private string ConvertResponseStatus( string responseStatus )
-        {
-            if ( string.IsNullOrWhiteSpace( responseStatus ) )
-            {
-                return "NEEDS-ACTION";
-            }
-
-            switch ( responseStatus.ToLower() )
-            {
-                case "accepted":
-                    return "ACCEPTED";
-                case "declined":
-                    return "DECLINED";
-                case "tentative":
-                    return "TENTATIVE";
-                default:
-                    return "NEEDS-ACTION";
-            }
         }
 
         #endregion

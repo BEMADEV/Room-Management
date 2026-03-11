@@ -1125,6 +1125,11 @@ namespace com.bemaservices.RoomManagement.Model
         /// <returns>Reservation.</returns>
         public Reservation SetFirstLastOccurrenceDateTimes( Reservation reservation )
         {
+            return UpdateFirstLastOccurrenceDateTimes( reservation );
+        }
+
+        public static Reservation UpdateFirstLastOccurrenceDateTimes( Reservation reservation )
+        {
 
             var beginDateTime = DateTime.MinValue;
             var endDateTime = DateTime.MaxValue;

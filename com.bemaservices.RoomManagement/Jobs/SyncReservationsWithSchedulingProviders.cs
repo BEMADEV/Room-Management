@@ -291,7 +291,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                 }
 
                 // Collect all events from all locations
-                var allProviderEvents = new Dictionary<string, SchedulingProviderEvent>();
+                var allProviderEvents = new Dictionary<string, EventDTO>();
 
                 // Get date range from attribute
                 var importDateRange = SlidingDateRangePicker.CalculateDateRangeFromDelimitedValues(
@@ -363,11 +363,12 @@ namespace com.bemaservices.RoomManagement.Jobs
                         {
 
                             // New event - convert to reservation
-                            reservation = SchedulingProviderDataConverter.GenerateReservationFromProviderEvent(
+                            reservation = DataConverter.GenerateReservationFromProviderEvent(
                                 providerEvent,
                                 rockContext,
                                 defaultReservationTypeId,
-                                defaultApprovalState );
+                                defaultApprovalState,
+                                provider.Id );
 
                             if ( reservation == null )
                             {
@@ -388,10 +389,11 @@ namespace com.bemaservices.RoomManagement.Jobs
 
                             if ( providerModified > rockModified )
                             {
-                                reservation = SchedulingProviderDataConverter.UpdateReservationFromProviderEvent(
+                                reservation = DataConverter.UpdateReservationFromProviderEvent(
                                     existingReservation,
                                     providerEvent,
-                                    rockContext );
+                                    rockContext,
+                                    provider.Id );
                             }
                             else
                             {
@@ -534,7 +536,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                     try
                     {
                         // Convert reservation to provider event format
-                        var providerEvent = SchedulingProviderDataConverter.GenerateProviderEventFromReservation( reservation, rockContext );
+                        var providerEvent = DataConverter.GenerateProviderEventFromReservation( reservation, rockContext, provider.Id );
                         if ( providerEvent == null )
                         {
                             resultMessages.AppendLine( $"[{provider.Name}] Failed to convert reservation {reservation.Id} to provider event" );
@@ -570,8 +572,8 @@ namespace com.bemaservices.RoomManagement.Jobs
 
                             // Update the existing provider event
                             providerEvent.ExternalId = existingLink.ExternalId;
-
-                            if ( component.UpdateProviderEvent( provider, providerEvent, out errorMessages ) )
+                            var updatedEvent = component.UpdateProviderEvent( provider, providerEvent, out errorMessages );
+                            if ( updatedEvent!= null )
                             {
                                 providerExportCount++;
                             }

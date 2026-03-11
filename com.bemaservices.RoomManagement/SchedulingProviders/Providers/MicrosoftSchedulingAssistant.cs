@@ -33,6 +33,7 @@ using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ExternalConnectors;
 using Microsoft.Graph.Users.Item.Calendar;
+using Microsoft.Kiota.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Rock;
@@ -98,10 +99,12 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
         #endregion
 
+        #region Provider Overrides
+
         /// <summary>
         /// Gets provider events for a specific location from Microsoft Graph.
         /// </summary>
-        public override List<SchedulingProviderEvent> GetProviderEventsForLocation(
+        public override List<EventDTO> GetProviderEventsForLocation(
             SchedulingProvider schedulingProvider,
             string externalLocationId,
             DateTime? startDate,
@@ -109,7 +112,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             out List<string> errorMessages )
         {
             errorMessages = new List<string>();
-            var events = new List<SchedulingProviderEvent>();
+            var events = new List<EventDTO>();
 
             try
             {
@@ -120,7 +123,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return events;
                 }
 
-                var getExistingEventsResponse = calendarRequestBuilder.CalendarView.GetAsync( ( requestConfiguration ) =>
+                Action<RequestConfiguration<Microsoft.Graph.Users.Item.Calendar.CalendarView.CalendarViewRequestBuilder.CalendarViewRequestBuilderGetQueryParameters>> requestConfig = ( requestConfiguration ) =>
                 {
                     if ( startDate.HasValue )
                     {
@@ -130,7 +133,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     {
                         requestConfiguration.QueryParameters.EndDateTime = endDate.Value.ToISO8601DateString();
                     }
-                } ).Result;
+                };
+
+                var getExistingEventsResponse = calendarRequestBuilder.CalendarView.GetAsync( requestConfig ).Result;
 
                 var existingEvents = getExistingEventsResponse.Value;
 
@@ -153,7 +158,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Gets a single provider event by its external identifier.
         /// </summary>
-        public override SchedulingProviderEvent GetProviderEvent(
+        public override EventDTO GetProviderEvent(
             SchedulingProvider schedulingProvider,
             string externalEventId,
             out List<string> errorMessages )
@@ -190,9 +195,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Creates a new event in Microsoft Graph.
         /// </summary>
-        public override SchedulingProviderEvent CreateProviderEvent(
+        public override EventDTO CreateProviderEvent(
             SchedulingProvider schedulingProvider,
-            SchedulingProviderEvent providerEvent,
+            EventDTO providerEvent,
             out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -206,186 +211,19 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return null;
                 }
 
-                // Build Event
-                var requestBody = new Event();
-                requestBody.Subject = providerEvent.Title;
-                requestBody.Body = new ItemBody
+                Event graphEvent = ConvertToGraphEvent( providerEvent );
+
+                var returnedEvent = calendarRequestBuilder.Events.PostAsync( graphEvent ).Result;
+                if ( returnedEvent != null )
                 {
-                    ContentType = BodyType.Text,
-                    Content = providerEvent.Description
-                };
-
-                // Add Event Contact as Attendee
-                requestBody.Attendees = new List<Attendee>();
-
-                if ( providerEvent.Organizer != null )
-                {
-                    requestBody.Attendees.Add( new Attendee
-                    {
-                        EmailAddress = new EmailAddress
-                        {
-                            Address = providerEvent.Organizer.Email,
-                            Name = providerEvent.Organizer.DisplayName,
-                        },
-                        Type = AttendeeType.Required,
-                    } );
-
-                    requestBody.Organizer = new Recipient
-                    {
-                        EmailAddress = new EmailAddress
-                        {
-                            Address = providerEvent.Organizer.Email,
-                            Name = providerEvent.Organizer.DisplayName,
-                        }
-                    };
-                    requestBody.IsOrganizer = false;
-                }
-
-                // Add Rooms as Attendees
-                if ( providerEvent.Locations != null )
-                {
-                    foreach ( var location in providerEvent.Locations )
-                    {
-                        requestBody.Attendees.Add( new Attendee
-                        {
-                            EmailAddress = new EmailAddress
-                            {
-                                Address = location.Email,
-                                Name = location.DisplayName,
-                            },
-                            Type = AttendeeType.Resource,
-                        } );
-                    }
-                }
-
-                // Build Schedule
-                var calendarEvent = providerEvent.CalendarEvent;
-                if ( calendarEvent != null )
-                {
-                    var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
-                    EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
-
-                    requestBody.IsAllDay = calendarEvent.IsAllDay;
-                    requestBody.Start = new DateTimeTimeZone
-                    {
-                        DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
-                        TimeZone = timeZoneId,
-                    };
-                    requestBody.End = new DateTimeTimeZone
-                    {
-                        DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
-                        TimeZone = timeZoneId,
-                    };
-
-                    // Graph recurrence mapping can get complex (BYDAY/BYMONTHDAY/INTERVAL/UNTIL/COUNT/EXDATE).
-                    // This implementation covers a common subset: a single RRULE with frequency/interval/until/count/byday.
-                    PatternedRecurrence graphRecurrence = null;
-                    var eventRecurrenceRule = calendarEvent.RecurrenceRules?.FirstOrDefault();
-                    if ( eventRecurrenceRule != null )
-                    {
-                        var graphPattern = new RecurrencePattern
-                        {
-                            Interval = eventRecurrenceRule.Interval <= 0 ? 1 : eventRecurrenceRule.Interval,
-                            Type = MapRecurrenceType( eventRecurrenceRule.Frequency )
-                        };
-
-                        // BYDAY (weekly patterns)
-                        if ( eventRecurrenceRule.ByDay != null && eventRecurrenceRule.ByDay.Count > 0 )
-                        {
-                            graphPattern.DaysOfWeek = eventRecurrenceRule.ByDay
-                                .Select( d => MapDayOfWeek( d.DayOfWeek ) )
-                                .Distinct()
-                                .ToList();
-                        }
-
-                        var range = new RecurrenceRange
-                        {
-                            Type = MapRangeType( eventRecurrenceRule ),
-                            StartDate = DateOnly.FromDateTime( icalEvent.DtStart.Value.Date )
-                        };
-
-                        if ( eventRecurrenceRule.Count > 0 )
-                            range.NumberOfOccurrences = eventRecurrenceRule.Count;
-
-                        if ( eventRecurrenceRule.Until != null )
-                            range.EndDate = eventRecurrenceRule.Until.Date;
-
-                        graphRecurrence = new PatternedRecurrence
-                        {
-                            Pattern = graphPattern,
-                            Range = range
-                        };
-                    }
-
-                    requestBody.Recurrence = graphRecurrence;                 
-                  
+                    var createdEvent = ConvertFromGraphEvent( returnedEvent );
+                    return createdEvent;
                 }
                 else
                 {
-                    // If iCalendar content is not available or failed to parse, fall back to using StartDateTime and EndDateTime
-                }
-
-                requestBody.Start = new DateTimeTimeZone
-                {
-                    DateTime = reservationSummary.ReservationStartDateTime.ToISO8601DateString(),
-                    TimeZone = "Pacific Standard Time",
-                };
-                requestBody.End = new DateTimeTimeZone
-                {
-                    DateTime = reservationSummary.ReservationEndDateTime.ToISO8601DateString(),
-                    TimeZone = "Pacific Standard Time",
-                };
-
-                requestBody.Locations = new List<Microsoft.Graph.Models.Location>();
-                foreach ( var reservationLocation in reservation.ReservationLocations )
-                {
-                    requestBody.Locations.Add( new Microsoft.Graph.Models.Location { DisplayName = reservationLocation.Location.Name } );
-                }
-
-                requestBody.Attendees = new List<Attendee>();
-
-                requestBody.Attendees.Add( new Attendee
-                {
-                    EmailAddress = new EmailAddress
-                    {
-                        Address = userPrincipalName,
-                        Name = reservationAttendee.Person.FullName,
-                    },
-                    Type = AttendeeType.Required,
-                } );
-
-                var existingEvent = graphClient.Users[externalLocationId].Calendar.Events[externalEventId].GetAsync().Result;
-
-                // Get the first location to determine which calendar to create the event in
-                var primaryLocation = providerEvent.Locations.FirstOrDefault();
-                if ( primaryLocation == null )
-                {
-                    errorMessages.Add( "Event must have at least one location" );
+                    errorMessages.Add( "Failed to create event" );
                     return null;
                 }
-
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( "Bearer", accessToken );
-
-                var eventData = ConvertToGraphEvent( providerEvent );
-                var jsonContent = JsonConvert.SerializeObject( eventData );
-                var httpContent = new StringContent( jsonContent, Encoding.UTF8, "application/json" );
-
-                var url = $"{GraphApiBaseUrl}/users/{primaryLocation.ExternalId}/events";
-                var response = client.PostAsync( url, httpContent ).Result;
-
-                if ( !response.IsSuccessStatusCode )
-                {
-                    errorMessages.Add( $"Failed to create event: {response.StatusCode} - {response.Content.ReadAsStringAsync().Result}" );
-                    return null;
-                }
-
-                var content = response.Content.ReadAsStringAsync().Result;
-                var createdEvent = JObject.Parse( content );
-                var result = ConvertFromGraphEvent( createdEvent, primaryLocation.ExternalId );
-                result.ExternalId = $"{primaryLocation.ExternalId}|{createdEvent["id"].ToString()}";
-
-                return result;
             }
             catch ( Exception ex )
             {
@@ -397,64 +235,40 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Updates an existing event in Microsoft Graph.
         /// </summary>
-        public override bool UpdateProviderEvent(
+        public override EventDTO UpdateProviderEvent(
             SchedulingProvider schedulingProvider,
-            SchedulingProviderEvent providerEvent,
+            EventDTO providerEvent,
             out List<string> errorMessages )
         {
             errorMessages = new List<string>();
 
             try
             {
-                var accessToken = GetAccessToken( schedulingProvider, out var authErrors );
+                var calendarRequestBuilder = GetCalendarRequestBuilder( schedulingProvider, out var authErrors );
                 if ( authErrors.Any() )
                 {
                     errorMessages.AddRange( authErrors );
-                    return false;
+                    return null;
                 }
 
-                if ( string.IsNullOrWhiteSpace( providerEvent.ExternalId ) )
+                Event graphEvent = ConvertToGraphEvent( providerEvent );
+
+                var returnedEvent = calendarRequestBuilder.Events[graphEvent.Id].PatchAsync( graphEvent ).Result;
+                if ( returnedEvent != null )
                 {
-                    errorMessages.Add( "External ID is required for update" );
-                    return false;
+                    var updatedEvent = ConvertFromGraphEvent( returnedEvent );
+                    return updatedEvent;
                 }
-
-                var parts = providerEvent.ExternalId.Split( '|' );
-                if ( parts.Length != 2 )
+                else
                 {
-                    errorMessages.Add( "Invalid external event ID format" );
-                    return false;
+                    errorMessages.Add( "Failed to update event" );
+                    return null;
                 }
-
-                var roomEmail = parts[0];
-                var eventId = parts[1];
-
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( "Bearer", accessToken );
-
-                var eventData = ConvertToGraphEvent( providerEvent );
-                var jsonContent = JsonConvert.SerializeObject( eventData );
-                var httpContent = new StringContent( jsonContent, Encoding.UTF8, "application/json" );
-
-                var url = $"{GraphApiBaseUrl}/users/{roomEmail}/events/{eventId}";
-                var request = new HttpRequestMessage( new HttpMethod( "PATCH" ), url )
-                {
-                    Content = httpContent
-                };
-                var response = client.SendAsync( request ).Result;
-
-                if ( !response.IsSuccessStatusCode )
-                {
-                    errorMessages.Add( $"Failed to update event: {response.StatusCode} - {response.Content.ReadAsStringAsync().Result}" );
-                    return false;
-                }
-
-                return true;
             }
             catch ( Exception ex )
             {
                 errorMessages.Add( $"Exception updating event: {ex.Message}" );
-                return false;
+                return null;
             }
         }
 
@@ -470,34 +284,14 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             try
             {
-                var accessToken = GetAccessToken( schedulingProvider, out var authErrors );
+                var calendarRequestBuilder = GetCalendarRequestBuilder( schedulingProvider, out var authErrors );
                 if ( authErrors.Any() )
                 {
                     errorMessages.AddRange( authErrors );
                     return false;
                 }
 
-                var parts = externalEventId.Split( '|' );
-                if ( parts.Length != 2 )
-                {
-                    errorMessages.Add( "Invalid external event ID format" );
-                    return false;
-                }
-
-                var roomEmail = parts[0];
-                var eventId = parts[1];
-
-                var client = new HttpClient();
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue( "Bearer", accessToken );
-
-                var url = $"{GraphApiBaseUrl}/users/{roomEmail}/events/{eventId}";
-                var response = client.DeleteAsync( url ).Result;
-
-                if ( !response.IsSuccessStatusCode )
-                {
-                    errorMessages.Add( $"Failed to delete event: {response.StatusCode}" );
-                    return false;
-                }
+                calendarRequestBuilder.Events[externalEventId].DeleteAsync().Wait();
 
                 return true;
             }
@@ -508,7 +302,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
         }
 
-        #region Helper Methods
+        #endregion
+
+        #region API Client Methods
 
         /// <summary>
         /// Gets an access token for Microsoft Graph API.
@@ -527,7 +323,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return null;
                 }
 
-                var userPrincipalName = schedulingProvider.GetAttributeValue( AttributeKey.UserPrincipalName );
+                var encryptedUserPrincipalName = schedulingProvider.GetAttributeValue( AttributeKey.UserPrincipalName );
+                var userPrincipalName = Encryption.DecryptString( encryptedUserPrincipalName ) ?? encryptedUserPrincipalName;
 
                 return graphClient.Users[userPrincipalName].Calendar;
             }
@@ -566,77 +363,93 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
         }
 
+        #endregion
+
+        #region Provider Event Conversion Methods
+
         /// <summary>
         /// Converts a Microsoft Graph event to a SchedulingProviderEvent.
         /// </summary>
-        private SchedulingProviderEvent ConvertFromGraphEvent( Event graphEvent )
+        private EventDTO ConvertFromGraphEvent( Event graphEvent )
         {
-            var providerEvent = new SchedulingProviderEvent
-            {
-                ExternalId = $"{roomEmail}|{graphEvent["id"]}",
-                Title = graphEvent["subject"]?.ToString(),
-                Description = graphEvent["bodyPreview"]?.ToString(),
-                Status = graphEvent["isCancelled"]?.ToObject<bool>() == true ? "cancelled" : "confirmed",
-                CreatedDateTime = graphEvent["createdDateTime"]?.ToObject<DateTime>(),
-                ModifiedDateTime = graphEvent["lastModifiedDateTime"]?.ToObject<DateTime>(),
-                ICalendarContent = GenerateICalendarContent( graphEvent )
-            };
+            var providerEvent = new EventDTO();
+            providerEvent.ExternalId = graphEvent.Id;
+            providerEvent.Title = graphEvent.Subject;
+            providerEvent.Description = graphEvent.Body.Content;
+            providerEvent.CreatedDateTime = graphEvent.CreatedDateTime?.DateTime;
+            providerEvent.ModifiedDateTime = graphEvent.LastModifiedDateTime?.DateTime;
 
-            // Parse start and end times
-            var start = graphEvent["start"];
-            if ( start != null )
+            var graphOrganizer = graphEvent.Organizer;
+            if ( graphOrganizer != null )
             {
-                providerEvent.StartDateTime = DateTime.Parse( start["dateTime"]?.ToString() );
-            }
-
-            var end = graphEvent["end"];
-            if ( end != null )
-            {
-                providerEvent.EndDateTime = DateTime.Parse( end["dateTime"]?.ToString() );
-            }
-
-            // Parse organizer
-            var organizer = graphEvent["organizer"]?["emailAddress"];
-            if ( organizer != null )
-            {
-                providerEvent.Organizer = new SchedulingProviderPerson
+                providerEvent.Organizer = new PersonDTO
                 {
-                    DisplayName = organizer["name"]?.ToString(),
-                    Email = organizer["address"]?.ToString()
+                    DisplayName = graphOrganizer.EmailAddress.Name,
+                    Email = graphOrganizer.EmailAddress.Address
                 };
             }
 
-            // Parse attendees
-            var attendees = graphEvent["attendees"] as JArray;
-            if ( attendees != null )
+            var locationAttendees = graphEvent.Attendees?.Where( a => a.Type == AttendeeType.Resource ).ToList();
+            if ( locationAttendees != null )
             {
-                foreach ( var attendee in attendees )
+                providerEvent.Locations = locationAttendees.Select( a => new LocationDTO
                 {
-                    var email = attendee["emailAddress"];
-                    if ( email != null )
-                    {
-                        providerEvent.Attendees.Add( new SchedulingProviderPerson
-                        {
-                            DisplayName = email["name"]?.ToString(),
-                            Email = email["address"]?.ToString()
-                        } );
-                    }
-                }
+                    DisplayName = a.EmailAddress.Name,
+                    ExternalId = a.EmailAddress.Address
+                } ).ToList();
             }
 
-            // Parse locations
-            var locations = graphEvent["locations"] as JArray;
-            if ( locations != null )
+            var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent();
+            var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
+            calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( DateTime.Parse( graphEvent.Start.DateTime ) );
+            calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( DateTime.Parse( graphEvent.End.DateTime ) );
+
+            if ( graphEvent.Recurrence != null )
             {
-                foreach ( var location in locations )
+                var eventRecurrenceRule = new Ical.Net.DataTypes.RecurrencePattern();
+                eventRecurrenceRule.Interval = graphEvent.Recurrence.Pattern.Interval ?? 1;
+                eventRecurrenceRule.Frequency = MapGraphRecurrenceType( graphEvent.Recurrence.Pattern.Type );
+
+                var pattern = graphEvent.Recurrence.Pattern;
+
+                // Handle BYDAY (weekly and relative monthly patterns)
+                if ( pattern.DaysOfWeek != null && pattern.DaysOfWeek.Any() )
                 {
-                    providerEvent.Locations.Add( new Data.SchedulingProviderLocation
-                    {
-                        Name = location["displayName"]?.ToString(),
-                        Email = location["locationEmailAddress"]?.ToString()
-                    } );
+                    eventRecurrenceRule.ByDay = pattern.DaysOfWeek.Select( d => MapGraphDayOfWeek( d ) ).ToList();
                 }
+
+                // Handle absolute monthly patterns (e.g., "day 15 of every month")
+                if ( pattern.DayOfMonth.HasValue && pattern.DayOfMonth.Value > 0 )
+                {
+                    eventRecurrenceRule.ByMonthDay = new List<int> { pattern.DayOfMonth.Value };
+                }
+
+                // Handle relative monthly patterns (e.g., "second Tuesday of every month")
+                if ( pattern.Index.HasValue )
+                {
+                    var index = MapGraphWeekIndex( pattern.Index.Value );
+                    if ( index.HasValue )
+                    {
+                        eventRecurrenceRule.BySetPosition = new List<int> { index.Value };
+                    }
+                }
+
+                if ( graphEvent.Recurrence.Range != null )
+                {
+                    if ( graphEvent.Recurrence.Range.Type == RecurrenceRangeType.Numbered && graphEvent.Recurrence.Range.NumberOfOccurrences.HasValue )
+                    {
+                        eventRecurrenceRule.Count = graphEvent.Recurrence.Range.NumberOfOccurrences.Value;
+                    }
+                    else if ( graphEvent.Recurrence.Range.Type == RecurrenceRangeType.EndDate && graphEvent.Recurrence.Range.EndDate.HasValue )
+                    {
+                        eventRecurrenceRule.Until = DateTime.Parse( graphEvent.Recurrence.Range.EndDate.Value.ToString() );
+                    }
+                }
+
+                calendarEvent.RecurrenceRules = new List<Ical.Net.DataTypes.RecurrencePattern> { eventRecurrenceRule };
             }
+
+            providerEvent.CalendarEvent = calendarEvent;
 
             return providerEvent;
         }
@@ -644,465 +457,150 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         /// <summary>
         /// Converts a SchedulingProviderEvent to Microsoft Graph event format.
         /// </summary>
-        private object ConvertToGraphEvent( SchedulingProviderEvent providerEvent )
+        private Event ConvertToGraphEvent( EventDTO providerEvent )
         {
-            var graphEvent = new
+            // Build Event
+            var graphEvent = new Event();
+            graphEvent.Id = providerEvent.ExternalId;
+            graphEvent.Subject = providerEvent.Title;
+            graphEvent.Body = new ItemBody
             {
-                subject = providerEvent.Title,
-                body = new
-                {
-                    contentType = "Text",
-                    content = providerEvent.Description
-                },
-                start = new
-                {
-                    dateTime = providerEvent.StartDateTime?.ToString( "yyyy-MM-ddTHH:mm:ss" ),
-                    timeZone = "UTC"
-                },
-                end = new
-                {
-                    dateTime = providerEvent.EndDateTime?.ToString( "yyyy-MM-ddTHH:mm:ss" ),
-                    timeZone = "UTC"
-                },
-                locations = providerEvent.Locations.Select( l => new
-                {
-                    displayName = l.Name,
-                    locationEmailAddress = l.Email
-                } ).ToArray(),
-                attendees = providerEvent.Attendees.Select( a => new
-                {
-                    emailAddress = new
-                    {
-                        name = a.DisplayName,
-                        address = a.Email
-                    },
-                    type = "required"
-                } ).ToArray()
+                ContentType = BodyType.Text,
+                Content = providerEvent.Description
             };
+
+            graphEvent.CreatedDateTime = providerEvent.CreatedDateTime ?? DateTime.UtcNow;
+            graphEvent.LastModifiedDateTime = providerEvent.ModifiedDateTime ?? DateTime.UtcNow;
+
+            // Add Event Contact as Attendee
+            graphEvent.Attendees = new List<Attendee>();
+
+            if ( providerEvent.Organizer != null )
+            {
+                graphEvent.Attendees.Add( new Attendee
+                {
+                    EmailAddress = new EmailAddress
+                    {
+                        Address = providerEvent.Organizer.Email,
+                        Name = providerEvent.Organizer.DisplayName,
+                    },
+                    Type = AttendeeType.Required,
+                } );
+
+                graphEvent.Organizer = new Recipient
+                {
+                    EmailAddress = new EmailAddress
+                    {
+                        Address = providerEvent.Organizer.Email,
+                        Name = providerEvent.Organizer.DisplayName,
+                    }
+                };
+                graphEvent.IsOrganizer = false;
+            }
+
+            // Add Rooms as Attendees
+            if ( providerEvent.Locations != null )
+            {
+                foreach ( var location in providerEvent.Locations )
+                {
+                    graphEvent.Attendees.Add( new Attendee
+                    {
+                        EmailAddress = new EmailAddress
+                        {
+                            Address = location.ExternalId,
+                            Name = location.DisplayName,
+                        },
+                        Type = AttendeeType.Resource,
+                    } );
+                }
+            }
+
+            // Build Schedule
+            var calendarEvent = providerEvent.CalendarEvent;
+            if ( calendarEvent != null )
+            {
+                var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
+                EventCalendarServiceOverrides.SetCalendarEventDateTimeInfo( calendarEvent, timeZoneId );
+
+                graphEvent.IsAllDay = calendarEvent.IsAllDay;
+                graphEvent.Start = new DateTimeTimeZone
+                {
+                    DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
+                    TimeZone = timeZoneId,
+                };
+                graphEvent.End = new DateTimeTimeZone
+                {
+                    DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
+                    TimeZone = timeZoneId,
+                };
+
+                // Graph recurrence mapping can get complex (BYDAY/BYMONTHDAY/INTERVAL/UNTIL/COUNT/EXDATE).
+                // This implementation covers a common subset: a single RRULE with frequency/interval/until/count/byday/bymonthday/bysetpos.
+                PatternedRecurrence graphRecurrence = null;
+                var eventRecurrenceRule = calendarEvent.RecurrenceRules?.FirstOrDefault();
+                if ( eventRecurrenceRule != null )
+                {
+                    var graphPattern = new RecurrencePattern
+                    {
+                        Interval = eventRecurrenceRule.Interval <= 0 ? 1 : eventRecurrenceRule.Interval,
+                        Type = MapRecurrenceType( eventRecurrenceRule.Frequency )
+                    };
+
+                    // BYDAY (weekly and relative monthly patterns)
+                    if ( eventRecurrenceRule.ByDay != null && eventRecurrenceRule.ByDay.Count > 0 )
+                    {
+                        graphPattern.DaysOfWeek = eventRecurrenceRule.ByDay
+                            .Select( d => MapDayOfWeek( d.DayOfWeek ) )
+                            .Distinct()
+                            .ToList();
+                    }
+
+                    // Handle absolute monthly patterns (e.g., "day 15 of every month")
+                    if ( eventRecurrenceRule.ByMonthDay != null && eventRecurrenceRule.ByMonthDay.Count > 0 )
+                    {
+                        graphPattern.DayOfMonth = eventRecurrenceRule.ByMonthDay.First();
+                    }
+
+                    // Handle relative monthly patterns (e.g., "second Tuesday of every month")
+                    if ( eventRecurrenceRule.BySetPosition != null && eventRecurrenceRule.BySetPosition.Count > 0 )
+                    {
+                        var setPosition = eventRecurrenceRule.BySetPosition.First();
+                        graphPattern.Index = MapWeekIndex( setPosition );
+                    }
+
+                    var range = new RecurrenceRange
+                    {
+                        Type = MapRangeType( eventRecurrenceRule ),
+                        StartDate = new Microsoft.Kiota.Abstractions.Date( calendarEvent.DtStart.Value.Date )
+                    };
+
+                    if ( eventRecurrenceRule.Count > 0 )
+                        range.NumberOfOccurrences = eventRecurrenceRule.Count;
+
+                    if ( eventRecurrenceRule.Until != null )
+                        range.EndDate = new Microsoft.Kiota.Abstractions.Date( eventRecurrenceRule.Until.Date );
+
+                    graphRecurrence = new PatternedRecurrence
+                    {
+                        Pattern = graphPattern,
+                        Range = range
+                    };
+                }
+
+                graphEvent.Recurrence = graphRecurrence;
+
+            }
+            else
+            {
+                // If iCalendar content is not available or failed to parse, fall back to using StartDateTime and EndDateTime
+            }
 
             return graphEvent;
         }
 
-        /// <summary>
-        /// Generates iCalendar (ICS) content from a Microsoft Graph event.
-        /// </summary>
-        private string GenerateICalendarContent( JObject graphEvent )
-        {
-            if ( graphEvent == null )
-            {
-                return null;
-            }
+        #endregion
 
-            var icsBuilder = new StringBuilder();
-            icsBuilder.AppendLine( "BEGIN:VCALENDAR" );
-            icsBuilder.AppendLine( "VERSION:2.0" );
-            icsBuilder.AppendLine( "PRODID:-//Rock RMS//Room Management//EN" );
-            icsBuilder.AppendLine( "BEGIN:VEVENT" );
-
-            // UID
-            var uid = graphEvent["iCalUId"]?.ToString();
-            if ( !string.IsNullOrWhiteSpace( uid ) )
-            {
-                icsBuilder.AppendLine( $"UID:{uid}" );
-            }
-            else
-            {
-                icsBuilder.AppendLine( $"UID:{graphEvent["id"]}" );
-            }
-
-            // Summary
-            var subject = graphEvent["subject"]?.ToString();
-            if ( !string.IsNullOrWhiteSpace( subject ) )
-            {
-                icsBuilder.AppendLine( $"SUMMARY:{EscapeICalText( subject )}" );
-            }
-
-            // Description
-            var body = graphEvent["body"];
-            if ( body != null )
-            {
-                var content = body["content"]?.ToString();
-                if ( !string.IsNullOrWhiteSpace( content ) )
-                {
-                    icsBuilder.AppendLine( $"DESCRIPTION:{EscapeICalText( content )}" );
-                }
-            }
-
-            // Start time
-            var start = graphEvent["start"];
-            if ( start != null )
-            {
-                var startDateTime = start["dateTime"]?.ToString();
-                if ( !string.IsNullOrWhiteSpace( startDateTime ) )
-                {
-                    var dt = DateTime.Parse( startDateTime ).ToUniversalTime();
-                    icsBuilder.AppendLine( $"DTSTART:{dt:yyyyMMddTHHmmss}Z" );
-                }
-            }
-
-            // End time
-            var end = graphEvent["end"];
-            if ( end != null )
-            {
-                var endDateTime = end["dateTime"]?.ToString();
-                if ( !string.IsNullOrWhiteSpace( endDateTime ) )
-                {
-                    var dt = DateTime.Parse( endDateTime ).ToUniversalTime();
-                    icsBuilder.AppendLine( $"DTEND:{dt:yyyyMMddTHHmmss}Z" );
-                }
-            }
-
-            // Location
-            var locations = graphEvent["locations"] as JArray;
-            if ( locations != null && locations.Any() )
-            {
-                var locationNames = locations.Select( l => l["displayName"]?.ToString() ).Where( n => !string.IsNullOrWhiteSpace( n ) );
-                var locationString = string.Join( ", ", locationNames );
-                if ( !string.IsNullOrWhiteSpace( locationString ) )
-                {
-                    icsBuilder.AppendLine( $"LOCATION:{EscapeICalText( locationString )}" );
-                }
-            }
-
-            // Status
-            var isCancelled = graphEvent["isCancelled"]?.ToObject<bool>() == true;
-            icsBuilder.AppendLine( isCancelled ? "STATUS:CANCELLED" : "STATUS:CONFIRMED" );
-
-            // Created
-            var created = graphEvent["createdDateTime"]?.ToObject<DateTime?>();
-            if ( created.HasValue )
-            {
-                var createdUtc = created.Value.ToUniversalTime();
-                icsBuilder.AppendLine( $"CREATED:{createdUtc:yyyyMMddTHHmmss}Z" );
-            }
-
-            // Last Modified
-            var modified = graphEvent["lastModifiedDateTime"]?.ToObject<DateTime?>();
-            if ( modified.HasValue )
-            {
-                var modifiedUtc = modified.Value.ToUniversalTime();
-                icsBuilder.AppendLine( $"LAST-MODIFIED:{modifiedUtc:yyyyMMddTHHmmss}Z" );
-            }
-
-            // Organizer
-            var organizer = graphEvent["organizer"];
-            if ( organizer != null )
-            {
-                var emailAddress = organizer["emailAddress"];
-                if ( emailAddress != null )
-                {
-                    var email = emailAddress["address"]?.ToString();
-                    var name = emailAddress["name"]?.ToString();
-                    if ( !string.IsNullOrWhiteSpace( email ) )
-                    {
-                        var organizerLine = $"ORGANIZER;CN={EscapeICalText( name ?? email )}:mailto:{email}";
-                        icsBuilder.AppendLine( organizerLine );
-                    }
-                }
-            }
-
-            // Attendees
-            var attendees = graphEvent["attendees"] as JArray;
-            if ( attendees != null )
-            {
-                foreach ( var attendee in attendees )
-                {
-                    var emailAddress = attendee["emailAddress"];
-                    if ( emailAddress != null )
-                    {
-                        var email = emailAddress["address"]?.ToString();
-                        var name = emailAddress["name"]?.ToString();
-                        if ( !string.IsNullOrWhiteSpace( email ) )
-                        {
-                            var type = attendee["type"]?.ToString()?.ToLower();
-                            var role = type == "resource" ? "NON-PARTICIPANT" : "REQ-PARTICIPANT";
-                            var responseStatus = attendee["status"]?["response"]?.ToString();
-                            var partstat = ConvertResponseStatus( responseStatus );
-                            var attendeeLine = $"ATTENDEE;ROLE={role};PARTSTAT={partstat};CN={EscapeICalText( name ?? email )}:mailto:{email}";
-                            icsBuilder.AppendLine( attendeeLine );
-                        }
-                    }
-                }
-            }
-
-            // Recurrence
-            var recurrence = graphEvent["recurrence"];
-            if ( recurrence != null )
-            {
-                var pattern = recurrence["pattern"];
-                var range = recurrence["range"];
-
-                if ( pattern != null )
-                {
-                    var rrule = ConvertGraphRecurrenceToRRule( pattern, range );
-                    if ( !string.IsNullOrWhiteSpace( rrule ) )
-                    {
-                        icsBuilder.AppendLine( $"RRULE:{rrule}" );
-                    }
-                }
-            }
-
-            // Check for exception dates and additional occurrence dates
-            // Microsoft Graph may have these in the event's extensions or as separate properties
-            var exceptionOccurrences = graphEvent["exceptionOccurrences"] as JArray;
-            if ( exceptionOccurrences != null && exceptionOccurrences.Any() )
-            {
-                var exdates = new List<string>();
-                foreach ( var exception in exceptionOccurrences )
-                {
-                    var originalStart = exception["originalStart"]?.ToString();
-                    if ( !string.IsNullOrWhiteSpace( originalStart ) )
-                    {
-                        var dt = DateTime.Parse( originalStart ).ToUniversalTime();
-                        exdates.Add( dt.ToString( "yyyyMMddTHHmmss" ) + "Z" );
-                    }
-                }
-
-                if ( exdates.Any() )
-                {
-                    icsBuilder.AppendLine( $"EXDATE:{string.Join( ",", exdates )}" );
-                }
-            }
-
-            icsBuilder.AppendLine( "END:VEVENT" );
-            icsBuilder.AppendLine( "END:VCALENDAR" );
-
-            return icsBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Escapes special characters in iCalendar text.
-        /// </summary>
-        private string EscapeICalText( string text )
-        {
-            if ( string.IsNullOrWhiteSpace( text ) )
-            {
-                return string.Empty;
-            }
-
-            return text
-                .Replace( "\\", "\\\\" )
-                .Replace( ",", "\\," )
-                .Replace( ";", "\\;" )
-                .Replace( "\n", "\\n" );
-        }
-
-        /// <summary>
-        /// Converts Microsoft Graph response status to iCalendar PARTSTAT.
-        /// </summary>
-        private string ConvertResponseStatus( string responseStatus )
-        {
-            if ( string.IsNullOrWhiteSpace( responseStatus ) )
-            {
-                return "NEEDS-ACTION";
-            }
-
-            switch ( responseStatus.ToLower() )
-            {
-                case "accepted":
-                    return "ACCEPTED";
-                case "declined":
-                    return "DECLINED";
-                case "tentativelyaccepted":
-                    return "TENTATIVE";
-                case "notresponded":
-                    return "NEEDS-ACTION";
-                default:
-                    return "NEEDS-ACTION";
-            }
-        }
-
-        /// <summary>
-        /// Converts Microsoft Graph recurrence pattern to iCalendar RRULE.
-        /// </summary>
-        private string ConvertGraphRecurrenceToRRule( JToken pattern, JToken range )
-        {
-            if ( pattern == null )
-            {
-                return null;
-            }
-
-            var rruleParts = new List<string>();
-
-            var type = pattern["type"]?.ToString()?.ToLower();
-            if ( !string.IsNullOrWhiteSpace( type ) )
-            {
-                switch ( type )
-                {
-                    case "daily":
-                        rruleParts.Add( "FREQ=DAILY" );
-                        break;
-                    case "weekly":
-                        rruleParts.Add( "FREQ=WEEKLY" );
-
-                        // Add day of week if specified
-                        var daysOfWeek = pattern["daysOfWeek"] as JArray;
-                        if ( daysOfWeek != null && daysOfWeek.Any() )
-                        {
-                            var days = daysOfWeek.Select( d => ConvertDayOfWeek( d.ToString() ) )
-                                                  .Where( d => !string.IsNullOrWhiteSpace( d ) );
-                            if ( days.Any() )
-                            {
-                                rruleParts.Add( $"BYDAY={string.Join( ",", days )}" );
-                            }
-                        }
-                        break;
-                    case "absolutemonthly":
-                        rruleParts.Add( "FREQ=MONTHLY" );
-
-                        var dayOfMonth = pattern["dayOfMonth"]?.ToObject<int?>();
-                        if ( dayOfMonth.HasValue )
-                        {
-                            rruleParts.Add( $"BYMONTHDAY={dayOfMonth.Value}" );
-                        }
-                        break;
-                    case "relativemonthly":
-                        rruleParts.Add( "FREQ=MONTHLY" );
-
-                        var index = pattern["index"]?.ToString()?.ToLower();
-                        var relativeDays = pattern["daysOfWeek"] as JArray;
-                        if ( !string.IsNullOrWhiteSpace( index ) && relativeDays != null && relativeDays.Any() )
-                        {
-                            var indexValue = ConvertIndex( index );
-                            var dayList = relativeDays.Select( d => ConvertDayOfWeek( d.ToString() ) )
-                                                      .Where( d => !string.IsNullOrWhiteSpace( d ) )
-                                                      .Select( d => indexValue + d );
-                            if ( dayList.Any() )
-                            {
-                                rruleParts.Add( $"BYDAY={string.Join( ",", dayList )}" );
-                            }
-                        }
-                        break;
-                    case "absoluteyearly":
-                        rruleParts.Add( "FREQ=YEARLY" );
-
-                        var month = pattern["month"]?.ToObject<int?>();
-                        var yearDay = pattern["dayOfMonth"]?.ToObject<int?>();
-                        if ( month.HasValue )
-                        {
-                            rruleParts.Add( $"BYMONTH={month.Value}" );
-                        }
-                        if ( yearDay.HasValue )
-                        {
-                            rruleParts.Add( $"BYMONTHDAY={yearDay.Value}" );
-                        }
-                        break;
-                    case "relativeyearly":
-                        rruleParts.Add( "FREQ=YEARLY" );
-
-                        var yearMonth = pattern["month"]?.ToObject<int?>();
-                        var yearIndex = pattern["index"]?.ToString()?.ToLower();
-                        var yearDays = pattern["daysOfWeek"] as JArray;
-
-                        if ( yearMonth.HasValue )
-                        {
-                            rruleParts.Add( $"BYMONTH={yearMonth.Value}" );
-                        }
-                        if ( !string.IsNullOrWhiteSpace( yearIndex ) && yearDays != null && yearDays.Any() )
-                        {
-                            var indexVal = ConvertIndex( yearIndex );
-                            var daysList = yearDays.Select( d => ConvertDayOfWeek( d.ToString() ) )
-                                                   .Where( d => !string.IsNullOrWhiteSpace( d ) )
-                                                   .Select( d => indexVal + d );
-                            if ( daysList.Any() )
-                            {
-                                rruleParts.Add( $"BYDAY={string.Join( ",", daysList )}" );
-                            }
-                        }
-                        break;
-                }
-            }
-
-            var interval = pattern["interval"]?.ToObject<int?>();
-            if ( interval.HasValue && interval.Value > 1 )
-            {
-                rruleParts.Add( $"INTERVAL={interval.Value}" );
-            }
-
-            // Add range information if available
-            if ( range != null )
-            {
-                var rangeType = range["type"]?.ToString()?.ToLower();
-
-                if ( rangeType == "enddate" )
-                {
-                    var endDate = range["endDate"]?.ToString();
-                    if ( !string.IsNullOrWhiteSpace( endDate ) )
-                    {
-                        var dt = DateTime.Parse( endDate ).ToUniversalTime();
-                        rruleParts.Add( $"UNTIL={dt:yyyyMMddTHHmmss}Z" );
-                    }
-                }
-                else if ( rangeType == "numbered" )
-                {
-                    var numberOfOccurrences = range["numberOfOccurrences"]?.ToObject<int?>();
-                    if ( numberOfOccurrences.HasValue )
-                    {
-                        rruleParts.Add( $"COUNT={numberOfOccurrences.Value}" );
-                    }
-                }
-            }
-
-            return rruleParts.Any() ? string.Join( ";", rruleParts ) : null;
-        }
-
-        /// <summary>
-        /// Converts Microsoft Graph day of week to iCalendar format.
-        /// </summary>
-        private string ConvertDayOfWeek( string day )
-        {
-            if ( string.IsNullOrWhiteSpace( day ) )
-            {
-                return null;
-            }
-
-            switch ( day.ToLower() )
-            {
-                case "sunday":
-                    return "SU";
-                case "monday":
-                    return "MO";
-                case "tuesday":
-                    return "TU";
-                case "wednesday":
-                    return "WE";
-                case "thursday":
-                    return "TH";
-                case "friday":
-                    return "FR";
-                case "saturday":
-                    return "SA";
-                default:
-                    return null;
-            }
-        }
-
-        /// <summary>
-        /// Converts Microsoft Graph index (first, second, etc.) to iCalendar format.
-        /// </summary>
-        private string ConvertIndex( string index )
-        {
-            if ( string.IsNullOrWhiteSpace( index ) )
-            {
-                return string.Empty;
-            }
-
-            switch ( index.ToLower() )
-            {
-                case "first":
-                    return "1";
-                case "second":
-                    return "2";
-                case "third":
-                    return "3";
-                case "fourth":
-                    return "4";
-                case "last":
-                    return "-1";
-                default:
-                    return string.Empty;
-            }
-        }
+        #region Mapping Methods
 
         private static RecurrencePatternType MapRecurrenceType( Ical.Net.FrequencyType freq )
         {
@@ -1121,7 +619,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
         }
 
-        private static RecurrenceRangeType MapRangeType( Ical.Net.RecurrencePattern rrule )
+        private static RecurrenceRangeType MapRangeType( Ical.Net.DataTypes.RecurrencePattern rrule )
         {
             if ( rrule.Count > 0 ) return RecurrenceRangeType.Numbered;
             if ( rrule.Until != null ) return RecurrenceRangeType.EndDate;
@@ -1129,8 +627,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         }
 
         private static Microsoft.Graph.Models.DayOfWeekObject? MapDayOfWeek( DayOfWeek day )
-            {
-            switch (day )
+        {
+            switch ( day )
             {
                 case DayOfWeek.Monday:
                     return Microsoft.Graph.Models.DayOfWeekObject.Monday;
@@ -1148,7 +646,88 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return Microsoft.Graph.Models.DayOfWeekObject.Sunday;
                 default:
                     return Microsoft.Graph.Models.DayOfWeekObject.Monday;
-            };
+            }
+        }
+
+        private static Ical.Net.FrequencyType MapGraphRecurrenceType( RecurrencePatternType? type )
+        {
+            switch ( type )
+            {
+                case RecurrencePatternType.Daily:
+                    return Ical.Net.FrequencyType.Daily;
+                case RecurrencePatternType.Weekly:
+                    return Ical.Net.FrequencyType.Weekly;
+                case RecurrencePatternType.AbsoluteMonthly:
+                case RecurrencePatternType.RelativeMonthly:
+                    return Ical.Net.FrequencyType.Monthly;
+                case RecurrencePatternType.AbsoluteYearly:
+                case RecurrencePatternType.RelativeYearly:
+                    return Ical.Net.FrequencyType.Yearly;
+                default:
+                    return Ical.Net.FrequencyType.Daily;
+            }
+        }
+
+        private static Ical.Net.DataTypes.WeekDay MapGraphDayOfWeek( Microsoft.Graph.Models.DayOfWeekObject? day )
+        {
+            switch ( day )
+            {
+                case Microsoft.Graph.Models.DayOfWeekObject.Monday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Monday );
+                case Microsoft.Graph.Models.DayOfWeekObject.Tuesday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Tuesday );
+                case Microsoft.Graph.Models.DayOfWeekObject.Wednesday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Wednesday );
+                case Microsoft.Graph.Models.DayOfWeekObject.Thursday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Thursday );
+                case Microsoft.Graph.Models.DayOfWeekObject.Friday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Friday );
+                case Microsoft.Graph.Models.DayOfWeekObject.Saturday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Saturday );
+                case Microsoft.Graph.Models.DayOfWeekObject.Sunday:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Sunday );
+                default:
+                    return new Ical.Net.DataTypes.WeekDay( DayOfWeek.Monday );
+            }
+        }
+
+        private static WeekIndex? MapWeekIndex( int setPosition )
+        {
+            switch ( setPosition )
+            {
+                case 1:
+                    return WeekIndex.First;
+                case 2:
+                    return WeekIndex.Second;
+                case 3:
+                    return WeekIndex.Third;
+                case 4:
+                    return WeekIndex.Fourth;
+                case -1:
+                    return WeekIndex.Last;
+                default:
+                    return null;
+            }
+        }
+
+        private static int? MapGraphWeekIndex( WeekIndex? index )
+        {
+            switch ( index )
+            {
+                case WeekIndex.First:
+                    return 1;
+                case WeekIndex.Second:
+                    return 2;
+                case WeekIndex.Third:
+                    return 3;
+                case WeekIndex.Fourth:
+                    return 4;
+                case WeekIndex.Last:
+                    return -1;
+                default:
+                    return null;
+            }
+        }
 
         #endregion
     }

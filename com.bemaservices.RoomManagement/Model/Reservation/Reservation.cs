@@ -529,7 +529,7 @@ namespace com.bemaservices.RoomManagement.Model
         {
             get
             {
-                return ReservationResources.Where(rr=> rr.ReservationLocation == null).ToList();
+                return ReservationResources.Where( rr => rr.ReservationLocation == null ).ToList();
             }
         }
 
@@ -769,29 +769,47 @@ namespace com.bemaservices.RoomManagement.Model
                         {
                             if ( calendarEvent.Duration != null )
                             {
+                                List<String> durationParts = new List<string>();
                                 var duration = calendarEvent.Duration;
+                                if ( duration.Days > 0 )
+                                {
+                                    if ( duration.Days == 1 )
+                                    {
+                                        durationParts.Add( "1 day" );
+                                    }
+                                    else
+                                    {
+                                        durationParts.Add( string.Format( "{0} days", duration.Days ) );
+                                    }
+                                }
+
                                 if ( duration.Hours > 0 )
                                 {
                                     if ( duration.Hours == 1 )
                                     {
-                                        sb.AppendFormat( " for {0} hr", duration.Hours );
+                                        durationParts.Add( "1 hr" );
                                     }
                                     else
                                     {
-                                        sb.AppendFormat( " for {0} hrs", duration.Hours );
-                                    }
-
-                                    if ( duration.Minutes > 0 )
-                                    {
-                                        sb.AppendFormat( " and {0} min", duration.Minutes );
+                                        durationParts.Add( string.Format( "{0} hrs", duration.Hours ) );
                                     }
                                 }
-                                else
+
+                                if ( duration.Minutes > 0 )
                                 {
-                                    if ( duration.Minutes > 0 )
+                                    if ( duration.Minutes == 1 )
                                     {
-                                        sb.AppendFormat( " for {0} min", duration.Minutes );
+                                        durationParts.Add( "1 min" );
                                     }
+                                    else
+                                    {
+                                        durationParts.Add( string.Format( "{0} mins", duration.Minutes ) );
+                                    }
+                                }
+
+                                if ( durationParts.Any() )
+                                {
+                                    sb.AppendFormat( " for {0}", durationParts.AsDelimited( ", ", " and " ) );
                                 }
                             }
                         }

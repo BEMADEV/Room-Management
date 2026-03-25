@@ -17,7 +17,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using com.bemaservices.RoomManagement.Migrations;
 using com.bemaservices.RoomManagement.Model;
 using Microsoft.Graph.Models;
 using Rock;
@@ -45,7 +44,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
         public static Reservation GenerateReservationFromProviderEvent(
             EventDTO providerEvent,
             RockContext rockContext,
-            int defaultReservationTypeId,
+            ReservationType defaultReservationType,
             ReservationApprovalState defaultApprovalState,
             int schedulingProviderId )
         {
@@ -56,11 +55,14 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
 
             var reservation = new Reservation
             {
-                Name = providerEvent.Title ?? "Imported Event",
-                Note = providerEvent.Description,
-                ReservationTypeId = defaultReservationTypeId,
+                Name = (providerEvent.Title ?? "Imported Event").Left( 50 ),
+                Note = providerEvent.Description.StripHtml().Left(2500),
+                ReservationTypeId = defaultReservationType.Id,
+                ReservationType = defaultReservationType,
                 ApprovalState = defaultApprovalState
             };
+
+            reservation.ReservationLocations = new List<ReservationLocation>();
 
             reservation = UpdateReservationFromProviderEvent( reservation, providerEvent, rockContext, schedulingProviderId );
 
@@ -74,12 +76,49 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders.Data
             int schedulingProviderId )
         {
             // Update basic properties
-            reservation.Name = providerEvent.Title ?? reservation.Name;
-            reservation.Note = providerEvent.Description ?? reservation.Note;
+            reservation.Name = (providerEvent.Title ?? reservation.Name).Left(50);
+            reservation.Note = (providerEvent.Description.StripHtml() ?? reservation.Note).Left( 2500 );
 
 
             var scheduleErrorMessage = String.Empty;
-            var iCalContent = InetCalendarHelper.SerializeToCalendarString( providerEvent.CalendarEvent );
+            
+            // Convert the calendar event from UTC to Rock's organization timezone if needed
+            var calendarEvent = providerEvent.CalendarEvent;
+            if ( calendarEvent != null )
+            {
+                var orgTimeZone = RockDateTime.OrgTimeZoneInfo;
+                
+                // Convert Start time from UTC to org timezone
+                if ( calendarEvent.Start != null )
+                {
+                    var startDateTime = calendarEvent.Start.AsUtc;
+                    var orgStartTime = TimeZoneInfo.ConvertTimeFromUtc( startDateTime, orgTimeZone );
+                    calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( orgStartTime );
+                }
+                
+                // Convert End time from UTC to org timezone
+                if ( calendarEvent.End != null )
+                {
+                    var endDateTime = calendarEvent.End.AsUtc;
+                    var orgEndTime = TimeZoneInfo.ConvertTimeFromUtc( endDateTime, orgTimeZone );
+                    calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( orgEndTime );
+                }
+                
+                // If there's a DTSTART in recurrence rules, convert it too
+                if ( calendarEvent.RecurrenceRules != null )
+                {
+                    foreach ( var rrule in calendarEvent.RecurrenceRules )
+                    {
+                        if ( rrule.Until != DateTime.MinValue )
+                        {
+                            var untilUtc = DateTime.SpecifyKind( rrule.Until, DateTimeKind.Utc );
+                            rrule.Until = TimeZoneInfo.ConvertTimeFromUtc( untilUtc, orgTimeZone );
+                        }
+                    }
+                }
+            }
+            
+            var iCalContent = InetCalendarHelper.SerializeToCalendarString( calendarEvent );
             var reservationSchedule = ReservationService.BuildScheduleFromICalContent( iCalContent );
             reservation.Schedule = ReservationService.UpdateScheduleWithMaxEndDate( reservationSchedule, reservation.ReservationType, out scheduleErrorMessage );
             reservation = ReservationService.UpdateFirstLastOccurrenceDateTimes( reservation );            

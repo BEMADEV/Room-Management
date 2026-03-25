@@ -266,6 +266,7 @@ namespace com.bemaservices.RoomManagement.Jobs
             int providerImportCount = 0;
 
             var reservationService = new ReservationService( rockContext );
+            var reservationTypeService = new ReservationTypeService( rockContext );
             var schedulingProviderService = new SchedulingProviderService( rockContext );
             var schedulingProviderReservationService = new SchedulingProviderReservationService( rockContext );
             var schedulingProviderLocationService = new SchedulingProviderLocationService( rockContext );
@@ -344,7 +345,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                 // Get configuration values
                 var defaultApprovalState = GetAttributeValue( AttributeKey.DefaultApprovalState ).ConvertToEnumOrNull<ReservationApprovalState>()
                         ?? ReservationApprovalState.PendingInitialApproval;
-                var defaultReservationTypeId = GetAttributeValue( AttributeKey.DefaultReservationType ).AsInteger();
+                ReservationType defaultReservationType = reservationTypeService.Get( GetAttributeValue( AttributeKey.DefaultReservationType ).AsGuid() );
                 var importNotificationGuid = GetAttributeValue( AttributeKey.ImportNotificationTemplate ).AsGuidOrNull();
 
                 // Convert provider events to reservations
@@ -366,7 +367,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                             reservation = DataConverter.GenerateReservationFromProviderEvent(
                                 providerEvent,
                                 rockContext,
-                                defaultReservationTypeId,
+                                defaultReservationType,
                                 defaultApprovalState,
                                 provider.Id );
 
@@ -383,9 +384,9 @@ namespace com.bemaservices.RoomManagement.Jobs
                             // Event already imported - check if we need to update
                             var existingReservation = existingLink.Reservation;
 
-                            // Compare timestamps to determine which is more recent
+                            // Compare timestamps to determine which is more recent. Provider times are already converted to UTC
                             var providerModified = providerEvent.ModifiedDateTime ?? providerEvent.CreatedDateTime ?? DateTime.MinValue;
-                            var rockModified = existingReservation.ModifiedDateTime ?? existingReservation.CreatedDateTime ?? DateTime.MinValue;
+                            var rockModified = existingReservation.ModifiedDateTime?.ToUniversalTime() ?? existingReservation.CreatedDateTime?.ToUniversalTime() ?? DateTime.MinValue;
 
                             if ( providerModified > rockModified )
                             {
@@ -562,8 +563,9 @@ namespace com.bemaservices.RoomManagement.Jobs
                             }
 
                             // Check if the provider event is more recent than the reservation, if so skip exporting this reservation
+                            // Provider times are already converted to UTC
                             var providerModified = existingProviderEvent?.ModifiedDateTime ?? existingProviderEvent?.CreatedDateTime ?? DateTime.MinValue;
-                            var rockModified = reservation.ModifiedDateTime ?? reservation.CreatedDateTime ?? DateTime.MinValue;
+                            var rockModified = reservation.ModifiedDateTime?.ToUniversalTime() ?? reservation.CreatedDateTime?.ToUniversalTime() ?? DateTime.MinValue;
 
                             if ( providerModified > rockModified )
                             {
@@ -573,9 +575,12 @@ namespace com.bemaservices.RoomManagement.Jobs
                             // Update the existing provider event
                             providerEvent.ExternalId = existingLink.ExternalId;
                             var updatedEvent = component.UpdateProviderEvent( provider, providerEvent, out errorMessages );
-                            if ( updatedEvent!= null )
+                            if ( updatedEvent != null )
                             {
                                 providerExportCount++;
+
+                                reservation.ModifiedDateTime = RockDateTime.Now; // Update to prevent ping-ponging between sources.
+                                rockContext.SaveChanges();
                             }
                             else
                             {
@@ -598,6 +603,7 @@ namespace com.bemaservices.RoomManagement.Jobs
                                     ExternalId = createdEvent.ExternalId
                                 };
                                 schedulingProviderReservationService.Add( providerReservation );
+                                reservation.ModifiedDateTime = RockDateTime.Now; // Update to prevent ping-ponging between sources.
                                 rockContext.SaveChanges();
 
                                 providerExportCount++;

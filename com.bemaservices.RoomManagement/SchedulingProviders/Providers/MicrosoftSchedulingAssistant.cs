@@ -376,6 +376,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             providerEvent.ExternalId = graphEvent.Id;
             providerEvent.Title = graphEvent.Subject;
             providerEvent.Description = graphEvent.Body.Content;
+
+            // Graph Event Created / Modified Date Times are always in UTC
             providerEvent.CreatedDateTime = graphEvent.CreatedDateTime?.DateTime;
             providerEvent.ModifiedDateTime = graphEvent.LastModifiedDateTime?.DateTime;
 
@@ -400,9 +402,27 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
 
             var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent();
-            var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
-            calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( DateTime.Parse( graphEvent.Start.DateTime ) );
-            calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( DateTime.Parse( graphEvent.End.DateTime ) );
+            
+            // Parse start datetime and convert to UTC if needed
+            var startDateTime = DateTime.Parse( graphEvent.Start.DateTime );
+            if ( startDateTime.Kind != DateTimeKind.Utc )
+            {
+                // Graph provides timezone in IANA format, convert to UTC
+                var startTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( graphEvent.Start.TimeZone );
+                startDateTime = TimeZoneInfo.ConvertTimeToUtc( startDateTime, startTimeZone );
+            }
+
+            calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( startDateTime, "UTC" );
+            
+            // Parse end datetime and convert to UTC if needed
+            var endDateTime = DateTime.Parse( graphEvent.End.DateTime );
+            if ( endDateTime.Kind != DateTimeKind.Utc )
+            {
+                // Graph provides timezone in IANA format, convert to UTC
+                var endTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( graphEvent.End.TimeZone );
+                endDateTime = TimeZoneInfo.ConvertTimeToUtc( endDateTime, endTimeZone );
+            }
+            calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( endDateTime, "UTC" );
 
             if ( graphEvent.Recurrence != null )
             {
@@ -442,7 +462,14 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     }
                     else if ( graphEvent.Recurrence.Range.Type == RecurrenceRangeType.EndDate && graphEvent.Recurrence.Range.EndDate.HasValue )
                     {
-                        eventRecurrenceRule.Until = DateTime.Parse( graphEvent.Recurrence.Range.EndDate.Value.ToString() );
+                        var untilDateTime = DateTime.Parse( graphEvent.Recurrence.Range.EndDate.Value.ToString() );
+                        if ( untilDateTime.Kind != DateTimeKind.Utc )
+                        {
+                            // Convert to UTC using the event's timezone
+                            var eventTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( graphEvent.Start.TimeZone );
+                            untilDateTime = TimeZoneInfo.ConvertTimeToUtc( untilDateTime, eventTimeZone );
+                        }
+                        eventRecurrenceRule.Until = untilDateTime;
                     }
                 }
 
@@ -525,12 +552,12 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 graphEvent.IsAllDay = calendarEvent.IsAllDay;
                 graphEvent.Start = new DateTimeTimeZone
                 {
-                    DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
+                    DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).Value.ToString( "yyyy-MM-ddTHH:mm:ss" ),
                     TimeZone = timeZoneId,
                 };
                 graphEvent.End = new DateTimeTimeZone
                 {
-                    DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.Start, timeZoneId ).ToString( "yyyy-MM-ddTHH:mm:ss" ),
+                    DateTime = EventCalendarServiceOverrides.ConvertToCalDateTime( calendarEvent.End, timeZoneId ).Value.ToString( "yyyy-MM-ddTHH:mm:ss" ),
                     TimeZone = timeZoneId,
                 };
 

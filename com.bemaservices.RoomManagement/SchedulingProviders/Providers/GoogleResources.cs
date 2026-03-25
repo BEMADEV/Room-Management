@@ -404,8 +404,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             providerEvent.ExternalId = $"{calendarId}|{googleEvent.Id}"; 
             providerEvent.Title = googleEvent.Summary;
             providerEvent.Description = googleEvent.Description;
-            providerEvent.CreatedDateTime = googleEvent.Created;
-            providerEvent.ModifiedDateTime = googleEvent.Updated;
+            providerEvent.CreatedDateTime = googleEvent.Created?.ToUniversalTime();
+            providerEvent.ModifiedDateTime = googleEvent.Updated?.ToUniversalTime();
 
             // Parse organizer
             if ( googleEvent.Organizer != null )
@@ -435,12 +435,17 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent();
             var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
 
-            // Parse start and end times
+            // Parse start and end times and convert to UTC
             if ( googleEvent.Start != null )
             {
                 if ( googleEvent.Start.DateTime.HasValue )
                 {
-                    calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( googleEvent.Start.DateTime.Value );
+                    var startDateTime = googleEvent.Start.DateTime.Value;
+                    if ( startDateTime.Kind != DateTimeKind.Utc )
+                    {
+                        startDateTime = startDateTime.ToUniversalTime();
+                    }
+                    calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( startDateTime, "UTC" );
                 }
                 else if ( !string.IsNullOrWhiteSpace( googleEvent.Start.Date ) )
                 {
@@ -453,7 +458,12 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             {
                 if ( googleEvent.End.DateTime.HasValue )
                 {
-                    calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( googleEvent.End.DateTime.Value );
+                    var endDateTime = googleEvent.End.DateTime.Value;
+                    if ( endDateTime.Kind != DateTimeKind.Utc )
+                    {
+                        endDateTime = endDateTime.ToUniversalTime();
+                    }
+                    calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( endDateTime, "UTC" );
                 }
                 else if ( !string.IsNullOrWhiteSpace( googleEvent.End.Date ) )
                 {
@@ -521,6 +531,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             var calendarEvent = providerEvent.CalendarEvent;
             if ( calendarEvent != null )
             {
+                var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
+                var orgTimeZone = RockDateTime.OrgTimeZoneInfo;
+
                 googleEvent.Start = new EventDateTime();
                 googleEvent.End = new EventDateTime();
 
@@ -531,8 +544,17 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 }
                 else
                 {
-                    googleEvent.Start.DateTime = calendarEvent.Start.Value;
-                    googleEvent.End.DateTime = calendarEvent.End.Value;
+                    // Convert from UTC to Rock's org timezone for Google Calendar
+                    var startDateTime = calendarEvent.Start.AsUtc;
+                    var endDateTime = calendarEvent.End.AsUtc;
+
+                    var startInOrgTimeZone = TimeZoneInfo.ConvertTimeFromUtc( startDateTime, orgTimeZone );
+                    var endInOrgTimeZone = TimeZoneInfo.ConvertTimeFromUtc( endDateTime, orgTimeZone );
+
+                    googleEvent.Start.DateTime = startInOrgTimeZone;
+                    googleEvent.Start.TimeZone = timeZoneId;
+                    googleEvent.End.DateTime = endInOrgTimeZone;
+                    googleEvent.End.TimeZone = timeZoneId;
                 }
 
                 // Handle recurrence

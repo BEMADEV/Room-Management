@@ -357,7 +357,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="existingReservationQry">The existing reservation qry.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
         /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private List<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
+        public List<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
         {
             var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
             var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
@@ -503,12 +503,22 @@ namespace com.bemaservices.RoomManagement.Model
         /// <returns>List&lt;ReservationConflict&gt;.</returns>
         public List<ReservationConflict> GetConflictsForLocationId( int locationId, Reservation newReservation, bool arePotentialConflictsReturned = false )
         {
+            var locationIds = new List<int>();
+            locationIds.Add( locationId );
+            return GetConflictsForLocationIds( locationIds, newReservation, arePotentialConflictsReturned );
+        }
+
+        public List<ReservationConflict> GetConflictsForLocationIds( List<int> locationIds, Reservation newReservation, bool arePotentialConflictsReturned = false )
+        {
             var locationService = new LocationService( new RockContext() );
 
             var relevantLocationIds = new List<int>();
-            relevantLocationIds.Add( locationId );
-            relevantLocationIds.AddRange( locationService.GetAllAncestorIds( locationId ) );
-            relevantLocationIds.AddRange( locationService.GetAllDescendentIds( locationId ) );
+            foreach ( var locationId in locationIds )
+            {
+                relevantLocationIds.Add( locationId );
+                relevantLocationIds.AddRange( locationService.GetAllAncestorIds( locationId ) );
+                relevantLocationIds.AddRange( locationService.GetAllDescendentIds( locationId ) );
+            }
 
             // Get any Reservations containing related Locations
             var existingReservationQry = Queryable().Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
@@ -1393,7 +1403,8 @@ namespace com.bemaservices.RoomManagement.Model
                         break;
                     }
                     earliestEventDateTime = earliestEventDateTime.AddDays( -1 );
-                };
+                }
+                ;
             }
 
             // Ensure that the target date is not a leap-day.

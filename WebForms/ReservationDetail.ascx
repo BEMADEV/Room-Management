@@ -201,6 +201,7 @@ div[id$="_upnlContent"].modal-open:has(div.picker-menu[style*="display: block"])
                             <asp:LinkButton ID="btnOverride" runat="server" ToolTip="Override Reservation" CssClass="btn btn-warning" OnClick="btnOverride_Click" CausesValidation="false">Override</asp:LinkButton>
                             <asp:LinkButton ID="btnCancelReservation" runat="server" ToolTip="Cancel Reservation" CssClass="btn btn-default" OnClick="btnCancelReservation_Click" CausesValidation="false">Cancel</asp:LinkButton>
                             <asp:LinkButton ID="btnCopy" runat="server" ToolTip="Copy Reservation" CssClass="btn btn-default fa fa-clone" OnClick="btnCopy_Click" CausesValidation="false" />
+                            <asp:LinkButton ID="btnSplitOccurrence" runat="server" ToolTip="Split Occurrence" CssClass="btn btn-default fa fa-code-fork" OnClick="btnSplitOccurrence_Click" CausesValidation="false" />
 
                             <asp:Literal ID="btnDownload" runat="server" />
                         </div>
@@ -428,7 +429,15 @@ div[id$="_upnlContent"].modal-open:has(div.picker-menu[style*="display: block"])
                     </div>
                     <Rock:RockTextBox ID="tbReservationDoorLockScheduleNote" runat="server" Label="Note" Required="false" />
                 </div>
-                
+
+            </Content>
+        </Rock:ModalDialog>
+
+        <Rock:ModalDialog ID="dlgSplitOccurrence" runat="server" Title="Split Occurrence" OnSaveClick="dlgSplitOccurrence_SaveClick" OnCancelScript="clearActiveDialog();" ValidationGroup="SplitOccurrence" SaveButtonText="Split Occurrence">
+            <Content>
+                <asp:ValidationSummary ID="valSplitOccurrenceSummary" runat="server" HeaderText="Please Correct the Following" CssClass="alert alert-danger" ValidationGroup="SplitOccurrence" />
+                <Rock:NotificationBox ID="nbSplitOccurrenceError" Visible="false" NotificationBoxType="Warning" runat="server" />
+                <Rock:RockDropDownList ID="ddlOccurrenceDate" runat="server" Label="Select Occurrence to Split" Required="true" ValidationGroup="SplitOccurrence" Help="Select a future occurrence to split into a separate one-time reservation. An exclusion date will be added to this reservation." />
             </Content>
         </Rock:ModalDialog>
     </ContentTemplate>

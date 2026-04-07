@@ -994,6 +994,192 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
+        /// Handles the Click event of the btnSplitOccurrence control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+        protected void btnSplitOccurrence_Click( object sender, EventArgs e )
+        {
+            using ( var rockContext = new RockContext() )
+            {
+                var reservationService = new ReservationService( rockContext );
+                var reservation = reservationService.Get( hfReservationId.ValueAsInt() );
+
+                if ( reservation == null || reservation.Schedule == null )
+                {
+                    return;
+                }
+
+                var calendar = Ical.Net.Calendar.Load( reservation.Schedule.iCalendarContent );
+                var calendarEvent = calendar.Events.FirstOrDefault();
+
+                if ( calendarEvent == null )
+                {
+                    return;
+                }
+
+                var occurrences = calendarEvent.GetOccurrences( RockDateTime.Now, RockDateTime.Now.AddYears( 1 ) );
+                var futureOccurrences = occurrences
+                    .Where( o => o.Period.StartTime.Value >= RockDateTime.Now )
+                    .OrderBy( o => o.Period.StartTime.Value )
+                    .ToList();
+
+                ddlOccurrenceDate.Items.Clear();
+                ddlOccurrenceDate.Items.Add( new ListItem( string.Empty, string.Empty ) );
+
+                foreach ( var occurrence in futureOccurrences.Take( 100 ) )
+                {
+                    var displayText = occurrence.Period.StartTime.Value.ToString( "MMMM dd, yyyy h:mm tt" );
+                    ddlOccurrenceDate.Items.Add( new ListItem( displayText, occurrence.Period.StartTime.Value.ToString( "o" ) ) );
+                }
+
+                if ( futureOccurrences.Any() )
+                {
+                    nbSplitOccurrenceError.Visible = false;
+                    dlgSplitOccurrence.Show();
+                    hfActiveDialog.Value = "dlgSplitOccurrence";
+                }
+                else
+                {
+                    nbError.Text = "This reservation has no future occurrences to split.";
+                    nbError.Visible = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles the SaveClick event of the dlgSplitOccurrence control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+        protected void dlgSplitOccurrence_SaveClick( object sender, EventArgs e )
+        {
+            if ( string.IsNullOrWhiteSpace( ddlOccurrenceDate.SelectedValue ) )
+            {
+                nbSplitOccurrenceError.Text = "Please select an occurrence to split.";
+                nbSplitOccurrenceError.Visible = true;
+                return;
+            }
+
+            var selectedOccurrenceDate = DateTime.Parse( ddlOccurrenceDate.SelectedValue );
+
+            using ( var rockContext = new RockContext() )
+            {
+                var reservationService = new ReservationService( rockContext );
+                var originalReservation = reservationService.Get( hfReservationId.ValueAsInt() );
+
+                if ( originalReservation == null )
+                {
+                    return;
+                }
+
+                var originalChanges = new History.HistoryChangeList();
+                var originalOldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, originalReservation );
+
+                var newReservation = reservationService.GetNewFromTemplate( originalReservation.Id );
+                if ( newReservation == null )
+                {
+                    return;
+                }
+
+                newReservation.Name = originalReservation.Name + " (" + selectedOccurrenceDate.ToString( "MM/dd/yyyy" ) + ")";
+
+                var iCalendar = new Ical.Net.Calendar();
+                var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent
+                {
+                    DtStart = new Ical.Net.DataTypes.CalDateTime( selectedOccurrenceDate ),
+                    DtEnd = new Ical.Net.DataTypes.CalDateTime( selectedOccurrenceDate.AddMinutes( originalReservation.Schedule.DurationInMinutes ) ),
+                    DtStamp = new Ical.Net.DataTypes.CalDateTime( RockDateTime.Now ),
+                    Uid = Guid.NewGuid().ToString(),
+                    Sequence = 0
+                };
+
+                iCalendar.Events.Add( calendarEvent );
+
+                var serializer = new Ical.Net.Serialization.CalendarSerializer();
+                var newSchedule = new Schedule
+                {
+                    iCalendarContent = serializer.SerializeToString( iCalendar )
+                };
+
+                newReservation.Schedule = newSchedule;
+                newReservation.ApprovalState = ReservationApprovalState.Draft;
+
+                var newChanges = new History.HistoryChangeList();
+                newChanges.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, "Reservation (Split from recurring reservation)" ) );
+
+                var originalCalendar = Ical.Net.Calendar.Load( originalReservation.Schedule.iCalendarContent );
+                var originalEvent = originalCalendar.Events.FirstOrDefault();
+
+                if ( originalEvent != null )
+                {
+                    var exDate = new Ical.Net.DataTypes.CalDateTime( selectedOccurrenceDate );
+
+                    if ( originalEvent.ExceptionDates == null || !originalEvent.ExceptionDates.Any() )
+                    {
+                        originalEvent.ExceptionDates.Add( new Ical.Net.DataTypes.PeriodList { exDate } );
+                    }
+                    else
+                    {
+                        originalEvent.ExceptionDates.First().Add( exDate );
+                    }
+
+                    originalReservation.Schedule.iCalendarContent = serializer.SerializeToString( originalCalendar );
+                }
+
+                History.EvaluateChange( originalChanges, "Schedule", originalOldReservation.GetFriendlyReservationScheduleText(), originalReservation.GetFriendlyReservationScheduleText() );
+
+                reservationService.Add( newReservation );
+
+                rockContext.WrapTransaction( () =>
+                {
+                    rockContext.SaveChanges();
+
+                    foreach ( var reservationLocation in newReservation.ReservationLocations )
+                    {
+                        reservationLocation.SaveAttributeValues( rockContext );
+                    }
+
+                    foreach ( var reservationResource in newReservation.ReservationResources )
+                    {
+                        reservationResource.SaveAttributeValues( rockContext );
+                    }
+
+                    newReservation.SaveAttributeValues( rockContext );
+                } );
+
+                newReservation = new ReservationService( new RockContext() ).Get( newReservation.Guid );
+
+                if ( originalChanges.Any() )
+                {
+                    HistoryService.SaveChanges(
+                        rockContext,
+                        typeof( Reservation ),
+                        com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
+                        originalReservation.Id,
+                        originalChanges );
+                }
+
+                if ( newChanges.Any() )
+                {
+                    HistoryService.SaveChanges(
+                        rockContext,
+                        typeof( Reservation ),
+                        com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
+                        newReservation.Id,
+                        newChanges );
+                }
+
+                dlgSplitOccurrence.Hide();
+                hfActiveDialog.Value = string.Empty;
+
+                var qryParams = new Dictionary<string, string>();
+                qryParams["ReservationId"] = newReservation.Id.ToString();
+                NavigateToPage( RockPage.Guid, qryParams );
+            }
+        }
+
+        /// <summary>
         /// Handles the Click event of the btnOverride control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
@@ -2506,6 +2692,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                                 )
                                  && reservation.CheckEditAfterApprovalRights( CurrentPerson )
                                  && reservation.ApprovalState != ReservationApprovalState.Cancelled;
+
+            var occurrences = reservation.GetReservationTimes( RockDateTime.Now, reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears(1) ).ToList();
+            btnSplitOccurrence.Visible = ( hasStandardEditRights || hasApprovalRightsToState ) &&
+                                          occurrences.Count > 1 && 
+                                          reservation.ApprovalState != ReservationApprovalState.Cancelled;
 
             hlStatus.Text = reservation.ApprovalState.ConvertToString();
             switch ( reservation.ApprovalState )

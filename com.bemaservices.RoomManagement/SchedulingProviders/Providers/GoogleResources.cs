@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.IO;
 using System.Linq;
 using Rock.Attribute;
 using com.bemaservices.RoomManagement.Model;
@@ -29,6 +30,8 @@ using Rock.Security;
 using Ical.Net;
 using TimeZoneConverter;
 using Rock;
+using Rock.Model;
+using Newtonsoft.Json.Linq;
 
 namespace com.bemaservices.RoomManagement.SchedulingProviders
 {
@@ -36,30 +39,22 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
     /// Scheduling provider for Google Calendar and Google Workspace resources.
     /// </summary>
     [Export( typeof( SchedulingProviderComponent ) )]
-    [ExportMetadata( "ComponentName", "Google Calendar Resources" )]
+    [ExportMetadata( "ComponentName", "Google Resources" )]
     [Rock.SystemGuid.EntityTypeGuid( "A8F7D8B3-2C1E-4F9A-8D3B-1E5C6A7F8B9C" )]
-    [EncryptedTextField( "Service Account Email",
+    [BinaryFileField( "Service Account JSON Key File",
         IsRequired = true,
-        IsPassword = true,
-        Description = "The service account email for Google API authentication.",
+        Description = "The Google service account JSON key file for API authentication. Download this from the Google Cloud Console.",
         Category = CategoryKey.GoogleCalendarSettings,
-        Key = AttributeKey.ServiceAccountEmail,
+        Key = AttributeKey.ServiceAccountJsonKeyFile,
         Order = 0 )]
-    [EncryptedTextField( "Service Account Private Key",
-        IsRequired = true,
-        IsPassword = true,
-        Description = "The private key for the Google service account (P12 format or JSON key).",
-        Category = CategoryKey.GoogleCalendarSettings,
-        Key = AttributeKey.ServiceAccountPrivateKey,
-        Order = 1 )]
     [EncryptedTextField( "Admin User Email",
         IsRequired = true,
         IsPassword = true,
-        Description = "The admin user email to impersonate for accessing Google Workspace resources.",
+        Description = "The admin user email to impersonate for accessing Google Workspace resources (required for domain-wide delegation).",
         Category = CategoryKey.GoogleCalendarSettings,
         Key = AttributeKey.AdminUserEmail,
-        Order = 2 )]
-    public class GoogleCalendarResources : SchedulingProviderComponent
+        Order = 1 )]
+    public class GoogleResources : SchedulingProviderComponent
     {
         #region Keys
         private static class CategoryKey
@@ -69,8 +64,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
         private static class AttributeKey
         {
-            public const string ServiceAccountEmail = "ServiceAccountEmail";
-            public const string ServiceAccountPrivateKey = "ServiceAccountPrivateKey";
+            public const string ServiceAccountJsonKeyFile = "ServiceAccountJsonKeyFile";
             public const string AdminUserEmail = "AdminUserEmail";
         }
 
@@ -199,7 +193,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 }
 
                 // Get the primary location/calendar to create the event in
-                var primaryLocation = providerEvent.Locations.FirstOrDefault();
+                var primaryLocation = providerEvent.Locations?.FirstOrDefault();
                 if ( primaryLocation == null || string.IsNullOrWhiteSpace( primaryLocation.ExternalId ) )
                 {
                     errorMessages.Add( "Event must have at least one location with an external ID" );
@@ -352,19 +346,57 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             try
             {
                 schedulingProvider.LoadAttributes();
-                var encryptedServiceAccountEmail = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountEmail );
-                var encryptedServiceAccountPrivateKey = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountPrivateKey );
+                var jsonKeyFileGuid = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountJsonKeyFile ).AsGuidOrNull();
                 var encryptedAdminUserEmail = schedulingProvider.GetAttributeValue( AttributeKey.AdminUserEmail );
-
-                var serviceAccountEmail = Encryption.DecryptString( encryptedServiceAccountEmail ) ?? encryptedServiceAccountEmail;
-                var serviceAccountPrivateKey = Encryption.DecryptString( encryptedServiceAccountPrivateKey ) ?? encryptedServiceAccountPrivateKey;
                 var adminUserEmail = Encryption.DecryptString( encryptedAdminUserEmail ) ?? encryptedAdminUserEmail;
 
-                if ( string.IsNullOrWhiteSpace( serviceAccountEmail ) ||
-                     string.IsNullOrWhiteSpace( serviceAccountPrivateKey ) ||
-                     string.IsNullOrWhiteSpace( adminUserEmail ) )
+                if ( !jsonKeyFileGuid.HasValue || string.IsNullOrWhiteSpace( adminUserEmail ) )
                 {
                     errorMessages.Add( "Missing required Google authentication configuration" );
+                    return null;
+                }
+
+                // Read the JSON key file from BinaryFile
+                var binaryFileService = new Rock.Model.BinaryFileService( new Rock.Data.RockContext() );
+                var binaryFile = binaryFileService.Get( jsonKeyFileGuid.Value );
+
+                if ( binaryFile == null )
+                {
+                    errorMessages.Add( "Google service account JSON key file not found" );
+                    return null;
+                }
+
+                string jsonKeyContent;
+                using ( var stream = binaryFile.ContentStream )
+                using ( var reader = new StreamReader( stream ) )
+                {
+                    jsonKeyContent = reader.ReadToEnd();
+                }
+
+                if ( string.IsNullOrWhiteSpace( jsonKeyContent ) )
+                {
+                    errorMessages.Add( "Google service account JSON key file is empty" );
+                    return null;
+                }
+
+                // Parse the JSON key to extract credentials
+                JObject jsonKey;
+                try
+                {
+                    jsonKey = JObject.Parse( jsonKeyContent );
+                }
+                catch ( Exception ex )
+                {
+                    errorMessages.Add( $"Invalid JSON key file format: {ex.Message}" );
+                    return null;
+                }
+
+                var serviceAccountEmail = jsonKey["client_email"]?.ToString();
+                var privateKey = jsonKey["private_key"]?.ToString();
+
+                if ( string.IsNullOrWhiteSpace( serviceAccountEmail ) || string.IsNullOrWhiteSpace( privateKey ) )
+                {
+                    errorMessages.Add( "JSON key file missing required fields (client_email, private_key)" );
                     return null;
                 }
 
@@ -373,7 +405,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     {
                         Scopes = new[] { CalendarService.Scope.Calendar },
                         User = adminUserEmail
-                    }.FromPrivateKey( serviceAccountPrivateKey )
+                    }.FromPrivateKey( privateKey )
                 );
 
                 var service = new CalendarService( new BaseClientService.Initializer
@@ -404,6 +436,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             providerEvent.ExternalId = $"{calendarId}|{googleEvent.Id}"; 
             providerEvent.Title = googleEvent.Summary;
             providerEvent.Description = googleEvent.Description;
+
+            // Google Calendar Created / Updated Date Times are always in UTC
             providerEvent.CreatedDateTime = googleEvent.Created?.ToUniversalTime();
             providerEvent.ModifiedDateTime = googleEvent.Updated?.ToUniversalTime();
 
@@ -433,7 +467,6 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
 
             // Build CalendarEvent
             var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent();
-            var timeZoneId = TZConvert.WindowsToIana( RockDateTime.OrgTimeZoneInfo.Id );
 
             // Parse start and end times and convert to UTC
             if ( googleEvent.Start != null )
@@ -443,7 +476,16 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     var startDateTime = googleEvent.Start.DateTime.Value;
                     if ( startDateTime.Kind != DateTimeKind.Utc )
                     {
-                        startDateTime = startDateTime.ToUniversalTime();
+                        // Google provides timezone in IANA format, convert to UTC
+                        if ( !string.IsNullOrWhiteSpace( googleEvent.Start.TimeZone ) )
+                        {
+                            var startTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( googleEvent.Start.TimeZone );
+                            startDateTime = TimeZoneInfo.ConvertTimeToUtc( startDateTime, startTimeZone );
+                        }
+                        else
+                        {
+                            startDateTime = startDateTime.ToUniversalTime();
+                        }
                     }
                     calendarEvent.Start = new Ical.Net.DataTypes.CalDateTime( startDateTime, "UTC" );
                 }
@@ -461,7 +503,16 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     var endDateTime = googleEvent.End.DateTime.Value;
                     if ( endDateTime.Kind != DateTimeKind.Utc )
                     {
-                        endDateTime = endDateTime.ToUniversalTime();
+                        // Google provides timezone in IANA format, convert to UTC
+                        if ( !string.IsNullOrWhiteSpace( googleEvent.End.TimeZone ) )
+                        {
+                            var endTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( googleEvent.End.TimeZone );
+                            endDateTime = TimeZoneInfo.ConvertTimeToUtc( endDateTime, endTimeZone );
+                        }
+                        else
+                        {
+                            endDateTime = endDateTime.ToUniversalTime();
+                        }
                     }
                     calendarEvent.End = new Ical.Net.DataTypes.CalDateTime( endDateTime, "UTC" );
                 }
@@ -502,7 +553,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             googleEvent.Description = providerEvent.Description;
 
             // Set attendees (including room resources)
-            if ( providerEvent.Locations.Any() )
+            if ( providerEvent.Locations != null && providerEvent.Locations.Any() )
             {
                 googleEvent.Attendees = new List<EventAttendee>();
 
@@ -522,7 +573,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
 
             // Set location string
-            if ( providerEvent.Locations.Any() )
+            if ( providerEvent.Locations != null && providerEvent.Locations.Any() )
             {
                 googleEvent.Location = string.Join( ", ", providerEvent.Locations.Select( l => l.DisplayName ) );
             }
@@ -544,17 +595,11 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 }
                 else
                 {
-                    // Convert from UTC to Rock's org timezone for Google Calendar
                     var startDateTime = calendarEvent.Start.AsUtc;
                     var endDateTime = calendarEvent.End.AsUtc;
 
-                    var startInOrgTimeZone = TimeZoneInfo.ConvertTimeFromUtc( startDateTime, orgTimeZone );
-                    var endInOrgTimeZone = TimeZoneInfo.ConvertTimeFromUtc( endDateTime, orgTimeZone );
-
-                    googleEvent.Start.DateTime = startInOrgTimeZone;
-                    googleEvent.Start.TimeZone = timeZoneId;
-                    googleEvent.End.DateTime = endInOrgTimeZone;
-                    googleEvent.End.TimeZone = timeZoneId;
+                    googleEvent.Start.DateTime = startDateTime;
+                    googleEvent.End.DateTime = endDateTime;
                 }
 
                 // Handle recurrence

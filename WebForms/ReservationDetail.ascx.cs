@@ -1010,27 +1010,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     return;
                 }
 
-                var calendar = Ical.Net.Calendar.Load( reservation.Schedule.iCalendarContent );
-                var calendarEvent = calendar.Events.FirstOrDefault();
-
-                if ( calendarEvent == null )
-                {
-                    return;
-                }
-
-                var occurrences = calendarEvent.GetOccurrences( RockDateTime.Now, RockDateTime.Now.AddYears( 1 ) );
+                var occurrences = reservation.GetReservationTimes( RockDateTime.Now, reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 ) ).ToList();
                 var futureOccurrences = occurrences
-                    .Where( o => o.Period.StartTime.Value >= RockDateTime.Now )
-                    .OrderBy( o => o.Period.StartTime.Value )
+                    .OrderBy( o => o.StartDateTime )
                     .ToList();
 
                 ddlOccurrenceDate.Items.Clear();
                 ddlOccurrenceDate.Items.Add( new ListItem( string.Empty, string.Empty ) );
 
-                foreach ( var occurrence in futureOccurrences.Take( 100 ) )
+                foreach ( var occurrence in futureOccurrences )
                 {
-                    var displayText = occurrence.Period.StartTime.Value.ToString( "MMMM dd, yyyy h:mm tt" );
-                    ddlOccurrenceDate.Items.Add( new ListItem( displayText, occurrence.Period.StartTime.Value.ToString( "o" ) ) );
+                    var displayText = occurrence.StartDateTime.ToString( "MMMM dd, yyyy h:mm tt" );
+                    ddlOccurrenceDate.Items.Add( new ListItem( displayText, occurrence.StartDateTime.ToString( "o" ) ) );
                 }
 
                 if ( futureOccurrences.Any() )
@@ -1073,6 +1064,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     return;
                 }
 
+                var selectedOccurrence = originalReservation
+                    .GetReservationTimes( RockDateTime.Now, originalReservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 ) )
+                    .Where( o => o.StartDateTime == selectedOccurrenceDate )
+                    .FirstOrDefault();
+
+                if ( selectedOccurrence == null )
+                {
+                    return;
+                }
+
+                // Create the new Reservation
                 var originalChanges = new History.HistoryChangeList();
                 var originalOldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, originalReservation );
 
@@ -1087,8 +1089,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var iCalendar = new Ical.Net.Calendar();
                 var calendarEvent = new Ical.Net.CalendarComponents.CalendarEvent
                 {
-                    DtStart = new Ical.Net.DataTypes.CalDateTime( selectedOccurrenceDate ),
-                    DtEnd = new Ical.Net.DataTypes.CalDateTime( selectedOccurrenceDate.AddMinutes( originalReservation.Schedule.DurationInMinutes ) ),
+                    DtStart = new Ical.Net.DataTypes.CalDateTime( selectedOccurrence.StartDateTime ),
+                    DtEnd = new Ical.Net.DataTypes.CalDateTime( selectedOccurrence.EndDateTime ),
                     DtStamp = new Ical.Net.DataTypes.CalDateTime( RockDateTime.Now ),
                     Uid = Guid.NewGuid().ToString(),
                     Sequence = 0
@@ -1106,8 +1108,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 newReservation.ApprovalState = ReservationApprovalState.Draft;
 
                 var newChanges = new History.HistoryChangeList();
-                newChanges.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, "Reservation (Split from recurring reservation)" ) );
 
+
+                // Update the Old Reservation
                 var originalCalendar = Ical.Net.Calendar.Load( originalReservation.Schedule.iCalendarContent );
                 var originalEvent = originalCalendar.Events.FirstOrDefault();
 
@@ -2693,9 +2696,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                                  && reservation.CheckEditAfterApprovalRights( CurrentPerson )
                                  && reservation.ApprovalState != ReservationApprovalState.Cancelled;
 
-            var occurrences = reservation.GetReservationTimes( RockDateTime.Now, reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears(1) ).ToList();
+            var occurrences = reservation.GetReservationTimes( RockDateTime.Now, reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 ) ).ToList();
             btnSplitOccurrence.Visible = ( hasStandardEditRights || hasApprovalRightsToState ) &&
-                                          occurrences.Count > 1 && 
+                                          occurrences.Count > 1 &&
                                           reservation.ApprovalState != ReservationApprovalState.Cancelled;
 
             hlStatus.Text = reservation.ApprovalState.ConvertToString();
@@ -2825,7 +2828,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     wpResources.Expanded = true;
                 }
 
-                BindReservationDoorLockSchedulesGrid();                
+                BindReservationDoorLockSchedulesGrid();
                 if ( DoorLockSchedulesState.Any() )
                 {
                     wpDoorLockSchedules.Expanded = true;

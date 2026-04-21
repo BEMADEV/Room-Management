@@ -201,7 +201,9 @@ div[id$="_upnlContent"].modal-open:has(div.picker-menu[style*="display: block"])
                             <asp:LinkButton ID="btnOverride" runat="server" ToolTip="Override Reservation" CssClass="btn btn-warning" OnClick="btnOverride_Click" CausesValidation="false">Override</asp:LinkButton>
                             <asp:LinkButton ID="btnCancelReservation" runat="server" ToolTip="Cancel Reservation" CssClass="btn btn-default" OnClick="btnCancelReservation_Click" CausesValidation="false">Cancel</asp:LinkButton>
                             <asp:LinkButton ID="btnCopy" runat="server" ToolTip="Copy Reservation" CssClass="btn btn-default fa fa-clone" OnClick="btnCopy_Click" CausesValidation="false" />
-                            <asp:LinkButton ID="btnSplitOccurrence" runat="server" ToolTip="Split Occurrence" CssClass="btn btn-default fa fa-code-fork" OnClick="btnSplitOccurrence_Click" CausesValidation="false" />
+                            <asp:LinkButton ID="btnSplitOccurrence" runat="server" ToolTip="Split Occurrence" CssClass="btn btn-default" OnClick="btnSplitOccurrence_Click" CausesValidation="false" >
+                                <i class="fa fa-code-fork" aria-hidden="true"></i>
+                            </asp:LinkButton>
 
                             <asp:Literal ID="btnDownload" runat="server" />
                         </div>

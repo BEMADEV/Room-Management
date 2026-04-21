@@ -291,12 +291,29 @@ namespace com.bemaservices.RoomManagement.Model
             newItem.ForeignGuid = null;
             newItem.ForeignKey = null;
 
+            // Preserve the ReservationTypeId which may get reset to 0 during cloning
+            newItem.ReservationTypeId = item.ReservationTypeId;
+
             newItem.CreatedByPersonAlias = null;
             newItem.CreatedByPersonAliasId = null;
             newItem.CreatedDateTime = RockDateTime.Now;
             newItem.ModifiedByPersonAlias = null;
             newItem.ModifiedByPersonAliasId = null;
             newItem.ModifiedDateTime = RockDateTime.Now;
+
+            // Clear all PersonAlias navigation properties to prevent duplicate key violations
+            newItem.EventContactPersonAlias = null;
+            newItem.AdministrativeContactPersonAlias = null;
+            newItem.RequesterAlias = null;
+            newItem.RequesterAliasId = null;
+            newItem.ApproverAlias = null;
+            newItem.ApproverAliasId = null;
+            newItem.InitialApproverAlias = null;
+            newItem.InitialApproverAliasId = null;
+            newItem.SpecialApproverAlias = null;
+            newItem.SpecialApproverAliasId = null;
+            newItem.FinalApproverAlias = null;
+            newItem.FinalApproverAliasId = null;
 
             newItem.ReservationLinkages = new List<ReservationLinkage>();
 

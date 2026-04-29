@@ -341,10 +341,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             {
                 schedulingProvider.LoadAttributes();
                 var jsonKeyFileGuid = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountJsonKeyFile ).AsGuidOrNull();
-                var encryptedAdminUserEmail = schedulingProvider.GetAttributeValue( AttributeKey.AdminUserEmail );
-                var adminUserEmail = Encryption.DecryptString( encryptedAdminUserEmail ) ?? encryptedAdminUserEmail;
 
-                if ( !jsonKeyFileGuid.HasValue || string.IsNullOrWhiteSpace( adminUserEmail ) )
+                if ( !jsonKeyFileGuid.HasValue )
                 {
                     errorMessages.Add( "Missing required Google authentication configuration" );
                     return null;
@@ -360,20 +358,12 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return null;
                 }
 
-                string jsonKeyContent;
+                GoogleCredential credential;
                 using ( var stream = binaryFile.ContentStream )
-                using ( var reader = new StreamReader( stream ) )
                 {
-                    jsonKeyContent = reader.ReadToEnd();
+                    credential = GoogleCredential.FromStream( stream ).CreateScoped( new[] { CalendarService.Scope.Calendar } );
                 }
 
-                if ( string.IsNullOrWhiteSpace( jsonKeyContent ) )
-                {
-                    errorMessages.Add( "Google service account JSON key file is empty" );
-                    return null;
-                }
-
-                var credential = CredentialFactory.FromJson<ServiceAccountCredential>( jsonKeyContent ).ToGoogleCredential().CreateScoped( new[] { CalendarService.Scope.Calendar } );
                 var service = new CalendarService( new BaseClientService.Initializer
                 {
                     HttpClientInitializer = credential,

@@ -41,19 +41,13 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
     [Export( typeof( SchedulingProviderComponent ) )]
     [ExportMetadata( "ComponentName", "Google Resources" )]
     [Rock.SystemGuid.EntityTypeGuid( "A8F7D8B3-2C1E-4F9A-8D3B-1E5C6A7F8B9C" )]
-    [BinaryFileField( "Service Account JSON Key File",
+    [FileField( Rock.SystemGuid.BinaryFiletype.MEDIA_FILE,
+        Name = "Service Account JSON Key File",
         IsRequired = true,
         Description = "The Google service account JSON key file for API authentication. Download this from the Google Cloud Console.",
         Category = CategoryKey.GoogleCalendarSettings,
         Key = AttributeKey.ServiceAccountJsonKeyFile,
         Order = 0 )]
-    [EncryptedTextField( "Admin User Email",
-        IsRequired = true,
-        IsPassword = true,
-        Description = "The admin user email to impersonate for accessing Google Workspace resources (required for domain-wide delegation).",
-        Category = CategoryKey.GoogleCalendarSettings,
-        Key = AttributeKey.AdminUserEmail,
-        Order = 1 )]
     public class GoogleResources : SchedulingProviderComponent
     {
         #region Keys
@@ -379,35 +373,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return null;
                 }
 
-                // Parse the JSON key to extract credentials
-                JObject jsonKey;
-                try
-                {
-                    jsonKey = JObject.Parse( jsonKeyContent );
-                }
-                catch ( Exception ex )
-                {
-                    errorMessages.Add( $"Invalid JSON key file format: {ex.Message}" );
-                    return null;
-                }
-
-                var serviceAccountEmail = jsonKey["client_email"]?.ToString();
-                var privateKey = jsonKey["private_key"]?.ToString();
-
-                if ( string.IsNullOrWhiteSpace( serviceAccountEmail ) || string.IsNullOrWhiteSpace( privateKey ) )
-                {
-                    errorMessages.Add( "JSON key file missing required fields (client_email, private_key)" );
-                    return null;
-                }
-
-                var credential = new ServiceAccountCredential(
-                    new ServiceAccountCredential.Initializer( serviceAccountEmail )
-                    {
-                        Scopes = new[] { CalendarService.Scope.Calendar },
-                        User = adminUserEmail
-                    }.FromPrivateKey( privateKey )
-                );
-
+                var credential = CredentialFactory.FromJson<ServiceAccountCredential>( jsonKeyContent ).ToGoogleCredential().CreateScoped( new[] { CalendarService.Scope.Calendar } );
                 var service = new CalendarService( new BaseClientService.Initializer
                 {
                     HttpClientInitializer = credential,

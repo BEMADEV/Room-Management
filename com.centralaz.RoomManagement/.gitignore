@@ -1,6 +1,10 @@
 /bin/
 /obj/
+/dist/
 /*.suo
 /*.user
-
-builds/tmp/*
+/coverage
+/node_modules
+.cache
+*.map
+/packages

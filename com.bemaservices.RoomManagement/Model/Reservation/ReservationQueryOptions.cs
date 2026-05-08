@@ -60,11 +60,16 @@ namespace com.bemaservices.RoomManagement.Model
         /// <value>The administrative contact person identifier.</value>
         public int? AdministrativeContactPersonId { get; set; } = null;
 
+        public int? DataViewId { get; set; } = null;
+
         /// <summary>
         /// Gets or sets the reservation type ids.
         /// </summary>
         /// <value>The reservation type ids.</value>
         public List<int> ReservationTypeIds { get; set; } = new List<int>();
+
+        public List<Guid> ReservationTypeGuids { get; set; } = new List<Guid>();
+
         /// <summary>
         /// Gets or sets the reservation ids.
         /// </summary>

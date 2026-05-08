@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using com.bemaservices.RoomManagement.Model;
+using Rock;
 using Rock.Lava;
 using Rock.Model;
 

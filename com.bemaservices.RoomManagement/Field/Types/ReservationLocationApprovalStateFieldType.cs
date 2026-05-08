@@ -17,6 +17,7 @@
 using System;
 using com.bemaservices.RoomManagement.Model;
 using Rock.Field.Types;
+using Rock.SystemGuid;
 
 namespace com.bemaservices.RoomManagement.Field.Types
 {
@@ -24,7 +25,8 @@ namespace com.bemaservices.RoomManagement.Field.Types
     /// Field Type used to display a list of connection states
     /// </summary>
     [Serializable]
-    public class ReservationLocationApprovalStateFieldType : EnumFieldType<ReservationLocationApprovalState>
+    [FieldTypeGuid( "CAA46A41-583F-420F-AB2D-10B7D4B57828" )]
+    public class ReservationLocationApprovalStateFieldType : UniversalItemEnumPickerFieldType<ReservationLocationApprovalState>
     {
     }
 }

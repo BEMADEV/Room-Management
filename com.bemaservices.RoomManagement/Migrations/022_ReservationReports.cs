@@ -16,16 +16,9 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Data.Entity;
-using System.Linq;
 using System.Text;
-using com.bemaservices.RoomManagement.ReportTemplates;
-using iTextSharp.text;
 using Rock;
-using Rock.Data;
-using Rock.Model;
 using Rock.Plugin;
-using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Migrations
 {

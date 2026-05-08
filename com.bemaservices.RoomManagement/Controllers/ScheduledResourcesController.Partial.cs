@@ -71,15 +71,20 @@ namespace Rock.Rest.Controllers
                 int id,
                 int rootCategoryId = 0,
                 bool getCategorizedItems = false,
+                int? reservationId = null,
+                string iCalendarContent = "",
+                int? setupTime = null,
+                int? cleanupTime = null,
                 string locationIds = "",
                 string entityQualifier = null,
                 string entityQualifierValue = null,
                 bool showUnnamedEntityItems = true,
                 bool showCategoriesThatHaveNoChildren = true,
+                bool includeAllCampuses = true,
+                int campusId = 0,
                 string includedCategoryIds = null,
                 string excludedCategoryIds = null,
-                string defaultIconCssClass = null,
-                int? resourceEntitySetId = null )
+                string defaultIconCssClass = null )
         {
             Person currentPerson = GetPerson();
             var locationIdsList = locationIds.SplitDelimitedValues().AsIntegerList();
@@ -121,10 +126,6 @@ namespace Rock.Rest.Controllers
             qry = qry.Where( c => c.EntityTypeId == entityTypeId );
 
 
-            var rockContext = new RockContext();
-            var entitySetItemService = new EntitySetItemService( rockContext );
-            var resourceService = new ResourceService( rockContext );
-
             List<Category> categoryList = qry.OrderBy( c => c.Order ).ThenBy( c => c.Name ).ToList();
             List<ScheduledCategoryItem> categoryItemList = new List<ScheduledCategoryItem>();
 
@@ -141,28 +142,85 @@ namespace Rock.Rest.Controllers
                 }
             }
 
+            var rockContext = new RockContext();
+            var entitySetService = new EntitySetService( rockContext );
+            var resourceService = new ResourceService( rockContext );
+
             if ( getCategorizedItems )
             {
                 // if id is zero and we have a rootCategory, show the children of that rootCategory (but don't show the rootCategory)
                 int parentItemId = id == 0 ? rootCategoryId : id;
 
-                var resourceQry = new List<ResourceAvailability>();
-                if ( resourceEntitySetId.HasValue )
+                var resourceHashString = String.Format( "{0}|{1}|{2}|{3}|{4}|{5}",
+                    reservationId.ToStringSafe(),
+                    iCalendarContent.ToStringSafe(),
+                    setupTime.ToStringSafe(),
+                    cleanupTime.ToStringSafe(),
+                    includeAllCampuses.ToStringSafe(),
+                    campusId.ToStringSafe() );
+
+                var resourceHash = resourceHashString.Md5Hash();
+
+                // See if the calculations have already been made
+                var resourceAvailabilityList = new List<ResourceAvailability>();
+                var currentDateTime = RockDateTime.Now;
+                var resourceEntitySet = entitySetService.Queryable( "Items" ).AsNoTracking()
+                    .Where( es => es.Note == resourceHash )
+                    .Where( es => !es.ExpireDateTime.HasValue || es.ExpireDateTime.Value > currentDateTime )
+                    .FirstOrDefault();
+
+                if ( resourceEntitySet != null )
                 {
-                    if ( resourceEntitySetId.HasValue )
+                    resourceAvailabilityList = resourceEntitySet
+                        .Items
+                        .Select( r => r.AdditionalMergeValuesJson.FromJsonOrNull<ResourceAvailability>() )
+                        .ToList();
+                }
+                else
+                {
+                    var reservationService = new ReservationService( rockContext );
+
+                    var newReservation = new Reservation()
                     {
-                        resourceQry = entitySetItemService
-                           .GetByEntitySetId( resourceEntitySetId.Value )
-                           .ToList()
-                           .Select( r => r.AdditionalMergeValuesJson.FromJsonOrNull<ResourceAvailability>() )
-                           .ToList();
+                        Id = reservationId ?? 0,
+                        Schedule = ReservationService.BuildScheduleFromICalContent( iCalendarContent ),
+                        SetupTime = setupTime,
+                        CleanupTime = cleanupTime
+                    };
+
+                    newReservation = reservationService.SetFirstLastOccurrenceDateTimes( newReservation );
+                    resourceAvailabilityList = reservationService.GetResourceAvailabilities( newReservation,
+                        includeAllCampuses,
+                        campusId,
+                        locationIdsList
+                    );
+
+                    var entitySet = new EntitySet()
+                    {
+                        EntityTypeId = EntityTypeCache.GetId( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESOURCE ),
+                        ExpireDateTime = RockDateTime.Now.AddMinutes( 30 ),
+                        Note = resourceHash
+                    };
+
+                    foreach ( var resource in resourceAvailabilityList )
+                    {
+                        var entitySetItem = new EntitySetItem()
+                        {
+                            EntityId = resource.ResourceId,
+                            AdditionalMergeValuesJson = resource.ToJson()
+                        };
+
+                        entitySet.Items.Add( entitySetItem );
                     }
+
+                    entitySetService.Add( entitySet );
+                    rockContext.SaveChanges();
                 }
 
-                if ( resourceQry.Where( r => r.CategoryId == parentItemId ) != null )
+                if ( resourceAvailabilityList.Where( r => r.CategoryId == parentItemId ) != null )
                 {
                     // do a ToList to load from database prior to ordering by name, just in case Name is a virtual property
-                    var itemsList = resourceQry.Where( r => r.CategoryId == parentItemId ).ToList();
+                    var itemsList = resourceAvailabilityList.Where( r => r.CategoryId == parentItemId ).ToList();
 
                     foreach ( var categorizedItem in itemsList.OrderBy( i => i.ResourceName ) )
                     {
@@ -170,7 +228,7 @@ namespace Rock.Rest.Controllers
                         if ( categorizedItem != null && resource != null && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
                         {
                             var color = "Green";
-                            if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0)
+                            if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0 )
                             {
                                 color = "Red";
                             }

@@ -24,6 +24,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Web;
+using Ical.Net.DataTypes;
 using Rock;
 using Rock.Data;
 using Rock.Lava;
@@ -528,7 +529,7 @@ namespace com.bemaservices.RoomManagement.Model
         {
             get
             {
-                return ReservationResources.Where(rr=> rr.ReservationLocation == null).ToList();
+                return ReservationResources.Where( rr => rr.ReservationLocation == null ).ToList();
             }
         }
 
@@ -768,29 +769,47 @@ namespace com.bemaservices.RoomManagement.Model
                         {
                             if ( calendarEvent.Duration != null )
                             {
+                                List<String> durationParts = new List<string>();
                                 var duration = calendarEvent.Duration;
+                                if ( duration.Days > 0 )
+                                {
+                                    if ( duration.Days == 1 )
+                                    {
+                                        durationParts.Add( "1 day" );
+                                    }
+                                    else
+                                    {
+                                        durationParts.Add( string.Format( "{0} days", duration.Days ) );
+                                    }
+                                }
+
                                 if ( duration.Hours > 0 )
                                 {
                                     if ( duration.Hours == 1 )
                                     {
-                                        sb.AppendFormat( " for {0} hr", duration.Hours );
+                                        durationParts.Add( "1 hr" );
                                     }
                                     else
                                     {
-                                        sb.AppendFormat( " for {0} hrs", duration.Hours );
-                                    }
-
-                                    if ( duration.Minutes > 0 )
-                                    {
-                                        sb.AppendFormat( " and {0} min", duration.Minutes );
+                                        durationParts.Add( string.Format( "{0} hrs", duration.Hours ) );
                                     }
                                 }
-                                else
+
+                                if ( duration.Minutes > 0 )
                                 {
-                                    if ( duration.Minutes > 0 )
+                                    if ( duration.Minutes == 1 )
                                     {
-                                        sb.AppendFormat( " for {0} min", duration.Minutes );
+                                        durationParts.Add( "1 min" );
                                     }
+                                    else
+                                    {
+                                        durationParts.Add( string.Format( "{0} mins", duration.Minutes ) );
+                                    }
+                                }
+
+                                if ( durationParts.Any() )
+                                {
+                                    sb.AppendFormat( " for {0}", durationParts.AsDelimited( ", ", " and " ) );
                                 }
                             }
                         }
@@ -851,6 +870,39 @@ namespace com.bemaservices.RoomManagement.Model
                                 {
                                     sb.AppendFormat( " to {0}", lastOccurrenceEndDateTime.Value.ToShortDateString() );
                                 }
+                            }
+                        }
+                        catch ( Exception ex )
+                        {
+                            ExceptionLogService.LogException( ex );
+                        }
+
+                        try
+                        { // Exclusions
+                            if ( calendarEvent.ExceptionDates.Count > 0 )
+                            {
+                                // convert individual ExceptionDates into a list of Date Ranges
+                                var exDateRanges = new List<Period>();
+                                var dates = calendarEvent.ExceptionDates[0].Select( a => a.StartTime ).OrderBy( a => a ).ToList();
+                                var previousDate = dates[0].AddDays( -1 );
+                                var dateRange = new Period { StartTime = dates[0] };
+                                foreach ( var date in dates )
+                                {
+                                    if ( !date.Equals( previousDate.AddDays( 1 ) ) )
+                                    {
+                                        dateRange.EndTime = previousDate;
+                                        exDateRanges.Add( dateRange );
+                                        dateRange = new Period { StartTime = date };
+                                    }
+
+                                    previousDate = date;
+                                }
+
+                                dateRange.EndTime = dates.Last();
+                                exDateRanges.Add( dateRange );
+
+                                var exDateRangesString = exDateRanges.Select( a => string.Format( "<li>{0} - {1}</li>", a.StartTime, a.EndTime ) ).ToList().AsDelimited( "" );
+                                sb.AppendFormat( " except for: <ul>{0}</ul>", exDateRangesString );
                             }
                         }
                         catch ( Exception ex )

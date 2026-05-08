@@ -4,7 +4,7 @@
         "code": "com.bemaservices"
     },
     "name": "Room Management",
-    "version": "2.6.7",
+    "version": "2.6.8",
     "include": {
         "com.bemaservices.RoomManagement/bin/Release/net472/com.bemaservices.RoomManagement.dll": "Bin/",
         "com.centralaz.RoomManagement/bin/Release/net472/com.centralaz.RoomManagement.dll": "Bin/",

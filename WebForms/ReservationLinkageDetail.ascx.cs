@@ -23,7 +23,6 @@ using System.Linq;
 using System.Text;
 using System.Web.UI;
 using com.bemaservices.RoomManagement.Model;
-using DDay.iCal;
 using Rock;
 using Rock.Attribute;
 using Rock.Data;

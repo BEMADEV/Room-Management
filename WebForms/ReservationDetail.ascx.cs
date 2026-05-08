@@ -3899,18 +3899,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                         phAttributes.ID = "phAttributes_" + reservationResource.Guid.ToString();
 
-                        if ( isEditMode )
-                        {
-                            var excludeKeys = reservationResource.Attributes.Where( a => !editableAttributes.Contains( a.Key ) ).Select( a => a.Key ).ToList();
-                            AddResourceEditControls( reservationResource, phAttributes, reservationResource.IsNew, BlockValidationGroup, excludeKeys );
-                            reservationResource.IsNew = false;
-                        }
-                        else
-                        {
-                            var excludeKeys = reservationResource.Attributes.Where( a => !viewableAttributes.Contains( a.Key ) ).Select( a => a.Key ).ToList();
-                            Rock.Attribute.Helper.AddDisplayControls( reservationResource, phAttributes, excludeKeys, showHeading: false );
-                        }
-
+                        // Add controls to the control tree FIRST (before adding attribute controls)
                         childControl.Controls.Add( headingTitle );
                         childControl.Controls.Add( hfReservationResourceGuid );
                         childControl.Controls.Add( phAttributes );
@@ -3922,6 +3911,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         else
                         {
                             phViewResourceAnswers.Controls.Add( childControl );
+                        }
+
+                        // NOW add the attribute controls (after the control tree is established)
+                        if ( isEditMode )
+                        {
+                            var excludeKeys = reservationResource.Attributes.Where( a => !editableAttributes.Contains( a.Key ) ).Select( a => a.Key ).ToList();
+                            AddResourceEditControls( reservationResource, phAttributes, reservationResource.IsNew, BlockValidationGroup, excludeKeys );
+                            reservationResource.IsNew = false;
+                        }
+                        else
+                        {
+                            var excludeKeys = reservationResource.Attributes.Where( a => !viewableAttributes.Contains( a.Key ) ).Select( a => a.Key ).ToList();
+                            Rock.Attribute.Helper.AddDisplayControls( reservationResource, phAttributes, excludeKeys, showHeading: false );
                         }
                     }
                 }

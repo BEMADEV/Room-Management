@@ -87,6 +87,13 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     return events;
                 }
 
+                // Validate the calendar ID format and accessibility
+                if ( !ValidateCalendarId( calendarService, externalLocationId, out var validationErrors ) )
+                {
+                    errorMessages.AddRange( validationErrors );
+                    return events;
+                }
+
                 var eventsRequest = calendarService.Events.List( externalLocationId );
 
                 if ( startDate.HasValue )
@@ -111,6 +118,10 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                         events.Add( ConvertFromGoogleEvent( googleEvent, externalLocationId ) );
                     }
                 }
+            }
+            catch ( Google.GoogleApiException ex ) when ( ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound )
+            {
+                errorMessages.Add( $"Calendar '{externalLocationId}' not found. The ExternalId must be a valid Google Calendar email address (e.g., 'resource@yourdomain.com'), not '{externalLocationId}'. Check your SchedulingProviderLocation configuration." );
             }
             catch ( Exception ex )
             {
@@ -322,6 +333,77 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             catch ( Exception ex )
             {
                 errorMessages.Add( $"Exception deleting event: {ex.Message}" );
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets a list of available calendars/resources accessible by the service account.
+        /// This helps identify the correct calendar IDs to use for SchedulingProviderLocation ExternalId values.
+        /// </summary>
+        public List<CalendarListEntry> GetAvailableCalendars(
+            SchedulingProvider schedulingProvider,
+            out List<string> errorMessages )
+        {
+            errorMessages = new List<string>();
+            var calendars = new List<CalendarListEntry>();
+
+            try
+            {
+                var calendarService = GetCalendarService( schedulingProvider, out var serviceErrors );
+                if ( serviceErrors.Any() )
+                {
+                    errorMessages.AddRange( serviceErrors );
+                    return calendars;
+                }
+
+                // Get list of calendars accessible to the service account
+                var calendarListRequest = calendarService.CalendarList.List();
+                var calendarList = calendarListRequest.Execute();
+
+                if ( calendarList.Items != null )
+                {
+                    calendars.AddRange( calendarList.Items );
+                }
+            }
+            catch ( Google.GoogleApiException ex )
+            {
+                errorMessages.Add( $"Google API error: {ex.Message}" );
+            }
+            catch ( Exception ex )
+            {
+                errorMessages.Add( $"Exception getting calendars: {ex.Message}" );
+            }
+
+            return calendars;
+        }
+
+        /// <summary>
+        /// Validates that an external location ID exists and is accessible.
+        /// Returns a more helpful error message if the ID is invalid.
+        /// </summary>
+        private bool ValidateCalendarId(
+            CalendarService calendarService,
+            string calendarId,
+            out List<string> errorMessages )
+        {
+            errorMessages = new List<string>();
+
+            try
+            {
+                // Try to get calendar metadata to validate it exists
+                var calendarRequest = calendarService.Calendars.Get( calendarId );
+                var calendar = calendarRequest.Execute();
+                return true;
+            }
+            catch ( Google.GoogleApiException ex ) when ( ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound )
+            {
+                errorMessages.Add( $"Calendar '{calendarId}' not found. The calendar ID must be an email address (e.g., 'resource@domain.com' or 'c_xxx@resource.calendar.google.com'), not a numeric ID. Use GetAvailableCalendars() to list valid calendar IDs." );
+                return false;
+            }
+            catch ( Exception ex )
+            {
+                errorMessages.Add( $"Error validating calendar ID: {ex.Message}" );
                 return false;
             }
         }

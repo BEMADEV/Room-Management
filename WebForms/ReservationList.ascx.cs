@@ -578,6 +578,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 entityId = PageParameter( relatedEntity ).AsIntegerOrNull();
 
+                if ( entityId == null )
+                {
+                    string entityIdKey = PageParameter( relatedEntity );
+                    entityId = new EventItemOccurrenceService( rockContext ).Get( entityIdKey )?.Id;
+                }
+
                 if ( entityId != null && RelatedEntities.EventItemOccurrenceId.ToString() == relatedEntity )
                 {
                     qry = qry.Where( r => r.ReservationLinkages.Any( rl => rl.EventItemOccurrenceId == entityId ) );

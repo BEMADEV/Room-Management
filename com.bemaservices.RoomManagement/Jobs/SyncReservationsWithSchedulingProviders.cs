@@ -300,6 +300,16 @@ namespace com.bemaservices.RoomManagement.Jobs
                 var startDate = importDateRange.Start;
                 var endDate = importDateRange.End;
 
+                if ( startDate == null )
+                {
+                    startDate = RockDateTime.Now.AddMonths( -1 );
+                }
+
+                if ( endDate == null )
+                {
+                    endDate = RockDateTime.Now.AddMonths( 6 );
+                }
+
                 foreach ( var schedulingProviderLocation in schedulingProviderLocations )
                 {
                     List<string> errorMessages;

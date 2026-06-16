@@ -48,6 +48,13 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         Category = CategoryKey.GoogleCalendarSettings,
         Key = AttributeKey.ServiceAccountJsonKeyFile,
         Order = 0 )]
+    [TextField(
+        "Admin User Email",
+        Description = "The email address of a Google Workspace admin user to impersonate for domain-wide delegation. The service account must have domain-wide delegation enabled and the admin user must have access to the calendars.",
+        IsRequired = true,
+        Category = CategoryKey.GoogleCalendarSettings,
+        Key = AttributeKey.AdminUserEmail,
+        Order = 1 )]
     public class GoogleResources : SchedulingProviderComponent
     {
         #region Keys
@@ -106,8 +113,10 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     eventsRequest.TimeMax = endDate.Value;
                 }
 
-                eventsRequest.SingleEvents = true;
-                eventsRequest.OrderBy = EventsResource.ListRequest.OrderByEnum.StartTime;
+                // Set SingleEvents to false to retrieve recurring events with their recurrence rules
+                // instead of expanding them into individual occurrences
+                eventsRequest.SingleEvents = false;
+                // Note: OrderBy can only be used with SingleEvents=true, so we remove it
 
                 var eventsResult = eventsRequest.Execute();
 
@@ -423,10 +432,17 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             {
                 schedulingProvider.LoadAttributes();
                 var jsonKeyFileGuid = schedulingProvider.GetAttributeValue( AttributeKey.ServiceAccountJsonKeyFile ).AsGuidOrNull();
+                var adminUserEmail = schedulingProvider.GetAttributeValue( AttributeKey.AdminUserEmail );
 
                 if ( !jsonKeyFileGuid.HasValue )
                 {
-                    errorMessages.Add( "Missing required Google authentication configuration" );
+                    errorMessages.Add( "Missing required Google service account JSON key file configuration" );
+                    return null;
+                }
+
+                if ( string.IsNullOrWhiteSpace( adminUserEmail ) )
+                {
+                    errorMessages.Add( "Missing required Admin User Email for domain-wide delegation" );
                     return null;
                 }
 
@@ -443,7 +459,10 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 GoogleCredential credential;
                 using ( var stream = binaryFile.ContentStream )
                 {
-                    credential = GoogleCredential.FromStream( stream ).CreateScoped( new[] { CalendarService.Scope.Calendar } );
+                    // Create credential with domain-wide delegation to impersonate the admin user
+                    credential = GoogleCredential.FromStream( stream )
+                        .CreateScoped( new[] { CalendarService.Scope.Calendar } )
+                        .CreateWithUser( adminUserEmail );
                 }
 
                 var service = new CalendarService( new BaseClientService.Initializer
@@ -479,7 +498,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             providerEvent.CreatedDateTime = googleEvent.Created?.ToUniversalTime();
             providerEvent.ModifiedDateTime = googleEvent.Updated?.ToUniversalTime();
 
-            // Parse organizer
+            // Parse organizer - check both the Organizer field and attendees with Organizer=true
             if ( googleEvent.Organizer != null )
             {
                 providerEvent.Organizer = new PersonDTO
@@ -490,8 +509,20 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
 
             // Parse attendees - filter out resources and add them to Locations
+            // Also check for organizer in attendees (overrides the calendar owner organizer)
             if ( googleEvent.Attendees != null )
             {
+                // Check if there's an attendee marked as organizer
+                var organizerAttendee = googleEvent.Attendees.FirstOrDefault( a => a.Organizer == true && a.Resource != true );
+                if ( organizerAttendee != null )
+                {
+                    providerEvent.Organizer = new PersonDTO
+                    {
+                        DisplayName = organizerAttendee.DisplayName,
+                        Email = organizerAttendee.Email
+                    };
+                }
+
                 var resourceAttendees = googleEvent.Attendees.Where( a => a.Resource == true ).ToList();
                 if ( resourceAttendees.Any() )
                 {
@@ -500,6 +531,30 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                         DisplayName = a.DisplayName ?? a.Email,
                         ExternalId = a.Email
                     } ).ToList();
+                }
+
+                // If the organizer is a resource, use the first non-resource attendee as the real organizer
+                if ( googleEvent.Organizer != null && resourceAttendees.Any() )
+                {
+                    // Check if the organizer's email matches any of the resource locations
+                    var organizerIsResource = resourceAttendees.Any( loc =>
+                        loc.Email.Equals( googleEvent.Organizer.Email, StringComparison.OrdinalIgnoreCase ) );
+
+                    if ( organizerIsResource )
+                    {
+                        // Find the first non-resource attendee that is not marked as organizer
+                        var firstNonResourceAttendee = googleEvent.Attendees
+                            .FirstOrDefault( a => a.Resource != true && a.Organizer != true );
+
+                        if ( firstNonResourceAttendee != null )
+                        {
+                            providerEvent.Organizer = new PersonDTO
+                            {
+                                DisplayName = firstNonResourceAttendee.DisplayName,
+                                Email = firstNonResourceAttendee.Email
+                            };
+                        }
+                    }
                 }
             }
 
@@ -518,7 +573,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                         if ( !string.IsNullOrWhiteSpace( googleEvent.Start.TimeZone ) )
                         {
                             var startTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( googleEvent.Start.TimeZone );
-                            startDateTime = TimeZoneInfo.ConvertTimeToUtc( startDateTime, startTimeZone );
+                            var localTime = DateTime.SpecifyKind( startDateTime, DateTimeKind.Unspecified );
+                            startDateTime = TimeZoneInfo.ConvertTimeToUtc( localTime, startTimeZone );
                         }
                         else
                         {
@@ -545,7 +601,8 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                         if ( !string.IsNullOrWhiteSpace( googleEvent.End.TimeZone ) )
                         {
                             var endTimeZone = TimeZoneConverter.TZConvert.GetTimeZoneInfo( googleEvent.End.TimeZone );
-                            endDateTime = TimeZoneInfo.ConvertTimeToUtc( endDateTime, endTimeZone );
+                            var localTime = DateTime.SpecifyKind( endDateTime, DateTimeKind.Unspecified );
+                            endDateTime = TimeZoneInfo.ConvertTimeToUtc( localTime, endTimeZone );
                         }
                         else
                         {
@@ -590,11 +647,25 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             googleEvent.Summary = providerEvent.Title;
             googleEvent.Description = providerEvent.Description;
 
-            // Set attendees (including room resources)
+            // Set attendees (including organizer and room resources)
+            googleEvent.Attendees = new List<EventAttendee>();
+
+            // Add organizer as an attendee
+            // Note: The Organizer field in Google Calendar API is read-only and automatically set to the calendar owner.
+            // To specify the actual event organizer, add them as an attendee with Organizer=true.
+            if ( providerEvent.Organizer != null && !string.IsNullOrWhiteSpace( providerEvent.Organizer.Email ) )
+            {
+                googleEvent.Attendees.Add( new EventAttendee
+                {
+                    Email = providerEvent.Organizer.Email,
+                    DisplayName = providerEvent.Organizer.DisplayName,
+                    Organizer = true
+                } );
+            }
+
+            // Add locations as resource attendees
             if ( providerEvent.Locations != null && providerEvent.Locations.Any() )
             {
-                googleEvent.Attendees = new List<EventAttendee>();
-
                 // Add locations as resource attendees
                 foreach ( var location in providerEvent.Locations )
                 {
@@ -637,7 +708,9 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                     var endDateTime = calendarEvent.End.AsUtc;
 
                     googleEvent.Start.DateTime = startDateTime;
+                    googleEvent.Start.TimeZone = timeZoneId;
                     googleEvent.End.DateTime = endDateTime;
+                    googleEvent.End.TimeZone = timeZoneId;
                 }
 
                 // Handle recurrence

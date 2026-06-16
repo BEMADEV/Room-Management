@@ -85,6 +85,15 @@ namespace com.bemaservices.RoomManagement.Migrations
             AddForeignKey( schedulingProviderLocationTableName, "LocationId", "dbo.Location", "Id", true );
             AddIndex( schedulingProviderLocationTableName, "SchedulingProviderId" );
             AddIndex( schedulingProviderLocationTableName, "LocationId" );
+
+            // Register the GoogleResources EntityType
+            RockMigrationHelper.UpdateEntityType(
+                "com.bemaservices.RoomManagement.SchedulingProviders.GoogleResources",
+                "Google Resources",
+                "com.bemaservices.RoomManagement.SchedulingProviders.GoogleResources, com.bemaservices.RoomManagement, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null",
+                false,
+                true,
+                "A8F7D8B3-2C1E-4F9A-8D3B-1E5C6A7F8B9C" );
         }
 
         public override void Down()

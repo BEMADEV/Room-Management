@@ -46,7 +46,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Renders the approved reservations in Lava for the given locationId." )]
 
-    [CodeEditorField( "Lava Template", "Lava template to use to display the list of upcoming events.", CodeEditorMode.Lava, CodeEditorTheme.Rock, 400, true, @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/ReservationKiosk.lava' %}", "", 1 )]
+    [CodeEditorField( "Lava Template", 
+        Description = "Lava template to use to display the list of upcoming events.", 
+        EditorMode = CodeEditorMode.Lava,
+        EditorHeight = 400,
+        IsRequired = true,
+        DefaultValue = @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/ReservationKiosk.lava' %}",
+        Category = "",
+        Order = 1 )]
     [BooleanField( "Enable Debug", "Display a list of merge fields available for lava.", false, "", 99 )]
 
     public partial class ReservationLavaKiosk : Rock.Web.UI.RockBlock

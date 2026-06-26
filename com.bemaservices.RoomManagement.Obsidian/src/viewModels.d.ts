@@ -49,6 +49,8 @@ export type SchedulingProviderLocationListOptionsBag = {
     locationId?: string | null;
 
     locationName?: string | null;
+
+    schedulingProviders?: ListItemBag[] | null;
 };
 
 export type SchedulingProviderReservationListOptionsBag = {

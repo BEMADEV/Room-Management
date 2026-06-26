@@ -31,5 +31,13 @@ namespace com.bemaservices.RoomManagement.ViewModels
         /// The entity type qualifier value.
         /// </value>
         public string LocationId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the list of available scheduling providers.
+        /// </summary>
+        /// <value>
+        /// The list of available scheduling providers.
+        /// </value>
+        public List<ListItemBag> SchedulingProviders { get; set; }
     }
 }

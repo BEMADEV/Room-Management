@@ -14,6 +14,7 @@ using Rock.Obsidian.UI;
 using Rock.Security;
 using Rock.ViewModels.Blocks;
 using Rock.ViewModels.Blocks.Core.DefinedValueList;
+using Rock.ViewModels.Utility;
 using Rock.Web.Cache;
 
 namespace com.bemaservices.RoomManagement.Blocks
@@ -88,11 +89,24 @@ namespace com.bemaservices.RoomManagement.Blocks
         private SchedulingProviderLocationListOptionsBag GetBoxOptions()
         {
             var location = GetLocation();
+
+            var schedulingProviders = new SchedulingProviderService( RockContext )
+                .Queryable()
+                .Where( sp => sp.IsActive )
+                .OrderBy( sp => sp.Name )
+                .Select( sp => new ListItemBag
+                {
+                    Value = sp.Guid.ToString(),
+                    Text = sp.Name
+                } )
+                .ToList();
+
             var options = new SchedulingProviderLocationListOptionsBag()
             {
                 IsBlockVisible = location != null,
                 LocationName = location?.Name,
-                LocationId = location?.Id.ToString()
+                LocationId = location?.Id.ToString(),
+                SchedulingProviders = schedulingProviders
             };
 
             return options;
@@ -154,7 +168,13 @@ namespace com.bemaservices.RoomManagement.Blocks
 
             var bag = new SchedulingProviderLocationBag()
             {
-                SchedulingProvider = entity.SchedulingProvider.ToListItemBag(),
+                SchedulingProvider = entity.SchedulingProvider == null
+                    ? null
+                    : new ListItemBag
+                    {
+                        Value = entity.SchedulingProvider.Guid.ToString(),
+                        Text = entity.SchedulingProvider.Name
+                    },
                 SchedulingProviderId = entity.SchedulingProviderId,
                 ExternalId = entity.ExternalId,
                 LocationId = entity.LocationId,

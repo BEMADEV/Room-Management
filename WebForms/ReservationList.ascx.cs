@@ -578,6 +578,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 entityId = PageParameter( relatedEntity ).AsIntegerOrNull();
 
+                if ( entityId == null )
+                {
+                    string entityIdKey = PageParameter( relatedEntity );
+                    entityId = new EventItemOccurrenceService( rockContext ).Get( entityIdKey )?.Id;
+                }
+
                 if ( entityId != null && RelatedEntities.EventItemOccurrenceId.ToString() == relatedEntity )
                 {
                     qry = qry.Where( r => r.ReservationLinkages.Any( rl => rl.EventItemOccurrenceId == entityId ) );
@@ -673,7 +679,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( recipientType == GridAction.EmailAdminContacts || recipientType == GridAction.EmailAdminAndEventContacts )
             {
-                recipients.AddRange( reservations.Where(r=> r.AdministrativeContactPersonAliasId != null).Select( r => r.AdministrativeContactPersonAlias.PersonId ) );
+                recipients.AddRange( reservations.Where( r => r.AdministrativeContactPersonAliasId != null ).Select( r => r.AdministrativeContactPersonAlias.PersonId ) );
             }
 
             if ( recipientType == GridAction.EmailEventContacts || recipientType == GridAction.EmailAdminAndEventContacts )

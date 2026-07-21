@@ -72,13 +72,19 @@ namespace com.bemaservices.RoomManagement.Migrations
                     Outer Apply DefinedValue dv where dv.DefinedTypeId = (Select Top 1 Id From DefinedType Where Guid = '3285DCEF-FAA4-43B9-9338-983F4A384ABA')" );
             }
 
-            RockMigrationHelper.UpdateEntityType( "com.centralaz.RoomManagement.Model.LocationLayout", "Location Layout", "com.centralaz.RoomManagement.Model.LocationLayout, com.centralaz.RoomManagement, Version = 1.2.2.0, Culture = neutral, PublicKeyToken = null", false, false, "79991D84-88EB-4384-8D09-1E514BC3B2BD" );
+            // Update centralaz entity type GUID only if it exists (for migration from old namespace)
+            RoomManagementMigrationHelper.UpdateEntityTypeGuidIfExists( "com.centralaz.RoomManagement.Model.LocationLayout", "79991D84-88EB-4384-8D09-1E514BC3B2BD" );
+            // Update to bemaservices namespace (will handle duplicates gracefully)
             RoomManagementMigrationHelper.UpdateEntityTypeByGuid( "com.bemaservices.RoomManagement.Model.LocationLayout", "Location Layout", "com.bemaservices.RoomManagement.Model.LocationLayout, com.bemaservices.RoomManagement, Version = 1.2.2.0, Culture = neutral, PublicKeyToken = null", false, false, "79991D84-88EB-4384-8D09-1E514BC3B2BD" );
 
-            RockMigrationHelper.UpdateEntityType( "com.centralaz.RoomManagement.DataFilter.Reservation.ReservationInDateRangeFilter", "Reservation In Date Range Filter", "com.centralaz.RoomManagement.DataFilter.Reservation.ReservationInDateRangeFilter, com.centralaz.RoomManagement, Version = 1.2.2.0, Culture = neutral, PublicKeyToken = null", false, false, "9B2E908E-824D-4C5D-9975-A5E2B72ACC8F" );
+            // Update centralaz entity type GUID only if it exists (for migration from old namespace)
+            RoomManagementMigrationHelper.UpdateEntityTypeGuidIfExists( "com.centralaz.RoomManagement.DataFilter.Reservation.ReservationInDateRangeFilter", "9B2E908E-824D-4C5D-9975-A5E2B72ACC8F" );
+            // Update to bemaservices namespace (will handle duplicates gracefully)
             RoomManagementMigrationHelper.UpdateEntityTypeByGuid( "com.bemaservices.RoomManagement.DataFilter.Reservation.ReservationInDateRangeFilter", "Reservation In Date Range Filter", "com.bemaservices.RoomManagement.DataFilter.Reservation.ReservationInDateRangeFilter, com.bemaservices.RoomManagement, Version = 1.2.2.0, Culture = neutral, PublicKeyToken = null", false, false, "9B2E908E-824D-4C5D-9975-A5E2B72ACC8F" );
 
-            RockMigrationHelper.UpdateEntityType( "com.centralaz.RoomManagement.Web.Cache.ReservationMinistryCache", "Reservation Ministry Cache", "com.centralaz.RoomManagement.Web.Cache.ReservationMinistryCache, com.centralaz.RoomManagement, Version = 1.2.2.0, Culture = neutral, PublicKeyToken = null", false, false, "4F4C8820-BF5E-404F-8120-0FCB37B184F0" );
+            // Update centralaz entity type GUID only if it exists (for migration from old namespace)
+            RoomManagementMigrationHelper.UpdateEntityTypeGuidIfExists( "com.centralaz.RoomManagement.Web.Cache.ReservationMinistryCache", "4F4C8820-BF5E-404F-8120-0FCB37B184F0" );
+            // Update to bemaservices namespace (will handle duplicates gracefully)
             RoomManagementMigrationHelper.UpdateEntityTypeByGuid( "com.bemaservices.RoomManagement.Web.Cache.ReservationMinistryCache", "Reservation Ministry Cache", "com.bemaservices.RoomManagement.Web.Cache.ReservationMinistryCache, com.bemaservices.RoomManagement, Version = 1.2.2.0, Culture = neutral, PublicKeyToken = null", false, false, "4F4C8820-BF5E-404F-8120-0FCB37B184F0" );
 
             var sqlQuery = @"

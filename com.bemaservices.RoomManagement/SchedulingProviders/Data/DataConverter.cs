@@ -21,7 +21,6 @@ using com.bemaservices.RoomManagement.Model;
 using Microsoft.Graph.Models;
 using Rock;
 using Rock.Data;
-using Rock.Lava.RockLiquid.Blocks;
 using Rock.Model;
 using Rock.Search.Person;
 using Rock.SystemGuid;

@@ -6,7 +6,7 @@ namespace com.bemaservices.RoomManagement.Migrations
     /// <summary>
     /// Migration for SchedulingProvider and related tables.
     /// </summary>
-    [MigrationNumber( 049, "1.17.6" )]
+    [MigrationNumber( 050, "1.17.6" )]
     public partial class AddSchedulingProvider : Migration
     {
         #region Up

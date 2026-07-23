@@ -1,5 +1,15 @@
 ﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="ReservationLava.ascx.cs" Inherits="RockWeb.Plugins.com_bemaservices.RoomManagement.ReservationLava" %>
 <%@ Register TagPrefix="BEMA" Assembly="com.bemaservices.RoomManagement" Namespace="com.bemaservices.RoomManagement.Web.UI.Controls" %>
+<style>
+    .calendar-month .calendar-title {
+        background-color: var(--color-interface-softest, #ffffff);
+    }
+
+    .calendar-month .calendar-next-prev,
+    .calendar-month .calendar-next-prev a {
+        color: var(--color-interface-strong, #333333);
+    }
+</style>
 
 <asp:UpdatePanel ID="upnlContent" runat="server">
     <ContentTemplate>
@@ -14,7 +24,7 @@
 
                 <asp:Panel ID="pnlCalendar" CssClass="calendar" runat="server">
                     <asp:Calendar ID="calReservationCalendar" runat="server" DayNameFormat="FirstLetter" SelectionMode="Day" BorderStyle="None"
-                        TitleStyle-BackColor="#ffffff" NextPrevStyle-ForeColor="#333333" FirstDayOfWeek="Sunday" Width="100%" CssClass="calendar-month" OnSelectionChanged="calReservationCalendar_SelectionChanged" OnDayRender="calReservationCalendar_DayRender" OnVisibleMonthChanged="calReservationCalendar_VisibleMonthChanged">
+                        FirstDayOfWeek="Sunday" Width="100%" CssClass="calendar-month" OnSelectionChanged="calReservationCalendar_SelectionChanged" OnDayRender="calReservationCalendar_DayRender" OnVisibleMonthChanged="calReservationCalendar_VisibleMonthChanged">
                         <DayStyle CssClass="calendar-day" />
                         <TodayDayStyle CssClass="calendar-today" />
                         <SelectedDayStyle CssClass="calendar-selected" BackColor="Transparent" />
@@ -30,7 +40,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <a role="button" data-toggle="collapse" href="#collapseOne">
-                            <h4 class="panel-title">Locations                                
+                            <h4 class="panel-title">Locations
                             </h4>
                         </a>
                     </div>
@@ -52,7 +62,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <a role="button" data-toggle="collapse" href="#collapseTwo">
-                            <h4 class="panel-title">Resources                                
+                            <h4 class="panel-title">Resources
                             </h4>
                         </a>
                     </div>
@@ -74,7 +84,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <a role="button" data-toggle="collapse" href="#collapseThree">
-                            <h4 class="panel-title">Campuses                                
+                            <h4 class="panel-title">Campuses
                             </h4>
                         </a>
                     </div>
@@ -102,7 +112,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <a role="button" data-toggle="collapse" href="#collapseFour">
-                            <h4 class="panel-title">Ministries                            
+                            <h4 class="panel-title">Ministries
                             </h4>
                         </a>
                     </div>
@@ -128,7 +138,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <a role="button" data-toggle="collapse" href="#collapseFive">
-                            <h4 class="panel-title">Statuses                            
+                            <h4 class="panel-title">Statuses
                             </h4>
                         </a>
                     </div>
@@ -154,7 +164,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <a role="button" data-toggle="collapse" href="#collapseSix">
-                            <h4 class="panel-title">Reservation Types                                
+                            <h4 class="panel-title">Reservation Types
                             </h4>
                         </a>
                     </div>

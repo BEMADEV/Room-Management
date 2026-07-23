@@ -1,0 +1,100 @@
+<script>
+  function getEvents(startDate, endDate, finished) {
+  var events = [];
+  var event = null;
+  var colorIndex = null;
+  {%- for reservationDate in ReservationSummaries -%}
+  {%- for reservationSummary in reservationDate -%}
+  event = null;
+
+  {%- capture colorClass -%}
+  {%- case reservationSummary.ApprovalStateInt -%}
+  {%- when 0 -%}
+  {%- comment -%}Draft{%- endcomment -%}
+  bg-gray-600
+  {%- when 1 -%}
+  {%- comment -%}PendingInitialApproval{%- endcomment -%}
+  progress-bar-info
+  {%- when 2 -%}
+  {%- comment -%}Approved{%- endcomment -%}
+  progress-bar-success
+  {%- when 3 -%}
+  {%- comment -%}Denied{%- endcomment -%}
+  progress-bar-danger
+  {%- when 4 -%}
+  {%- comment -%}ChangesNeeded{%- endcomment -%}
+  progress-bar-warning
+  {%- when 5 -%}
+  {%- comment -%}PendingFinalApproval{%- endcomment -%}
+  progress-bar-info
+  {%- when 6 -%}
+  {%- comment -%}PendingSpecialApproval{%- endcomment -%}
+  progress-bar-info
+  {%- when 7 -%}
+  {%- comment -%}Cancelled{%- endcomment -%}
+  bg-gray-600
+  {%- else -%}
+  progress-bar-info
+  {%- endcase -%}
+  {%- endcapture -%}
+
+  event = {
+  id: {{ reservationSummary.Id }},
+  relatedId: {{ reservationSummary.Id }},
+  start: "{{reservationSummary.ReservationStartDateTime}}",
+  end: "{{reservationSummary.ReservationEndDateTime}}",
+  name: "{{ reservationSummary.ReservationName | Replace:'"','\"' }}",
+  url: "{{ DetailsPage }}?ReservationId={{ reservationSummary.Id }}",
+  state: "{{reservationSummary.ApprovalState}}",
+  class: 'project-type-' + {{reservationSummary.ReservationType.Id}} + ' {{colorClass | Trim}}'
+  };
+  events.push(event);
+  {%- endfor -%}
+  {%- endfor -%}
+
+  finished(events);
+  }
+
+  function getEventName(_calendar, event, _options) {
+  var eventName = event.name;
+
+  return $('<span class="name"></span>')
+			.addClass('pm-event-' + event.state.toLowerCase())
+			.text(eventName);
+	}
+
+	function LoadCalendar(){
+		var options = {
+			events: getEvents,
+			eventNameTemplate: getEventName,
+			monthLayout: {%- if TimeFrame == "Month" or TimeFrame == "Year" -%}EventCalendar.Constants.MonthLayout.Full{%- else -%}EventCalendar.Constants.MonthLayout.None{%- endif -%},
+			weekLayout: {%- if TimeFrame == "Week" -%}EventCalendar.Constants.WeekLayout.Compact{%- else -%}EventCalendar.Constants.WeekLayout.None{%- endif -%},
+			dayLayout: {%- if TimeFrame == "Day" -%}EventCalendar.Constants.DayLayout.TimeView{%- else -%}EventCalendar.Constants.DayLayout.None{%- endif -%},
+            layout: {%- if TimeFrame == "Month" or TimeFrame == "Year" -%}EventCalendar.Constants.Layout.Month{%- elseif TimeFrame == "Week" -%}EventCalendar.Constants.Layout.Week{%- else -%}EventCalendar.Constants.Layout.Day{%- endif -%}
+		};
+        var x = "{{TimeFrame}}";
+		var calendar = new EventCalendar($('#pnlCalendar'), options);
+        calendar.setDate("{{FilterStartDate}}")
+		calendar.update();
+        {%- assign startMonth = FilterStartDate | Date:'M' -%}
+        {%- assign endMonth = FilterEndDate | Date:'M' -%}
+        {%- if TimeFrame == "Week" or startMonth == endMonth -%} $(".calendar-toolbar").hide(); {%- endif -%}
+	}
+	$(document).ready(function () {
+		LoadCalendar();
+	});
+
+	var prm = Sys.WebForms.PageRequestManager.getInstance();
+	prm.add_endRequest( function() {
+		LoadCalendar();
+        location.reload(true);
+	});
+
+    $(function(){
+        Sys.Application.add_load(function () {
+            LoadCalendar();
+            location.reload(true);
+        });
+    });
+</script>
+<asp:Panel id="pnlCalendar"></asp:Panel>

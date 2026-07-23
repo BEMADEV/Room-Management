@@ -98,7 +98,7 @@ namespace com.bemaservices.RoomManagement.Migrations
             // This prevents issues when migrations are retried after failures
             Migration.Sql( String.Format( @"
                     -- Only delete if there are multiple entity types with this name
-                    IF (SELECT COUNT(*) FROM EntityType WHERE Name = '{0}') > 1
+                    IF (SELECT COUNT(*) FROM EntityType WHERE Name = '{0}' or [Guid] = '{1}') > 1
                     BEGIN
                         Delete
                         From EntityType

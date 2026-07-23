@@ -1,4 +1,2 @@
-*.*
-!*.ascx
-!*.ascx.cs
-!.gitignore
+*.obs.js
+*.obs.js.map

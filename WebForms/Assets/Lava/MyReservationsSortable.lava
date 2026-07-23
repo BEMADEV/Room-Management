@@ -1,0 +1,81 @@
+<link rel="stylesheet" href="/Styles/bootstrap-sortable.css">
+
+  <div class="panel panel-block">
+    <div class="panel-heading">
+      <h4 class="panel-title">
+        {% if PanelIcon != empty %}<i class="{{ PanelIcon }}"></i>{% endif %} {% if PanelTitle != empty %}{{PanelTitle}}{% else %} My {% if Status == '0' %}Upcoming{% else %}Past{% endif %} {% if Role == '0' %}Approvals{% else %}Reservations{% endif %}{% endif %}
+      </h4>
+    </div>
+    {% if Reservations.size > 0 %}
+    <div class="table-responsive">
+      <table class="table sortable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Schedule</th>
+            <th>Locations</th>
+            <th>Resources</th>
+            <th>Next Start Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for reservation in Reservations %}
+          <tr>
+            <td>
+                <a href='/ReservationDetail?ReservationId={{ reservation.Id }}'>
+                  {{ reservation.Name }}
+                </a>
+            </td>
+            <td>{{ reservation.FriendlyReservationTime }}</td>
+            <td>
+                <ul>
+                  {% for reservationLocation in reservation.ReservationLocations %}
+                  <li>
+                    {{ reservationLocation.Location.Name }}{% if reservationLocation.ApprovalState == 2 %} <i class="fa fa-check"></i>{% endif %}
+                    {% if reservationLocation.LocationLayoutId != null %}
+                    {% assign layout = reservationLocation.LocationLayout %}
+                    <i class="fa fa-info-circle"
+                    data-toggle="popover"
+                    data-html="true"
+                    data-trigger="hover click focus"
+                    data-delay="{&quot;hide&quot;: 1500}"
+                    data-placement="right"
+                    title="{{layout.Name}}" data-content=""
+                      <p>{{layout.Description}}</p>{% if layout.LayoutPhotoId %}
+                      <a href='/GetImage.ashx?id={{layout.LayoutPhotoId}}' target='_blank'>
+                        <img src='/GetImage.ashx?id={{layout.LayoutPhotoId}}&maxwidth=200&maxheight=200'/>
+                      </a>
+                      {% endif %}"
+                      >
+                    </i>
+                    {% endif %}
+                  </li>
+                  {% endfor %}
+                </ul>
+            </td>
+            <td>
+                <ul>
+                  {% for reservationResource in reservation.ReservationResources %}
+                  <li>
+                    {{ reservationResource.Resource.Name }}{% if reservationResource.Quantity != null %}({{reservationResource.Quantity}}){% endif %} {% if reservationResource.ApprovalState == 2 %}<i class="fa fa-check"></i>                  
+                    {% endif %}
+                  </li>
+                  {% endfor %}
+                </ul>
+            </td>
+            <td>{{reservation.NextStartDateTime | Date:'M/d/yy' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="panel-body">
+      <div class="alert alert-info">There are no open reservations assigned to you.</div>
+    </div>
+    {% endif %}
+  </div>
+
+
+  <script src="/Scripts/moment.min.js"></script>
+  <script src="/Scripts/bootstrap-sortable.js"></script>

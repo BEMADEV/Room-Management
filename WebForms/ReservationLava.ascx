@@ -9,6 +9,19 @@
     .calendar-month .calendar-next-prev a {
         color: var(--color-interface-strong, #333333);
     }
+
+    /*
+     * Keep selected week/day readable in both light and dark themes.
+     */
+    .calendar > .calendar-month .calendar-selected,
+    .calendar > .calendar-month .calendar-selected a {
+        color: var(--color-interface-strong, #303030) !important;
+        text-shadow: none;
+    }
+
+    .calendar > .calendar-month .calendar-selected {
+        background-color: var(--color-primary-softest, rgba(54, 126, 255, 0.16)) !important;
+    }
 </style>
 
 <asp:UpdatePanel ID="upnlContent" runat="server">

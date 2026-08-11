@@ -99,9 +99,26 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 var reservation = reservationWithDates.Reservation;
 
+                var reservationLocations = reservation.ReservationLocations.ToList();
+                var reservationResources = reservation.ReservationResources.ToList();
+                var unassignedReservationResources = reservation.UnassignedReservationResources.ToList();
+                var orderedReservationDoorLockSchedules = reservation.ReservationDoorLockSchedules
+                    .OrderBy( rdls => rdls.StartTimeOffset )
+                    .ToList();
+
                 if ( includeAttributes )
                 {
                     reservation.LoadAttributes();
+
+                    foreach ( var reservationLocation in reservationLocations )
+                    {
+                        reservationLocation.LoadAttributes();
+                    }
+
+                    foreach ( var reservationResource in reservationResources )
+                    {
+                        reservationResource.LoadAttributes();
+                    }
                 }
 
                 foreach ( var reservationDateTime in reservationWithDates.ReservationDateTimes )
@@ -109,19 +126,12 @@ namespace com.bemaservices.RoomManagement.Model
                     var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
                     var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
 
-                    var validReservationTime = false;
-                    if (
+                    var validReservationTime =
                         ( filterTimeBy == FilterTimeBy.Reservation || filterTimeBy == FilterTimeBy.Both ) &&
-                        ( ( reservationStartDateTime >= filterStartDateTime ) || ( reservationEndDateTime >= filterStartDateTime ) ) &&
-                        ( ( reservationStartDateTime < filterEndDateTime ) || ( reservationEndDateTime < filterEndDateTime ) )
-                       )
-                    {
-                        validReservationTime = true;
-                    }
+                        IsWithinFilterWindow( reservationStartDateTime, reservationEndDateTime, filterStartDateTime.Value, filterEndDateTime.Value );
 
                     var validDoorLockTime = false;
                     List<ReservationDoorLockTime> reservationDoorLockTimes = new List<ReservationDoorLockTime>();
-                    var orderedReservationDoorLockSchedules = reservation.ReservationDoorLockSchedules.OrderBy( rdls => rdls.StartTimeOffset ).ToList();
                     foreach ( var reservationDoorLockSchedule in orderedReservationDoorLockSchedules )
                     {
                         var reservationDoorLockTime = new ReservationDoorLockTime(
@@ -133,8 +143,7 @@ namespace com.bemaservices.RoomManagement.Model
 
                         if (
                             ( filterTimeBy == FilterTimeBy.DoorLock || filterTimeBy == FilterTimeBy.Both ) &&
-                            ( ( reservationDoorLockTime.StartDateTime >= filterStartDateTime ) || ( reservationDoorLockTime.EndDateTime >= filterStartDateTime ) ) &&
-                            ( ( reservationDoorLockTime.StartDateTime < filterEndDateTime ) || ( reservationDoorLockTime.EndDateTime < filterEndDateTime ) )
+                            IsWithinFilterWindow( reservationDoorLockTime.StartDateTime, reservationDoorLockTime.EndDateTime, filterStartDateTime.Value, filterEndDateTime.Value )
                            )
                         {
                             validDoorLockTime = true;
@@ -156,9 +165,9 @@ namespace com.bemaservices.RoomManagement.Model
                             ReservationType = reservation.ReservationType,
                             ApprovalState = reservation.ApprovalState,
                             ReservationName = reservation.Name,
-                            ReservationLocations = reservation.ReservationLocations.ToList(),
-                            ReservationResources = reservation.ReservationResources.ToList(),
-                            UnassignedReservationResources = reservation.UnassignedReservationResources.ToList(),
+                            ReservationLocations = reservationLocations,
+                            ReservationResources = reservationResources,
+                            UnassignedReservationResources = unassignedReservationResources,
                             ReservationDoorLockTimes = reservationDoorLockTimes,
                             EventStartDateTime = reservationDateTime.StartDateTime,
                             EventEndDateTime = reservationDateTime.EndDateTime,
@@ -188,16 +197,6 @@ namespace com.bemaservices.RoomManagement.Model
                         {
                             reservationSummary.Attributes = reservation.Attributes;
                             reservationSummary.AttributeValues = reservation.AttributeValues;
-
-                            foreach ( var reservationLocation in reservationSummary.ReservationLocations )
-                            {
-                                reservationLocation.LoadAttributes();
-                            }
-
-                            foreach ( var reservationResource in reservationSummary.ReservationResources )
-                            {
-                                reservationResource.LoadAttributes();
-                            }
                         }
 
                         reservationSummaryList.Add( reservationSummary );
@@ -222,6 +221,13 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             return reservationSummaryList;
+        }
+
+        private static bool IsWithinFilterWindow( DateTime startDateTime, DateTime endDateTime, DateTime filterStartDateTime, DateTime filterEndDateTime )
+        {
+            return
+                ( startDateTime >= filterStartDateTime || endDateTime >= filterStartDateTime ) &&
+                ( startDateTime < filterEndDateTime || endDateTime < filterEndDateTime );
         }
 
         /// <summary>

@@ -2563,19 +2563,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     .OrderBy( w => w.WorkflowType.Name )
                     .Distinct();
 
-                var authorizedWorkflows = new List<ReservationWorkflowTrigger>();
-                foreach ( var manualWorkflow in manualWorkflows )
-                {
-                    if ( manualWorkflow.WorkflowType.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
-                    {
-                        authorizedWorkflows.Add( manualWorkflow );
-                    }
-                }
+                var authorizedWorkflows = manualWorkflows
+                    .Where( w => w.WorkflowType.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
+                    .ToList();
 
                 if ( authorizedWorkflows.Any() )
                 {
                     lblWorkflows.Visible = true;
-                    rptWorkflows.DataSource = authorizedWorkflows.ToList();
+                    rptWorkflows.DataSource = authorizedWorkflows;
                     rptWorkflows.DataBind();
                 }
                 else
@@ -3080,10 +3075,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( ReservationType == null )
             {
-                var reservationTypes = reservationTypeService.Queryable().ToList();
-                var authorizedReservationTypes = reservationTypes.Where( m => m.IsActive ).Where( rt => rt.IsAuthorized( Authorization.EDIT, CurrentPerson ) ).ToList();
+                var authorizedReservationTypes = reservationTypeService
+                    .Queryable()
+                    .AsNoTracking()
+                    .Where( rt => rt.IsActive )
+                    .OrderBy( rt => rt.Name )
+                    .ToList()
+                    .Where( rt => rt.IsAuthorized( Authorization.EDIT, CurrentPerson ) )
+                    .ToList();
 
-                ReservationType = authorizedReservationTypes.OrderBy( m => m.Name ).FirstOrDefault();
+                ReservationType = authorizedReservationTypes.FirstOrDefault();
             }
 
             reservation.ReservationType = ReservationType;

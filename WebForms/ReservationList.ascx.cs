@@ -138,6 +138,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( selectedIds.Any() )
             {
                 var selectedReservations = new ReservationService( new RockContext() ).Queryable()
+                    .AsNoTracking()
+                    .Include( r => r.AdministrativeContactPersonAlias )
+                    .Include( r => r.EventContactPersonAlias )
                     .Where( r => selectedIds.Contains( r.Id ) )
                     .ToList();
 
@@ -559,13 +562,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             reservationQueryOptions.ReservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
             reservationQueryOptions.ResourceIds = rpResource.SelectedValuesAsInt().ToList();
 
-            var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
-            foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
+            var selectedLocationIds = lipLocation.SelectedValuesAsInt().ToList();
+            var locationIdList = selectedLocationIds.ToList();
+            foreach ( var rootLocationId in selectedLocationIds )
             {
                 locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
                 locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
             }
-            reservationQueryOptions.LocationIds = locationIdList;
+            reservationQueryOptions.LocationIds = locationIdList.Distinct().ToList();
 
             reservationQueryOptions.CampusIds = cpCampuses.SelectedCampusIds;
 
@@ -687,6 +691,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 recipients.AddRange( reservations.Where( r => r.EventContactPersonAliasId != null ).Select( r => r.EventContactPersonAlias.PersonId ) );
             }
 
+            var reservationsByPersonId = new Dictionary<int, List<Reservation>>();
+
+            if ( recipientType == GridAction.EmailAdminContacts || recipientType == GridAction.EmailAdminAndEventContacts )
+            {
+                foreach ( var reservation in reservations.Where( r => r.AdministrativeContactPersonAliasId.HasValue ) )
+                {
+                    var personId = reservation.AdministrativeContactPersonAlias.PersonId;
+                    if ( !reservationsByPersonId.ContainsKey( personId ) )
+                    {
+                        reservationsByPersonId[personId] = new List<Reservation>();
+                    }
+
+                    reservationsByPersonId[personId].Add( reservation );
+                }
+            }
+
+            if ( recipientType == GridAction.EmailEventContacts || recipientType == GridAction.EmailAdminAndEventContacts )
+            {
+                foreach ( var reservation in reservations.Where( r => r.EventContactPersonAliasId.HasValue ) )
+                {
+                    var personId = reservation.EventContactPersonAlias.PersonId;
+                    if ( !reservationsByPersonId.ContainsKey( personId ) )
+                    {
+                        reservationsByPersonId[personId] = new List<Reservation>();
+                    }
+
+                    reservationsByPersonId[personId].Add( reservation );
+                }
+            }
+
             using ( var rockContext = new RockContext() )
             using ( var communicationRecipientRockContext = new RockContext() )
             {
@@ -751,19 +785,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var communicationRecipientList = distinctPrimaryAliases
                     .Select( alias =>
                     {
-                        var personalReservations = new List<Reservation>();
-                        foreach ( var recipient in recipients.Where( p => p == alias.PersonId ) )
-                        {
-                            if ( recipientType == GridAction.EmailAdminContacts || recipientType == GridAction.EmailAdminAndEventContacts )
-                            {
-                                personalReservations.AddRange( reservations.Where( r => r.AdministrativeContactPersonAlias.PersonId == recipient ) );
-                            }
-
-                            if ( recipientType == GridAction.EmailEventContacts || recipientType == GridAction.EmailAdminAndEventContacts )
-                            {
-                                personalReservations.AddRange( reservations.Where( r => r.EventContactPersonAlias.PersonId == recipient ) );
-                            }
-                        }
+                        var personalReservations = reservationsByPersonId.ContainsKey( alias.PersonId )
+                            ? reservationsByPersonId[alias.PersonId].DistinctBy( r => r.Id ).ToList()
+                            : new List<Reservation>();
 
                         return new CommunicationRecipient
                         {

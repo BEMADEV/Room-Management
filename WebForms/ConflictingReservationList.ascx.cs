@@ -437,13 +437,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 reservationQueryOptions.ReservationTypeIds = cblReservationType.Items.OfType<System.Web.UI.WebControls.ListItem>().Where( l => l.Selected ).Select( a => a.Value.AsInteger() ).ToList();
                 reservationQueryOptions.ResourceIds = rpResource.SelectedValuesAsInt().ToList();
 
-                var locationIdList = lipLocation.SelectedValuesAsInt().ToList();
-                foreach ( var rootLocationId in lipLocation.SelectedValuesAsInt().ToList() )
+                var selectedLocationIds = lipLocation.SelectedValuesAsInt().ToList();
+                var locationIdList = selectedLocationIds.ToList();
+                foreach ( var rootLocationId in selectedLocationIds )
                 {
                     locationIdList.AddRange( locationService.GetAllDescendentIds( rootLocationId ) );
                     locationIdList.AddRange( locationService.GetAllAncestorIds( rootLocationId ) );
                 }
-                reservationQueryOptions.LocationIds = locationIdList;
+                reservationQueryOptions.LocationIds = locationIdList.Distinct().ToList();
 
                 var qry = reservationService.Queryable( reservationQueryOptions );
 

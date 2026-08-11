@@ -369,7 +369,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             var locationList = locationQry.ToList();
             var locationIds = locationList.Select( l => l.Id ).ToList();
-            var locationResourceList = new ResourceService( rockContext ).Queryable().Where( r => r.LocationId.HasValue && locationIds.Contains( r.LocationId.Value ) ).ToList();
+            var locationResourceList = new ResourceService( rockContext )
+                .Queryable()
+                .Where( r => r.LocationId.HasValue && locationIds.Contains( r.LocationId.Value ) )
+                .ToList();
+
+            var resourcesByLocationId = locationResourceList
+                .Where( r => r.LocationId.HasValue )
+                .GroupBy( r => r.LocationId.Value )
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select( r => r.Name + " (" + r.Quantity + ")" ).ToList().AsDelimited( "</br>" ) );
 
             var reservationQueryOptions = new ReservationQueryOptions();
             reservationQueryOptions.ApprovalStates = new List<ReservationApprovalState> {
@@ -388,17 +398,37 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? today.AddMonths( 1 );
             var reservationSummaryList = reservationQry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
 
+            var reservationSummariesByLocationId = reservationSummaryList
+                .SelectMany( r => r.ReservationLocations
+                    .Where( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied )
+                    .Select( rl => new { rl.LocationId, ReservationSummary = r } ) )
+                .GroupBy( x => x.LocationId )
+                .ToDictionary( g => g.Key, g => g.Select( x => x.ReservationSummary ).ToList() );
+
             // Bind to Grid
-            gLocations.DataSource = locationList.Select( l => new
+            gLocations.DataSource = locationList.Select( l =>
             {
-                Id = l.Id,
-                Name = String.Format( "{0}<small>{1}{2}</small>",
-                            l.Name,
-                            locationResourceList.Where( r => r.LocationId.HasValue && r.LocationId == l.Id ).Any() ? "</br>" : String.Empty,
-                            locationResourceList.Where( r => r.LocationId.HasValue && r.LocationId == l.Id ).Select( r => r.Name + " (" + r.Quantity + ")" ).ToList().AsDelimited( "</br>" ) ),
-                MaxOccupants = l.FirmRoomThreshold,
-                IsAvailable = !reservationSummaryList.Any( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && rl.LocationId == l.Id ) ),
-                Availability = reservationSummaryList.Any( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && rl.LocationId == l.Id ) ) ? reservationSummaryList.Where( r => r.ReservationLocations.Any( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && rl.LocationId == l.Id ) ).Select( r => r.ReservationName + "</br>" + r.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" ) : "Available"
+                var locationReservations = reservationSummariesByLocationId.ContainsKey( l.Id )
+                    ? reservationSummariesByLocationId[l.Id]
+                    : new List<ReservationSummary>();
+
+                var locationResourceText = resourcesByLocationId.ContainsKey( l.Id )
+                    ? resourcesByLocationId[l.Id]
+                    : string.Empty;
+
+                return new
+                {
+                    Id = l.Id,
+                    Name = String.Format( "{0}<small>{1}{2}</small>",
+                                l.Name,
+                                locationResourceText.IsNotNullOrWhiteSpace() ? "</br>" : String.Empty,
+                                locationResourceText ),
+                    MaxOccupants = l.FirmRoomThreshold,
+                    IsAvailable = !locationReservations.Any(),
+                    Availability = locationReservations.Any()
+                        ? locationReservations.Select( r => r.ReservationName + "</br>" + r.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" )
+                        : "Available"
+                };
             } ).OrderBy( l => l.Name ).ToList();
             gLocations.EntityTypeId = EntityTypeCache.Get<Location>().Id;
             gLocations.DataBind();
@@ -446,13 +476,38 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var filterEndDateTime = dtpEndDateTime.SelectedDateTime ?? today.AddMonths( 1 );
             var reservationSummaryList = reservationQry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
 
+            var reservationSummariesInWindow = reservationSummaryList
+                .Where( reservationSummary =>
+                    ( reservationSummary.ReservationStartDateTime > filterStartDateTime || reservationSummary.ReservationEndDateTime > filterStartDateTime ) &&
+                    ( reservationSummary.ReservationStartDateTime < filterEndDateTime || reservationSummary.ReservationEndDateTime < filterEndDateTime ) )
+                .DistinctBy( reservationSummary => reservationSummary.Id )
+                .ToList();
+
+            var reservedQuantityByResourceId = reservationSummariesInWindow
+                .SelectMany( reservationSummary => reservationSummary.ReservationResources
+                    .Where( rr => rr.Quantity.HasValue && rr.ApprovalState != ReservationResourceApprovalState.Denied )
+                    .Select( rr => new { rr.ResourceId, Quantity = rr.Quantity.Value } ) )
+                .GroupBy( x => x.ResourceId )
+                .ToDictionary( g => g.Key, g => g.Sum( x => x.Quantity ) );
+
+            var reservationDetailsByResourceId = reservationSummaryList
+                .SelectMany( reservation => reservation.ReservationResources
+                    .Where( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied )
+                    .Select( rr => new { rr.ResourceId, Text = reservation.ReservationName + "</br>" + reservation.ReservationDateTimeDescription } ) )
+                .GroupBy( x => x.ResourceId )
+                .ToDictionary( g => g.Key, g => g.Select( x => x.Text ).ToList().AsDelimited( "</br></br>" ) );
+
             // Bind to Grid
             gResources.DataSource = resourceList.Select( resource =>
             {
-                var reservedResources = reservationSummaryList.Where( reservationSummary =>
-                     ( reservationSummary.ReservationStartDateTime > filterStartDateTime || reservationSummary.ReservationEndDateTime > filterStartDateTime ) &&
-                     ( reservationSummary.ReservationStartDateTime < filterEndDateTime || reservationSummary.ReservationEndDateTime < filterEndDateTime )
-                    ).DistinctBy( reservationSummary => reservationSummary.Id ).Sum( reservationSummary => reservationSummary.ReservationResources.Where( rr => rr.Quantity.HasValue && rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity.Value ) );
+                var reservedResources = reservedQuantityByResourceId.ContainsKey( resource.Id )
+                    ? reservedQuantityByResourceId[resource.Id]
+                    : 0;
+
+                var resourceAvailabilityText = reservationDetailsByResourceId.ContainsKey( resource.Id )
+                    ? reservationDetailsByResourceId[resource.Id]
+                    : string.Empty;
+
                 return new
                 {
                     Id = resource.Id,
@@ -461,7 +516,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     Campus = resource.Campus,
                     LocationName = ( resource.Location == null ) ? "" : resource.Location.Name,
                     IsAvailable = !resource.Quantity.HasValue ? true : ( resource.Quantity - reservedResources > 0 ),
-                    Availability = ( !resource.Quantity.HasValue || resource.Quantity - reservedResources > 0 ) ? String.Format( "{0} Available", resource.Quantity - reservedResources ) : reservationSummaryList.Where( reservation => reservation.ReservationResources.Any( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resource.Id ) ).Select( reservation => reservation.ReservationName + "</br>" + reservation.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" )
+                    Availability = ( !resource.Quantity.HasValue || resource.Quantity - reservedResources > 0 )
+                        ? String.Format( "{0} Available", resource.Quantity - reservedResources )
+                        : resourceAvailabilityText
                 };
             } ).OrderBy( l => l.Name ).ToList();
             gResources.EntityTypeId = EntityTypeCache.Get<Resource>().Id;

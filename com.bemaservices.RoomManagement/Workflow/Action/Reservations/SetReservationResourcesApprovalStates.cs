@@ -61,9 +61,8 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             errorMessages = new List<string>();
 
             // Get the reservation
-            Reservation reservation = null;
-            Guid reservationGuid = action.GetWorkflowAttributeValue( GetAttributeValue( action, "ReservationAttribute" ).AsGuid() ).AsGuid();
-            reservation = new ReservationService( rockContext ).Get( reservationGuid );
+            var reservationGuid = action.GetWorkflowAttributeValue( GetAttributeValue( action, "ReservationAttribute" ).AsGuid() ).AsGuid();
+            var reservation = new ReservationService( rockContext ).Get( reservationGuid );
             if ( reservation == null )
             {
                 errorMessages.Add( "Invalid Reservation Attribute or Value!" );
@@ -90,11 +89,9 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             }
 
             // Get ignore resources with approval groups value
-            bool ignoreResourcesWithApprovalGroups = true;
-            ignoreResourcesWithApprovalGroups = GetAttributeValue( action, "IgnoreResourcesWithApprovalGroups" ).AsBoolean( true );
+            var ignoreResourcesWithApprovalGroups = GetAttributeValue( action, "IgnoreResourcesWithApprovalGroups" ).AsBoolean( true );
 
             var changes = new History.HistoryChangeList();
-            var groupService = new GroupService( rockContext );
             foreach ( var reservationResource in reservation.ReservationResources )
             {
                 Group approvalGroup = reservationResource.Resource.ApprovalGroup;

@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -74,19 +75,13 @@ namespace Rock.Rest.Controllers
             RockContext rockContext = new RockContext();
             ReservationService reservationService = new ReservationService( rockContext );
 
-            List<ReservationApprovalState> approvalStateList = new List<ReservationApprovalState>();
+            var approvalStateList = approvalStates
+                .SplitDelimitedValues()
+                .Select( approvalString => approvalString.ConvertToEnumOrNull<ReservationApprovalState>() )
+                .Where( approvalState => approvalState.HasValue )
+                .Select( approvalState => approvalState.Value )
+                .ToList();
 
-            foreach ( var approvalString in approvalStates.SplitDelimitedValues() )
-            {
-                try
-                {
-                    approvalStateList.Add( approvalString.ConvertToEnum<ReservationApprovalState>() );
-                }
-                catch
-                {
-
-                }
-            }
             if ( !approvalStateList.Any() )
             {
                 approvalStateList.Add( ReservationApprovalState.Approved );
@@ -102,6 +97,7 @@ namespace Rock.Rest.Controllers
             reservationQueryOptions.ApprovalStates = approvalStateList;
 
             var reservationSummaryList = reservationService.Queryable( reservationQueryOptions )
+                .AsNoTracking()
                 .GetReservationSummaries( startDateTime, endDateTime, false, includeAttributes, null, filterTimeByEnum );
 
             return reservationSummaryList.AsQueryable();

@@ -384,6 +384,7 @@ namespace com.bemaservices.RoomManagement.Model
 
             target.ReservationLocations = source.ReservationLocations;
             target.ReservationResources = source.ReservationResources;
+            target.ReservationDoorLockSchedules = source.ReservationDoorLockSchedules;
 
             target.CreatedDateTime = source.CreatedDateTime;
             target.ModifiedDateTime = source.ModifiedDateTime;

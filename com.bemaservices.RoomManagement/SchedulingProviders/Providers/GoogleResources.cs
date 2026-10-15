@@ -177,7 +177,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
             catch ( Google.GoogleApiException ex )
             {
-                errorMessages.Add( $"Google API error: {ex.Message}" );
+                errorMessages.Add( BuildGoogleApiErrorMessage( ex ) );
                 return null;
             }
             catch ( Exception ex )
@@ -226,7 +226,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
             catch ( Google.GoogleApiException ex )
             {
-                errorMessages.Add( $"Google API error: {ex.Message}" );
+                errorMessages.Add( BuildGoogleApiErrorMessage( ex ) );
                 return null;
             }
             catch ( Exception ex )
@@ -265,7 +265,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 if ( parts.Length != 2 )
                 {
                     errorMessages.Add( "Invalid external event ID format" );
-                    return null;   
+                    return null;
                 }
 
                 var calendarId = parts[0];
@@ -290,7 +290,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
             catch ( Google.GoogleApiException ex )
             {
-                errorMessages.Add( $"Google API error: {ex.Message}" );
+                errorMessages.Add( BuildGoogleApiErrorMessage( ex ) );
                 return null;
             }
             catch ( Exception ex )
@@ -336,7 +336,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
             catch ( Google.GoogleApiException ex )
             {
-                errorMessages.Add( $"Google API error: {ex.Message}" );
+                errorMessages.Add( BuildGoogleApiErrorMessage( ex ) );
                 return false;
             }
             catch ( Exception ex )
@@ -377,7 +377,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
             }
             catch ( Google.GoogleApiException ex )
             {
-                errorMessages.Add( $"Google API error: {ex.Message}" );
+                errorMessages.Add( BuildGoogleApiErrorMessage( ex ) );
             }
             catch ( Exception ex )
             {
@@ -490,7 +490,7 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
         private EventDTO ConvertFromGoogleEvent( Event googleEvent, string calendarId )
         {
             var providerEvent = new EventDTO();
-            providerEvent.ExternalId = $"{calendarId}|{googleEvent.Id}"; 
+            providerEvent.ExternalId = $"{calendarId}|{googleEvent.Id}";
             providerEvent.Title = googleEvent.Summary;
             providerEvent.Description = googleEvent.Description;
 
@@ -714,15 +714,180 @@ namespace com.bemaservices.RoomManagement.SchedulingProviders
                 }
 
                 // Handle recurrence
-                var eventRecurrenceRule = calendarEvent.RecurrenceRules?.FirstOrDefault();
-                if ( eventRecurrenceRule != null )
+                var recurrence = BuildGoogleRecurrence( calendarEvent );
+                if ( recurrence.Any() )
                 {
-                    var rruleString = "RRULE:" + eventRecurrenceRule.ToString();
-                    googleEvent.Recurrence = new List<string> { rruleString };
+                    googleEvent.Recurrence = recurrence;
                 }
             }
 
             return googleEvent;
+        }
+
+        /// <summary>
+        /// Builds Google recurrence lines from an iCal.NET CalendarEvent.
+        /// </summary>
+        private List<string> BuildGoogleRecurrence( Ical.Net.CalendarComponents.CalendarEvent calendarEvent )
+        {
+            var recurrence = new List<string>();
+
+            if ( calendarEvent == null )
+            {
+                return recurrence;
+            }
+
+            var orgTimeZone = RockDateTime.OrgTimeZoneInfo;
+
+            if ( calendarEvent.RecurrenceRules?.Any() == true )
+            {
+                foreach ( var recurrenceRule in calendarEvent.RecurrenceRules )
+                {
+                    var ruleParts = new List<string>();
+                    ruleParts.Add( $"FREQ={recurrenceRule.Frequency.ToString().ToUpperInvariant()}" );
+
+                    if ( recurrenceRule.Interval > 1 )
+                    {
+                        ruleParts.Add( $"INTERVAL={recurrenceRule.Interval}" );
+                    }
+
+                    if ( recurrenceRule.Count > 0 )
+                    {
+                        ruleParts.Add( $"COUNT={recurrenceRule.Count}" );
+                    }
+
+                    if ( recurrenceRule.Until != DateTime.MinValue )
+                    {
+                        var until = recurrenceRule.Until;
+                        DateTime untilUtc;
+
+                        if ( until.Kind == DateTimeKind.Utc )
+                        {
+                            untilUtc = until;
+                        }
+                        else if ( until.Kind == DateTimeKind.Local )
+                        {
+                            untilUtc = until.ToUniversalTime();
+                        }
+                        else
+                        {
+                            untilUtc = TimeZoneInfo.ConvertTimeToUtc( DateTime.SpecifyKind( until, DateTimeKind.Unspecified ), orgTimeZone );
+                        }
+
+                        ruleParts.Add( $"UNTIL={untilUtc:yyyyMMdd'T'HHmmss'Z'}" );
+                    }
+
+                    if ( recurrenceRule.ByDay?.Any() == true )
+                    {
+                        var byDay = string.Join( ",", recurrenceRule.ByDay.Select( d => d.DayOfWeek.ToString().Substring( 0, 2 ).ToUpperInvariant() ) );
+                        ruleParts.Add( $"BYDAY={byDay}" );
+                    }
+
+                    if ( recurrenceRule.ByMonthDay?.Any() == true )
+                    {
+                        var byMonthDay = string.Join( ",", recurrenceRule.ByMonthDay );
+                        ruleParts.Add( $"BYMONTHDAY={byMonthDay}" );
+                    }
+
+                    if ( recurrenceRule.ByMonth?.Any() == true )
+                    {
+                        var byMonth = string.Join( ",", recurrenceRule.ByMonth );
+                        ruleParts.Add( $"BYMONTH={byMonth}" );
+                    }
+
+                    if ( recurrenceRule.BySetPosition?.Any() == true )
+                    {
+                        var bySetPos = string.Join( ",", recurrenceRule.BySetPosition );
+                        ruleParts.Add( $"BYSETPOS={bySetPos}" );
+                    }
+
+                    recurrence.Add( "RRULE:" + string.Join( ";", ruleParts ) );
+                }
+            }
+
+            if ( calendarEvent.ExceptionDates?.Any() == true )
+            {
+                var exceptionDateTimes = calendarEvent.ExceptionDates
+                    .SelectMany( periodList => periodList )
+                    .Where( p => p?.StartTime?.Value != null )
+                    .Select( p => p.StartTime.Value )
+                    .ToList();
+
+                if ( exceptionDateTimes.Any() )
+                {
+                    var exDateValues = new List<string>();
+                    foreach ( var exceptionDate in exceptionDateTimes )
+                    {
+                        if ( calendarEvent.IsAllDay )
+                        {
+                            exDateValues.Add( exceptionDate.ToString( "yyyyMMdd" ) );
+                        }
+                        else
+                        {
+                            var utcValue = exceptionDate.Kind == DateTimeKind.Utc
+                                ? exceptionDate
+                                : exceptionDate.Kind == DateTimeKind.Local
+                                    ? exceptionDate.ToUniversalTime()
+                                    : TimeZoneInfo.ConvertTimeToUtc( DateTime.SpecifyKind( exceptionDate, DateTimeKind.Unspecified ), orgTimeZone );
+
+                            exDateValues.Add( utcValue.ToString( "yyyyMMdd'T'HHmmss'Z'" ) );
+                        }
+                    }
+
+                    if ( calendarEvent.IsAllDay )
+                    {
+                        recurrence.Add( "EXDATE;VALUE=DATE:" + string.Join( ",", exDateValues.Distinct() ) );
+                    }
+                    else
+                    {
+                        recurrence.Add( "EXDATE:" + string.Join( ",", exDateValues.Distinct() ) );
+                    }
+                }
+            }
+
+            return recurrence;
+        }
+
+        /// <summary>
+        /// Builds a detailed Google API error message with reason and field information.
+        /// </summary>
+        private string BuildGoogleApiErrorMessage( Google.GoogleApiException ex )
+        {
+            if ( ex?.Error?.Errors == null || !ex.Error.Errors.Any() )
+            {
+                return $"Google API error: {ex?.Message}";
+            }
+
+            var details = ex.Error.Errors
+                .Select( e =>
+                {
+                    var parts = new List<string>();
+
+                    if ( !string.IsNullOrWhiteSpace( e.Reason ) )
+                    {
+                        parts.Add( $"Reason={e.Reason}" );
+                    }
+
+                    if ( !string.IsNullOrWhiteSpace( e.Location ) )
+                    {
+                        parts.Add( $"Field={e.Location}" );
+                    }
+
+                    if ( !string.IsNullOrWhiteSpace( e.Message ) )
+                    {
+                        parts.Add( $"Message={e.Message}" );
+                    }
+
+                    return string.Join( "; ", parts );
+                } )
+                .Where( d => d.IsNotNullOrWhiteSpace() )
+                .ToList();
+
+            if ( !details.Any() )
+            {
+                return $"Google API error: {ex.Message}";
+            }
+
+            return $"Google API error: {string.Join( " | ", details )}";
         }
 
         #endregion

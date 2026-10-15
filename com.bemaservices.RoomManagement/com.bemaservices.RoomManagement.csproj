@@ -6,14 +6,14 @@
 
   <PropertyGroup>
     <RockWebPath>..\..\Rock\RockWeb</RockWebPath>
-    <AdditionalAssembliesToCopy>Google.Apis.Admin.Directory.directory_v1.dll;Google.Apis.Auth.dll;Google.Apis.Calendar.v3.dll;Microsoft.Graph.Core.dll;Microsoft.Graph.dll;Microsoft.Kiota.Abstractions.dll;Microsoft.Kiota.Authentication.Azure.dll;Microsoft.Kiota.Http.HttpClientLibrary.dll;Microsoft.Kiota.Serialization.Form.dll;Microsoft.Kiota.Serialization.Json.dll;Microsoft.Kiota.Serialization.Multipart.dll;Microsoft.Kiota.Serialization.Text.dll;System.Net.Http.WinHttpHandler.dll;Std.UriTemplate.dll;</AdditionalAssembliesToCopy>
+    <AdditionalAssembliesToCopy>Google.Apis.Admin.Directory.directory_v1.dll;Google.Apis.Calendar.v3.dll;Microsoft.Graph.Core.dll;Microsoft.Graph.dll;Microsoft.Kiota.Abstractions.dll;Microsoft.Kiota.Authentication.Azure.dll;Microsoft.Kiota.Http.HttpClientLibrary.dll;Microsoft.Kiota.Serialization.Form.dll;Microsoft.Kiota.Serialization.Json.dll;Microsoft.Kiota.Serialization.Multipart.dll;Microsoft.Kiota.Serialization.Text.dll;System.Net.Http.WinHttpHandler.dll;Std.UriTemplate.dll;</AdditionalAssembliesToCopy>
     <CopyToRockWeb>true</CopyToRockWeb>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Apis" Version="1.69.0" />
-    <PackageReference Include="Google.Apis.Admin.Directory.directory_v1" Version="1.49.0.2161" />
-    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.49.0.2139" />
+    <PackageReference Include="Google.Apis.Admin.Directory.directory_v1" Version="1.69.0.3700" />
+    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.69.0.3667" />
     <PackageReference Include="Microsoft.Owin" Version="4.2.2" />
     <PackageReference Include="SparkDevNetwork.Rock.Build.Tasks" Version="1.0.4" />
     <PackageReference Include="SparkDevNetwork.Rock.Analyzers" Version="1.0.4" />

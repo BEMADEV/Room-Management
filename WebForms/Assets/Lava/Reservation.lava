@@ -92,7 +92,7 @@
 							data-delay="{&quot;hide&quot;: 1500}"
 							data-placement="right"
 							title="{{layout.Name}}" data-content="<p>{{layout.Description}}</p>{% if layout.LayoutPhotoId %}
-						<a href='/GetImage.ashx?id={{layout.LayoutPhotoId}}' target='_blank'><img src='/GetImage.ashx?id={{layout.LayoutPhotoId}}&maxwidth=200&maxheight=200'/></a>
+						<a href='/GetFile.ashx?id={{layout.LayoutPhotoId}}' target='_blank'><img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}&maxwidth=200&maxheight=200'/></a>
 						{% endif %}"
 						></i>
 							{% endif %}

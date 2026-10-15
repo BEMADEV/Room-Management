@@ -113,7 +113,7 @@
         </div>
         <div class='col-xs-2'>
           <span>
-            <img width='50%' src='{{ reservationLocation.Location.LocationLayout.LayoutPhotoUrl | Default:'/GetImage.ashx?id=103' }}'/>
+            <img width='50%' src='{{ reservationLocation.Location.LocationLayout.LayoutPhotoUrl | Default:'/GetFile.ashx?id=103' }}'/>
           </span>
         </div>
         <div class='col-xs-2'>

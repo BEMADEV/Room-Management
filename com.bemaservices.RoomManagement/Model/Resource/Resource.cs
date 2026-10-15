@@ -222,7 +222,7 @@ namespace com.bemaservices.RoomManagement.Model
                     widthHeightParams += string.Format( "&maxheight={0}", maxHeight.Value );
                 }
 
-                virtualPath = string.Format( "~/GetImage.ashx?id={0}" + widthHeightParams, PhotoId );
+                virtualPath = string.Format( "~/GetFile.ashx?id={0}" + widthHeightParams, PhotoId );
 
                 if ( System.Web.HttpContext.Current == null )
                 {
@@ -285,7 +285,7 @@ namespace com.bemaservices.RoomManagement.Model
 
             if ( PhotoId.HasValue )
             {
-                photoUrl.AppendFormat( "GetImage.ashx?id={0}", PhotoId );
+                photoUrl.AppendFormat( "GetFile.ashx?id={0}", PhotoId );
                 if ( maxWidth.HasValue )
                 {
                     photoUrl.AppendFormat( "&maxwidth={0}", maxWidth.Value );

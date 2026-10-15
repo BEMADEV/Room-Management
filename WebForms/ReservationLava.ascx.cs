@@ -721,7 +721,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ReservationTimeDescription = r.ReservationTimeDescription,
                 ReservationDateTimeDescription = r.ReservationDateTimeDescription,
                 SetupPhotoId = r.SetupPhotoId,
-                SetupPhotoLink = ResolveRockUrl( String.Format( "~/GetImage.ashx?guid={0}", r.SetupPhotoGuid ?? Guid.Empty ) ),
+                SetupPhotoLink = ResolveRockUrl( String.Format( "~/GetFile.ashx?guid={0}", r.SetupPhotoGuid ?? Guid.Empty ) ),
                 Note = r.Note,
                 RequesterAlias = r.RequesterAlias,
                 EventContactPersonAlias = r.EventContactPersonAlias,

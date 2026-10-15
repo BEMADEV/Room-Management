@@ -46,7 +46,7 @@ namespace com.bemaservices.RoomManagement.Migrations
             // Attrib for BlockType: Reservation Detail:Location Detail Template
             RockMigrationHelper.AddOrUpdateBlockTypeAttribute( "C938B1DE-9AB3-46D9-AB28-57BFCA362AEB", "27718256-C1EB-4B1F-9B4B-AC53249F78DF", "Location Detail Template", "LocationDetailTemplate", "Location Detail Template", @"A customizable template to dictate what details are displayed when selecting a location", 1, @"<div class='row'>
     {% if Location.ImageId != null %}
-        {% capture imgUrl %}/GetImage.ashx?id={{Location.ImageId}}{% endcapture %}
+        {% capture imgUrl %}/GetFile.ashx?id={{Location.ImageId}}{% endcapture %}
         {% capture imgTag %}<img src='{{imgUrl}}&maxwidth=200&maxheight=200'/>{% endcapture %}
         <div class='col-md-4'>
             <div class='photo'>

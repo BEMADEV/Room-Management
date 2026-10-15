@@ -278,7 +278,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         private void BindGrid()
         {
             List<LocationLayout> layoutList = GetLayouts();
-            string photoFormat = "<img src=\"/GetImage.ashx?id={0}\" height=\"{1}\"></img>";
+            string photoFormat = "<img src=\"/GetFile.ashx?id={0}\" height=\"{1}\"></img>";
 
             rGrid.DataSource = layoutList.Select( l => new
             {

@@ -95,7 +95,7 @@ namespace com.bemaservices.RoomManagement.ReportTemplates
                 ReservationTimeDescription = r.ReservationTimeDescription,
                 ReservationDateTimeDescription = r.ReservationDateTimeDescription,
                 SetupPhotoId = r.SetupPhotoId,
-                SetupPhotoLink = GlobalAttributesCache.Value( "InternalApplicationRoot" ) + string.Format( "/GetImage.ashx?id={0}", r.SetupPhotoId ?? 0 ),
+                SetupPhotoLink = GlobalAttributesCache.Value( "InternalApplicationRoot" ) + string.Format( "/GetFile.ashx?id={0}", r.SetupPhotoId ?? 0 ),
                 Note = r.Note,
                 RequesterAlias = r.RequesterAlias,
                 EventContactPersonAlias = r.EventContactPersonAlias,

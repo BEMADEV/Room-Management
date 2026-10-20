@@ -213,10 +213,6 @@ namespace com.bemaservices.RoomManagement.Migrations
 
                 // Change History
                 RockMigrationHelper.AddBlock( true, "4CBD2B96-E076-46DF-A576-356BCA5E577F", "", "C6C2DF41-A50D-4975-B21C-4EFD6FF3E8D0", "History Log", "Main", "", "", 1, "A981B5ED-F5B4-41AE-96A3-2BC10CCF110B" );
-                // Attrib for BlockType: History Log:Entity Type
-                RockMigrationHelper.UpdateBlockTypeAttribute( "C6C2DF41-A50D-4975-B21C-4EFD6FF3E8D0", "3549BAB6-FE1B-4333-AFC4-C5ACA01BB8EB", "Entity Type", "ContextEntityType", "", "The type of entity that will provide context for this block", 0, @"", "8FB690EC-5299-46C5-8695-AAD23168E6E1" );
-                // Attrib for BlockType: History Log:Heading
-                RockMigrationHelper.UpdateBlockTypeAttribute( "C6C2DF41-A50D-4975-B21C-4EFD6FF3E8D0", "9C204CD0-1233-41C5-818A-C5DA439445AA", "Heading", "Heading", "", "The Lava template to use for the heading. <span class='tip tip-lava'></span>", 0, @"{{ Entity.EntityStringValue }} (ID:{{ Entity.Id }})", "614CD413-DCB7-4DA2-80A0-C7ABE5A11047" );
                 // Attrib Value for Block:History Log, Attribute:Entity Type Page: New Reservation, Site: Rock RMS
                 RockMigrationHelper.AddBlockAttributeValue( "A981B5ED-F5B4-41AE-96A3-2BC10CCF110B", "8FB690EC-5299-46C5-8695-AAD23168E6E1", @"839768a3-10d6-446c-a65b-b8f9efd7808f" );
                 // Attrib Value for Block:History Log, Attribute:Heading Page: New Reservation, Site: Rock RMS

@@ -58,10 +58,6 @@ namespace com.bemaservices.RoomManagement.Migrations
                 RockMigrationHelper.AddBlockAttributeValue( "B16EB997-3107-4A64-AA9B-93CF01460622", "81CCF555-CCD5-4FAB-9B90-DE449888E066", @"EventItemOccurrenceId" );
 
                 // Page: Event Detail
-                // Attrib for BlockType: Calendar Event Item Occurrence List:core.CustomGridColumnsConfig
-                RockMigrationHelper.UpdateBlockTypeAttribute( "94230E7A-8EB7-4407-9B8E-888B54C71E39", "9C204CD0-1233-41C5-818A-C5DA439445AA", "core.CustomGridColumnsConfig", "core.CustomGridColumnsConfig", "", "", 0, @"", "46647F7B-2DC3-43FF-88F7-962F516FA969" );
-                // Attrib for BlockType: Calendar Event Item Occurrence List:core.CustomGridEnableStickyHeaders
-                RockMigrationHelper.UpdateBlockTypeAttribute( "94230E7A-8EB7-4407-9B8E-888B54C71E39", "1EDAFDED-DFE6-4334-B019-6EECBA89E05A", "core.CustomGridEnableStickyHeaders", "core.CustomGridEnableStickyHeaders", "", "", 0, @"False", "93803C69-EEFE-4E3C-A2F4-DD517883C72B" );
                 // Attrib Value for Block:Calendar Item Campus List, Attribute:core.CustomGridColumnsConfig Page: Event Detail, Site: Rock RMS
                 RockMigrationHelper.AddBlockAttributeValue( "828C8FE3-D5F8-4C22-BA81-844D704842EA", "46647F7B-2DC3-43FF-88F7-962F516FA969", @"{""ColumnsConfig"":[{""HeaderText"":""Reservations"",""HeaderClass"":"""",""ItemClass"":"""",""LavaTemplate"":""{% reservation where:'EventItemOccurrenceId == {{Row.Id}}' %}\n    {% for reservation in reservationItems %}\n        <small><a href='/ReservationDetail?ReservationId={{reservation.Id}}'>{{reservation.Name}}</a></small></br>\n    {% endfor %}\n{% endreservation %}"",""PositionOffsetType"":1,""PositionOffset"":2}]}" );
                 // Attrib Value for Block:Calendar Item Campus List, Attribute:core.CustomGridEnableStickyHeaders Page: Event Detail, Site: Rock RMS

@@ -118,9 +118,7 @@ namespace com.bemaservices.RoomManagement.Migrations
                 // Page: Resource Categories
                 RockMigrationHelper.AddPage( true, "0FF1D7F4-BF6D-444A-BD71-645BD764EC40", "D65F783D-87A9-4CC9-8110-E83466A0EADB", "Resource Categories", "", "455FFF96-AE2A-435A-B3E2-F6C32754E53A", "fa fa-folder" ); // Site:Rock RMS
                 Sql( "UPDATE [Page] SET [BreadCrumbDisplayName] = 0 WHERE [Guid] = '455FFF96-AE2A-435A-B3E2-F6C32754E53A'" );
-                RockMigrationHelper.UpdateBlockTypeByGuid( "Categories", "Block for managing categories for a specific, configured entity type.", "~/Blocks/Core/Categories.ascx", "Core", "620FC4A2-6587-409F-8972-22065919D9AC" );
                 RockMigrationHelper.AddBlock( true, "455FFF96-AE2A-435A-B3E2-F6C32754E53A", "", "620FC4A2-6587-409F-8972-22065919D9AC", "Categories", "Main", "", "", 0, "07FFD3C4-5E22-4026-AAE3-EABE608D316A" );
-                RockMigrationHelper.AddBlockTypeAttribute( "620FC4A2-6587-409F-8972-22065919D9AC", "3549BAB6-FE1B-4333-AFC4-C5ACA01BB8EB", "Entity Type", "EntityType", "", "The entity type to manage categories for.", 0, @"", "C405A507-7889-4287-8342-105B89710044" );
                 RockMigrationHelper.AddBlockAttributeValue( "07FFD3C4-5E22-4026-AAE3-EABE608D316A", "C405A507-7889-4287-8342-105B89710044", @"35584736-8fe2-48da-9121-3afd07a2da8d" ); // Entity Type
 
                 // Page: Resource Detail
@@ -179,9 +177,7 @@ namespace com.bemaservices.RoomManagement.Migrations
             RockMigrationHelper.DeleteBlockType( "88C8A452-6878-4938-913F-CA3EF87D50ED" );
             RockMigrationHelper.DeletePage( "B75A0C7E-4A15-4892-A857-BADE8B5DD4CA" ); //  Page: Resource Detail
 
-            RockMigrationHelper.DeleteAttribute( "C405A507-7889-4287-8342-105B89710044" );
             RockMigrationHelper.DeleteBlock( "07FFD3C4-5E22-4026-AAE3-EABE608D316A" );
-            RockMigrationHelper.DeleteBlockType( "620FC4A2-6587-409F-8972-22065919D9AC" );
             RockMigrationHelper.DeletePage( "455FFF96-AE2A-435A-B3E2-F6C32754E53A" ); //  Page: Resource Categories
 
             RockMigrationHelper.DeleteAttribute( "0C023434-43B7-4086-B469-B541FE47561C" );

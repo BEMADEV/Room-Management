@@ -924,7 +924,16 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Creates a transaction to act a hook for workflow triggers before changes occur
+        /// Workflow-trigger transactions captured by <see cref="PreSaveChanges(DbContext, System.Data.Entity.Infrastructure.DbEntityEntry)" />
+        /// and waiting for <see cref="PostSaveChanges(DbContext)" />. A list is used because a single WrapTransaction can save the
+        /// same reservation more than once before Rock runs the post-save calls.
+        /// </summary>
+        private List<com.bemaservices.RoomManagement.Transactions.ReservationChangeTransaction> _pendingChangeTransactions;
+
+        /// <summary>
+        /// Captures the reservation's previous and new values for the reservation workflow triggers while the original values are
+        /// still available. The transaction is enqueued by <see cref="PostSaveChanges(DbContext)" />, so workflows only launch for saves
+        /// that commit. Called by Rock for every added or modified reservation, including when only a child location or resource changed.
         /// </summary>
         /// <param name="dbContext">The database context.</param>
         /// <param name="entry">The entry.</param>
@@ -932,11 +941,36 @@ namespace com.bemaservices.RoomManagement.Model
         {
             if ( entry.State == System.Data.Entity.EntityState.Added || entry.State == System.Data.Entity.EntityState.Modified )
             {
-                var transaction = new com.bemaservices.RoomManagement.Transactions.ReservationChangeTransaction( entry );
-                transaction.Enqueue();
+                if ( _pendingChangeTransactions == null )
+                {
+                    _pendingChangeTransactions = new List<com.bemaservices.RoomManagement.Transactions.ReservationChangeTransaction>();
+                }
+
+                _pendingChangeTransactions.Add( new com.bemaservices.RoomManagement.Transactions.ReservationChangeTransaction( entry ) );
             }
 
             base.PreSaveChanges( dbContext, entry );
+        }
+
+        /// <summary>
+        /// Enqueues the workflow-trigger transactions captured by <see cref="PreSaveChanges(DbContext, System.Data.Entity.Infrastructure.DbEntityEntry)" />.
+        /// Rock calls this after the save, or the enclosing WrapTransaction, has committed, so rolled-back saves don't launch workflows.
+        /// </summary>
+        /// <param name="dbContext">The database context.</param>
+        public override void PostSaveChanges( DbContext dbContext )
+        {
+            var pendingChangeTransactions = _pendingChangeTransactions;
+            _pendingChangeTransactions = null;
+
+            if ( pendingChangeTransactions != null )
+            {
+                foreach ( var transaction in pendingChangeTransactions )
+                {
+                    transaction.Enqueue();
+                }
+            }
+
+            base.PostSaveChanges( dbContext );
         }
 
         /// <summary>

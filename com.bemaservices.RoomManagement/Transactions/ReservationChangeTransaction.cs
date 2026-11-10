@@ -53,9 +53,9 @@ namespace com.bemaservices.RoomManagement.Transactions
         /// </summary>
         private ReservationApprovalState PreviousApprovalState;
         /// <summary>
-        /// The previous modified date time
+        /// The reservation's ModifiedDateTime before this save; null for new reservations or when no value was stored.
         /// </summary>
-        private DateTime PreviousModifiedDateTime;
+        private DateTime? PreviousModifiedDateTime;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReservationChangeTransaction" /> class.
@@ -83,7 +83,7 @@ namespace com.bemaservices.RoomManagement.Transactions
                     var dbModifiedDateTimeProperty = entry.Property( "ModifiedDateTime" );
                     if ( dbModifiedDateTimeProperty != null )
                     {
-                        PreviousModifiedDateTime = ( DateTime ) dbModifiedDateTimeProperty.OriginalValue;
+                        PreviousModifiedDateTime = dbModifiedDateTimeProperty.OriginalValue as DateTime?;
                     }
                 }
 
@@ -96,7 +96,9 @@ namespace com.bemaservices.RoomManagement.Transactions
         }
 
         /// <summary>
-        /// Execute method to check for any workflows to launch.
+        /// Launches the workflows for the reservation type's triggers that match this save. Each trigger uses its own
+        /// <see cref="RockContext" /> and error handling, so one failing workflow doesn't stop the remaining triggers.
+        /// Run by Rock's transaction queue after <see cref="Reservation.PostSaveChanges" /> enqueues it.
         /// </summary>
         public void Execute()
         {
@@ -109,12 +111,12 @@ namespace com.bemaservices.RoomManagement.Transactions
                 // Get the workflows associated to the reservation
                 var reservationWorkflowTriggers = cachedWorkflowTriggers.Where( t => t.ReservationTypeId == ReservationTypeId ).ToList();
 
-                if ( reservationWorkflowTriggers.Any() )
+                // Loop through reservationWorkflows and lauch appropriate workflow
+                foreach ( var reservationWorkflowTrigger in reservationWorkflowTriggers )
                 {
-                    using ( var rockContext = new RockContext() )
+                    try
                     {
-                        // Loop through reservationWorkflows and lauch appropriate workflow
-                        foreach ( var reservationWorkflowTrigger in reservationWorkflowTriggers )
+                        using ( var rockContext = new RockContext() )
                         {
                             switch ( reservationWorkflowTrigger.TriggerType )
                             {
@@ -144,6 +146,10 @@ namespace com.bemaservices.RoomManagement.Transactions
                                     }
                             }
                         }
+                    }
+                    catch ( Exception ex )
+                    {
+                        ExceptionLogService.LogException( new Exception( string.Format( "Room Management could not launch the workflow for reservation workflow trigger {0} (reservation {1}).", reservationWorkflowTrigger.Id, ReservationGuid ), ex ) );
                     }
                 }
             }
@@ -197,27 +203,34 @@ namespace com.bemaservices.RoomManagement.Transactions
         }
 
         /// <summary>
-        /// Launches the workflow.
+        /// Activates and processes the trigger's workflow type for the saved reservation, passing PreviousModifiedDateTime (the
+        /// reservation's ModifiedDateTime before this save) when known, and links a persisted workflow to the reservation with a
+        /// <see cref="ReservationWorkflow" />. Skips triggers without an active workflow type and reservations that no longer exist.
+        /// Called by <see cref="Execute" /> for each matching trigger.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="reservationWorkflowTrigger">The reservation workflow trigger.</param>
-        /// <param name="name">The name.</param>
+        /// <param name="name">The workflow name.</param>
         private void LaunchWorkflow( RockContext rockContext, ReservationWorkflowTrigger reservationWorkflowTrigger, string name )
         {
+            if ( !reservationWorkflowTrigger.WorkflowTypeId.HasValue || !ReservationGuid.HasValue )
+            {
+                return;
+            }
+
             var workflowType = Rock.Web.Cache.WorkflowTypeCache.Get( reservationWorkflowTrigger.WorkflowTypeId.Value );
             if ( workflowType != null && ( workflowType.IsActive ?? true ) )
             {
-                Reservation reservation = null;
-                if ( ReservationGuid.HasValue )
+                // The reservation can be deleted between the save and this queued transaction running.
+                var reservation = new ReservationService( rockContext ).Get( ReservationGuid.Value );
+                if ( reservation != null )
                 {
-                    reservation = new ReservationService( rockContext ).Get( ReservationGuid.Value );
-
                     var workflow = Rock.Model.Workflow.Activate( workflowType, name );
 
-                    if ( PreviousModifiedDateTime != null )
+                    // Process() saves the workflow's attribute values if the workflow is persisted, so it only needs to be set here.
+                    if ( PreviousModifiedDateTime.HasValue )
                     {
-                        workflow.SetAttributeValue( "PreviousModifiedDateTime", PreviousModifiedDateTime );
-                        workflow.SaveAttributeValue( "PreviousModifiedDateTime", rockContext );
+                        workflow.SetAttributeValue( "PreviousModifiedDateTime", PreviousModifiedDateTime.Value );
                     }
 
                     List<string> workflowErrors;

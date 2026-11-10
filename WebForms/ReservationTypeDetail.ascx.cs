@@ -1173,7 +1173,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Updates the trigger qualifiers.
+        /// Shows the "From"/"To" approval-state dropdowns for State Changed triggers (clearing them for other
+        /// trigger types) and re-selects the states saved in the edited trigger's qualifier value.
+        /// Called when the trigger dialog opens and when the trigger type changes.
         /// </summary>
         private void UpdateTriggerQualifiers()
         {
@@ -1214,19 +1216,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                 ddlPrimaryQualifier.Visible = ddlSecondaryQualifier.Visible = isQualifierDropdownsVisible;
 
+                /*
+                    The qualifier is saved as |From|To| (the same format as Rock's ConnectionWorkflow.QualifierValue). Split it
+                    keeping empty entries so a blank "From" doesn't shift "To" into the "From" dropdown; From is part [1] and To is part [2].
+                    SetValue( string ) selects the blank (any state) option for an empty or unrecognized part instead of throwing.
+                */
                 if ( reservationWorkflowTrigger != null )
                 {
                     if ( reservationWorkflowTrigger.TriggerType == ddlTriggerType.SelectedValueAsEnum<com.bemaservices.RoomManagement.Model.ReservationWorkflowTriggerType>() )
                     {
-                        qualifierValues = reservationWorkflowTrigger.QualifierValue.SplitDelimitedValues();
-                        if ( isQualifierDropdownsVisible && qualifierValues.Length > 0 )
+                        qualifierValues = ( reservationWorkflowTrigger.QualifierValue ?? string.Empty ).Split( new char[] { '|' } );
+                        if ( isQualifierDropdownsVisible )
                         {
-                            ddlPrimaryQualifier.SelectedValue = qualifierValues[0];
-                        }
-
-                        if ( isQualifierDropdownsVisible && qualifierValues.Length > 1 )
-                        {
-                            ddlSecondaryQualifier.SelectedValue = qualifierValues[1];
+                            ddlPrimaryQualifier.SetValue( qualifierValues.Length > 1 ? qualifierValues[1] : string.Empty );
+                            ddlSecondaryQualifier.SetValue( qualifierValues.Length > 2 ? qualifierValues[2] : string.Empty );
                         }
                     }
                 }

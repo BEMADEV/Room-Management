@@ -150,13 +150,17 @@ namespace com.bemaservices.RoomManagement.Transactions
         }
 
         /// <summary>
-        /// Qualifierses the match.
+        /// Determines whether an approval-state transition satisfies the trigger's qualifier. ReservationTypeDetail saves the
+        /// qualifier as <c>|From|To|</c>, the same format as Rock's ConnectionWorkflow.QualifierValue, so part [1] is the
+        /// previous state and part [2] is the new state. A blank part matches any state, including Draft (0); a part that is
+        /// not a valid <see cref="ReservationApprovalState" /> never matches.
+        /// Used by <see cref="Execute" /> for Reservation Created triggers (with the same state for both) and State Changed triggers.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="reservationWorkflowTrigger">The reservation workflow trigger.</param>
-        /// <param name="prevState">State of the previous.</param>
-        /// <param name="state">The state.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <param name="prevState">The approval state before the save.</param>
+        /// <param name="state">The approval state after the save.</param>
+        /// <returns><c>true</c> if both qualifier parts match; otherwise <c>false</c>.</returns>
         private bool QualifiersMatch( RockContext rockContext, ReservationWorkflowTrigger reservationWorkflowTrigger, ReservationApprovalState prevState, ReservationApprovalState state )
         {
             var qualifierParts = ( reservationWorkflowTrigger.QualifierValue ?? "" ).Split( new char[] { '|' } );
@@ -165,10 +169,10 @@ namespace com.bemaservices.RoomManagement.Transactions
 
             if ( matches && qualifierParts.Length > 1 && !string.IsNullOrWhiteSpace( qualifierParts[1] ) )
             {
-                var qualifierRole = qualifierParts[1].ConvertToEnumOrNull<ReservationApprovalState>();
-                if ( qualifierRole.HasValue )
+                var qualifierState = qualifierParts[1].ConvertToEnumOrNull<ReservationApprovalState>();
+                if ( qualifierState.HasValue )
                 {
-                    matches = qualifierRole != 0 && qualifierRole == state;
+                    matches = qualifierState == prevState;
                 }
                 else
                 {
@@ -176,12 +180,12 @@ namespace com.bemaservices.RoomManagement.Transactions
                 }
             }
 
-            if ( matches && qualifierParts.Length > 3 && !string.IsNullOrWhiteSpace( qualifierParts[3] ) )
+            if ( matches && qualifierParts.Length > 2 && !string.IsNullOrWhiteSpace( qualifierParts[2] ) )
             {
-                var qualifierRole = qualifierParts[3].ConvertToEnumOrNull<ReservationApprovalState>();
-                if ( qualifierRole.HasValue )
+                var qualifierState = qualifierParts[2].ConvertToEnumOrNull<ReservationApprovalState>();
+                if ( qualifierState.HasValue )
                 {
-                    matches = qualifierRole != 0 && qualifierRole == prevState;
+                    matches = qualifierState == state;
                 }
                 else
                 {

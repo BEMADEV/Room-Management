@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Entity;
+using System.IO;
 using System.Linq;
 using System.Text;
 using com.bemaservices.RoomManagement.Utility.RockInternalMethods;
@@ -316,14 +317,32 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    var newPhoto = item.SetupPhoto.CloneWithoutIdentity();
-                    newPhoto.DatabaseData = item.SetupPhoto.DatabaseData.CloneWithoutIdentity();
-                    newPhoto.IsTemporary = true;
-                    var binaryFileService = new BinaryFileService( rockContext );
-                    binaryFileService.Add( newPhoto );
-                    rockContext.SaveChanges();
-                    newItem.SetupPhoto = newPhoto;
-                    newItem.SetupPhotoId = newPhoto.Id;
+                    using ( var sourceStream = item.SetupPhoto.ContentStream )
+                    using ( var contentStream = new MemoryStream() )
+                    {
+                        if ( sourceStream != null )
+                        {
+                            sourceStream.CopyTo( contentStream );
+                            contentStream.Position = 0;
+
+                            var newPhoto = new BinaryFile
+                            {
+                                FileName = item.SetupPhoto.FileName,
+                                Description = item.SetupPhoto.Description,
+                                MimeType = item.SetupPhoto.MimeType,
+                                FileSize = item.SetupPhoto.FileSize,
+                                BinaryFileTypeId = item.SetupPhoto.BinaryFileTypeId,
+                                IsTemporary = true,
+                                ContentStream = contentStream
+                            };
+
+                            var binaryFileService = new BinaryFileService( rockContext );
+                            binaryFileService.Add( newPhoto );
+                            rockContext.SaveChanges();
+                            newItem.SetupPhoto = newPhoto;
+                            newItem.SetupPhotoId = newPhoto.Id;
+                        }
+                    }
                 }
             }
 

@@ -290,6 +290,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             this.AddConfigurationUpdateTrigger( upnlContent );
 
             btnDelete.Attributes["onclick"] = string.Format( "javascript: return Rock.dialogs.confirmDelete(event, '{0}');", Reservation.FriendlyTypeName );
+            btnCancelReservation.Attributes["onclick"] = "javascript: Rock.dialogs.confirmPreventOnCancel(event, 'Are you sure you want to cancel this reservation?');";
 
         }
 

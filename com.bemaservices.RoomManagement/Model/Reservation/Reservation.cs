@@ -953,8 +953,9 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Enqueues the workflow-trigger transactions captured by <see cref="PreSaveChanges(DbContext, System.Data.Entity.Infrastructure.DbEntityEntry)" />.
-        /// Rock calls this after the save, or the enclosing WrapTransaction, has committed, so rolled-back saves don't launch workflows.
+        /// Records the committed ModifiedDateTime on, then enqueues, the workflow-trigger transactions captured by
+        /// <see cref="PreSaveChanges(DbContext, System.Data.Entity.Infrastructure.DbEntityEntry)" />. Rock calls this after the save,
+        /// or the enclosing WrapTransaction, has committed, so rolled-back saves don't launch workflows.
         /// </summary>
         /// <param name="dbContext">The database context.</param>
         public override void PostSaveChanges( DbContext dbContext )
@@ -966,6 +967,7 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 foreach ( var transaction in pendingChangeTransactions )
                 {
+                    transaction.SetTriggerModifiedDateTime( ModifiedDateTime );
                     transaction.Enqueue();
                 }
             }

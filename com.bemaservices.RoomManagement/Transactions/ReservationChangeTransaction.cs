@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Data.Entity.Infrastructure;
+using System.Globalization;
 using System.Linq;
 using com.bemaservices.RoomManagement.Model;
 using Rock;
@@ -56,6 +57,10 @@ namespace com.bemaservices.RoomManagement.Transactions
         /// The reservation's ModifiedDateTime before this save; null for new reservations or when no value was stored.
         /// </summary>
         private DateTime? PreviousModifiedDateTime;
+        /// <summary>
+        /// The reservation's ModifiedDateTime after the save committed.
+        /// </summary>
+        private DateTime? TriggerModifiedDateTime;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReservationChangeTransaction" /> class.
@@ -93,6 +98,16 @@ namespace com.bemaservices.RoomManagement.Transactions
                     ReservationGuid = reservation.Guid;
                 }
             }
+        }
+
+        /// <summary>
+        /// Records the reservation's committed ModifiedDateTime for workflow attributes. Called from
+        /// <see cref="Reservation.PostSaveChanges" /> before this transaction is enqueued.
+        /// </summary>
+        /// <param name="modifiedDateTime">The reservation's ModifiedDateTime after the save.</param>
+        internal void SetTriggerModifiedDateTime( DateTime? modifiedDateTime )
+        {
+            TriggerModifiedDateTime = modifiedDateTime;
         }
 
         /// <summary>
@@ -203,10 +218,10 @@ namespace com.bemaservices.RoomManagement.Transactions
         }
 
         /// <summary>
-        /// Activates and processes the trigger's workflow type for the saved reservation, passing PreviousModifiedDateTime (the
-        /// reservation's ModifiedDateTime before this save) when known, and links a persisted workflow to the reservation with a
-        /// <see cref="ReservationWorkflow" />. Skips triggers without an active workflow type and reservations that no longer exist.
-        /// Called by <see cref="Execute" /> for each matching trigger.
+        /// Activates and processes the trigger's workflow type for the saved reservation, passing PreviousModifiedDateTime when known
+        /// and the Trigger* state, type, and committed ModifiedDateTime values when the workflow defines those attributes. Links a
+        /// persisted workflow to the reservation with a <see cref="ReservationWorkflow" />. Skips triggers without an active workflow
+        /// type and reservations that no longer exist. Called by <see cref="Execute" /> for each matching trigger.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="reservationWorkflowTrigger">The reservation workflow trigger.</param>
@@ -233,6 +248,18 @@ namespace com.bemaservices.RoomManagement.Transactions
                         workflow.SetAttributeValue( "PreviousModifiedDateTime", PreviousModifiedDateTime.Value );
                     }
 
+                    SetWorkflowAttributeValueIfDefined( workflow, "TriggerApprovalState", ApprovalState.ToString() );
+                    if ( State != EntityState.Added )
+                    {
+                        SetWorkflowAttributeValueIfDefined( workflow, "TriggerPreviousApprovalState", PreviousApprovalState.ToString() );
+                    }
+
+                    SetWorkflowAttributeValueIfDefined( workflow, "TriggerType", reservationWorkflowTrigger.TriggerType.ToString() );
+                    if ( TriggerModifiedDateTime.HasValue )
+                    {
+                        SetWorkflowAttributeValueIfDefined( workflow, "TriggerModifiedDateTime", TriggerModifiedDateTime.Value.ToString( "o", CultureInfo.InvariantCulture ) );
+                    }
+
                     List<string> workflowErrors;
                     new WorkflowService( rockContext ).Process( workflow, reservation, out workflowErrors );
                     if ( workflow.Id != 0 )
@@ -247,6 +274,21 @@ namespace com.bemaservices.RoomManagement.Transactions
                         rockContext.SaveChanges();
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Sets a workflow attribute only when it is defined by the workflow type, preserving compatibility with existing
+        /// workflow types that do not define the trigger-specific attributes.
+        /// </summary>
+        /// <param name="workflow">The activated workflow.</param>
+        /// <param name="key">The workflow attribute key.</param>
+        /// <param name="value">The value to assign.</param>
+        private void SetWorkflowAttributeValueIfDefined( Rock.Model.Workflow workflow, string key, string value )
+        {
+            if ( workflow.Attributes != null && workflow.Attributes.ContainsKey( key ) )
+            {
+                workflow.SetAttributeValue( key, value );
             }
         }
     }

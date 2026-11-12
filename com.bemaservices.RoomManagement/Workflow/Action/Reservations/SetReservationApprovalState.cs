@@ -48,13 +48,13 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     public class SetReservationApprovalState : ActionComponent
     {
         /// <summary>
-        /// Executes the specified workflow.
+        /// Sets the configured reservation approval state when it differs; the reservation save hook records the resulting history.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="action">The action.</param>
         /// <param name="entity">The entity.</param>
         /// <param name="errorMessages">The error messages.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <returns>Whether a valid reservation and approval state were processed.</returns>
         public override bool Execute( RockContext rockContext, WorkflowAction action, Object entity, out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -93,19 +93,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
             if ( oldValue != reservation.ApprovalState )
             {
-                var changes = new History.HistoryChangeList();
-                History.EvaluateChange(
-                    changes,
-                    "Approval State",
-                    oldValue.ToString(),
-                    reservation.ApprovalState.ToString() );
-
-                if ( changes.Any() )
-                {
-                    changes.Add( new History.HistoryChange( History.HistoryVerb.Modify, History.HistoryChangeType.Record, string.Format( "Updated by the '{0}' workflow", action.ActionTypeCache.ActivityType.WorkflowType.Name ) ) );
-                    HistoryService.SaveChanges( rockContext, typeof( Reservation ), com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(), reservation.Id, changes, false );
-                }
-
                 rockContext.SaveChanges();
 
                 if ( action.Activity != null && action.Activity.Workflow != null )

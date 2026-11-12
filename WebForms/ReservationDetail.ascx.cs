@@ -376,7 +376,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Events
 
         /// <summary>
-        /// Handles the Click event of the btnSave control.
+        /// Validates and saves the reservation, its nested entities, and their edited attributes.
+        /// Writes attribute history in the same transaction; the save hook handles property history and workflows.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -394,13 +395,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 LocationService locationService = new LocationService( rockContext );
                 LocationLayoutService locationLayoutService = new LocationLayoutService( rockContext );
                 ReservationService reservationService = new ReservationService( rockContext );
-                ReservationMinistryService reservationMinistryService = new ReservationMinistryService( rockContext );
                 ReservationResourceService reservationResourceService = new ReservationResourceService( rockContext );
                 ReservationLocationService reservationLocationService = new ReservationLocationService( rockContext );
                 ReservationDoorLockScheduleService reservationDoorLockScheduleService = new ReservationDoorLockScheduleService( rockContext );
 
                 Reservation reservation = null;
-                var changes = new History.HistoryChangeList();
 
                 if ( hfReservationId.Value.AsIntegerOrNull() != null )
                 {
@@ -436,14 +435,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         reservation.ForeignGuid = PageParameter( "ForeignGuid" ).AsGuid();
                     }
 
-                    changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, "Reservation" ) );
                 }
                 else
                 {
                     var uiLocations = LocationsState.Select( l => l.Guid );
                     foreach ( var reservationLocation in reservation.ReservationLocations.Where( l => !uiLocations.Contains( l.Guid ) ).ToList() )
                     {
-                        changes.Add( new History.HistoryChange( History.HistoryVerb.Delete, History.HistoryChangeType.Property, String.Format( "[Location] {0}", reservationLocation.Location.Name ) ) );
                         reservation.ReservationLocations.Remove( reservationLocation );
                         reservationLocationService.Delete( reservationLocation );
                     }
@@ -451,7 +448,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     var uiResources = ResourcesState.Select( l => l.Guid );
                     foreach ( var reservationResource in reservation.ReservationResources.Where( l => !uiResources.Contains( l.Guid ) ).ToList() )
                     {
-                        changes.Add( new History.HistoryChange( History.HistoryVerb.Delete, History.HistoryChangeType.Property, String.Format( "[Resource] {0}", reservationResource.Resource.Name ) ) );
                         reservation.ReservationResources.Remove( reservationResource );
                         reservationResourceService.Delete( reservationResource );
                     }
@@ -460,13 +456,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     var uiDoorLockSchedules = DoorLockSchedulesState.Select( l => l.Guid );
                     foreach ( var reservationDoorLockSchedule in reservation.ReservationDoorLockSchedules.Where( l => !uiDoorLockSchedules.Contains( l.Guid ) ).ToList() )
                     {
-                        changes.Add( new History.HistoryChange( History.HistoryVerb.Delete, History.HistoryChangeType.Property, String.Format( "[Door Lock Schedule] {0} - {1}", reservationDoorLockSchedule.StartTimeOffset, reservationDoorLockSchedule.EndTimeOffset ) ) );
                         reservation.ReservationDoorLockSchedules.Remove( reservationDoorLockSchedule );
                         reservationDoorLockScheduleService.Delete( reservationDoorLockSchedule );
                     }
                 }
 
-                Reservation oldReservation = BuildOldReservation( resourceService, locationService, reservationService, reservation );
+                var changeTracking = new ReservationChangeTrackingHelper( rockContext );
+                Reservation oldReservation = changeTracking.BuildOldReservation( reservation );
 
                 var reservationType = new ReservationTypeService( rockContext ).Get( ReservationType.Id );
                 reservation.ReservationType = reservationType;
@@ -578,38 +574,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     if ( newSchedule.iCalendarContent != oldIcalContent )
                     {
                         reservation.Schedule = newSchedule;
-                        History.EvaluateChange( changes, "Schedule", oldReservation.GetFriendlyReservationScheduleText(), reservation.GetFriendlyReservationScheduleText() );
                     }
                 }
 
-                CampusCache oldCampus = null;
-                if ( reservation.CampusId.HasValue )
-                {
-                    oldCampus = CampusCache.Get( reservation.CampusId.Value );
-                }
-
-                CampusCache newCampus = null;
-                if ( ddlCampus.SelectedValueAsId().HasValue )
-                {
-                    newCampus = CampusCache.Get( ddlCampus.SelectedValueAsId().Value );
-                }
-
-                History.EvaluateChange( changes, "Campus", oldCampus != null ? oldCampus.Name : "None", newCampus != null ? newCampus.Name : "None" );
                 reservation.CampusId = ddlCampus.SelectedValueAsId();
 
-                ReservationMinistry oldMinistry = null;
-                if ( reservation.ReservationMinistryId.HasValue )
-                {
-                    oldMinistry = reservationMinistryService.Get( reservation.ReservationMinistryId.Value );
-                }
-
-                ReservationMinistry newMinistry = null;
-                if ( ddlMinistry.SelectedValueAsId().HasValue )
-                {
-                    newMinistry = reservationMinistryService.Get( ddlMinistry.SelectedValueAsId().Value );
-                }
-
-                History.EvaluateChange( changes, "Ministry", oldMinistry != null ? oldMinistry.Name : "None", newMinistry != null ? newMinistry.Name : "None" );
                 reservation.ReservationMinistryId = ddlMinistry.SelectedValueAsId();
 
                 int? orphanedPhotoId = null;
@@ -617,68 +586,28 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     orphanedPhotoId = reservation.SetupPhotoId;
                     reservation.SetupPhotoId = fuSetupPhoto.BinaryFileId;
-
-                    if ( orphanedPhotoId.HasValue )
-                    {
-                        if ( reservation.SetupPhotoId.HasValue )
-                        {
-                            changes.Add( new History.HistoryChange( History.HistoryVerb.Modify, History.HistoryChangeType.Property, "setup photo." ) );
-                        }
-                        else
-                        {
-                            changes.Add( new History.HistoryChange( History.HistoryVerb.Delete, History.HistoryChangeType.Property, "setup photo." ) );
-                        }
-                    }
-                    else if ( reservation.SetupPhotoId.HasValue )
-                    {
-                        changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, "setup photo." ) );
-                    }
                 }
 
-                History.EvaluateChange( changes, "Note", reservation.Note, rtbNote.Text );
                 reservation.Note = rtbNote.Text;
 
-                History.EvaluateChange( changes, "Name", reservation.Name, rtbName.Text );
                 reservation.Name = rtbName.Text;
 
-                History.EvaluateChange( changes, "Number Attending", reservation.NumberAttending.ToString(), nbAttending.Text );
                 reservation.NumberAttending = nbAttending.Text.AsInteger();
 
-                History.EvaluateChange( changes, "Setup Time", reservation.SetupTime.ToString(), nbSetupTime.Text );
                 reservation.SetupTime = nbSetupTime.Text.AsInteger();
 
-                History.EvaluateChange( changes, "Cleanup Time", reservation.CleanupTime.ToString(), nbCleanupTime.Text );
                 reservation.CleanupTime = nbCleanupTime.Text.AsInteger();
 
-                if ( !reservation.EventContactPersonAliasId.Equals( ppEventContact.PersonAliasId ) )
-                {
-                    string prevPerson = ( reservation.EventContactPersonAlias != null && reservation.EventContactPersonAlias.Person != null ) ?
-                        reservation.EventContactPersonAlias.Person.FullName : string.Empty;
-                    string newPerson = ppEventContact.PersonName;
-                    History.EvaluateChange( changes, "Event Contact", prevPerson, newPerson );
-                }
                 reservation.EventContactPersonAliasId = ppEventContact.PersonAliasId;
 
-                History.EvaluateChange( changes, "Event Contact Phone Number", reservation.EventContactPhone, PhoneNumber.FormattedNumber( PhoneNumber.DefaultCountryCode(), pnEventContactPhone.Number ) );
                 reservation.EventContactPhone = PhoneNumber.FormattedNumber( PhoneNumber.DefaultCountryCode(), pnEventContactPhone.Number );
 
-                History.EvaluateChange( changes, "Event Contact Email", reservation.EventContactEmail, tbEventContactEmail.Text );
                 reservation.EventContactEmail = tbEventContactEmail.Text;
-
-                if ( !reservation.AdministrativeContactPersonAliasId.Equals( ppAdministrativeContact.PersonAliasId ) )
-                {
-                    string prevPerson = ( reservation.AdministrativeContactPersonAlias != null && reservation.AdministrativeContactPersonAlias.Person != null ) ?
-                        reservation.AdministrativeContactPersonAlias.Person.FullName : string.Empty;
-                    string newPerson = ppAdministrativeContact.PersonName;
-                    History.EvaluateChange( changes, "Administrative Contact", prevPerson, newPerson );
-                }
 
                 reservation.AdministrativeContactPersonAliasId = ppAdministrativeContact.PersonAliasId;
 
-                History.EvaluateChange( changes, "Administrative Contact Phone Number", reservation.AdministrativeContactPhone, PhoneNumber.FormattedNumber( PhoneNumber.DefaultCountryCode(), pnAdministrativeContactPhone.Number ) );
                 reservation.AdministrativeContactPhone = PhoneNumber.FormattedNumber( PhoneNumber.DefaultCountryCode(), pnAdministrativeContactPhone.Number );
 
-                History.EvaluateChange( changes, "Administrative Contact Email", reservation.AdministrativeContactEmail, tbAdministrativeContactEmail.Text );
                 reservation.AdministrativeContactEmail = tbAdministrativeContactEmail.Text;
 
                 reservation.LoadAttributes( rockContext );
@@ -731,9 +660,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     return;
                 }
 
-                changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
-
-                History.EvaluateChange( changes, "Approval State", oldReservation.ApprovalState.ToString(), reservation.ApprovalState.ToString() );
+                var attributeChanges = changeTracking.BuildAttributeChanges( oldReservation, reservation );
+                if ( attributeChanges.Any() )
+                {
+                    reservation.ModifiedDateTime = RockDateTime.Now;
+                }
 
                 if ( reservation.ApprovalState == ReservationApprovalState.Approved && oldReservation.ApprovalState != ReservationApprovalState.Approved )
                 {
@@ -760,6 +691,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
 
                     reservation.SaveAttributeValues( rockContext );
+                    changeTracking.SaveHistory( reservation.Id, attributeChanges, reservation.ModifiedByPersonAliasId, rockContext.SourceOfChange );
 
                     saveSuccess = true;
                 } );
@@ -768,16 +700,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     // ..."need to fetch the item using a new service if you need the updated property as a fully hydrated entity"
                     reservation = new ReservationService( new RockContext() ).Get( reservation.Guid );
-
-                    if ( changes.Any() )
-                    {
-                        HistoryService.SaveChanges(
-                            rockContext,
-                            typeof( Reservation ),
-                            com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
-                            reservation.Id,
-                            changes );
-                    }
 
                     BinaryFileService binaryFileService = new BinaryFileService( rockContext );
                     if ( orphanedPhotoId.HasValue )
@@ -995,7 +917,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnOverride control.
+        /// Overrides the reservation to Approved; the save hook records history and queues matching workflows.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
@@ -1008,10 +930,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var reservation = reservationService.Get( hfReservationId.ValueAsInt() );
                 if ( reservation != null )
                 {
-                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
-
                     reservation.ApprovalState = ReservationApprovalState.Approved;
-                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                    rockContext.SaveChanges();
                 }
 
                 ShowDetail( hfReservationId.ValueAsInt() );
@@ -1019,7 +939,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnDeny control.
+        /// Denies the reservation through the shared save-hook history and workflow path.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -1032,10 +952,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var reservation = reservationService.Get( hfReservationId.ValueAsInt() );
                 if ( reservation != null )
                 {
-                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
-
                     reservation.ApprovalState = ReservationApprovalState.Denied;
-                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                    rockContext.SaveChanges();
                 }
 
                 ShowDetail( hfReservationId.ValueAsInt() );
@@ -1043,7 +961,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnApprove control.
+        /// Advances the reservation's approval stage after conflict checks, leaving history capture to the save hook.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -1062,8 +980,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     {
                         return;
                     }
-
-                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
 
                     var changesNeeded = reservationService.AreLocationOrResourceChangesNeeded( reservation );
                     if ( changesNeeded )
@@ -1086,7 +1002,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         }
                     }
 
-                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                    rockContext.SaveChanges();
                 }
 
                 ShowDetail( hfReservationId.ValueAsInt() );
@@ -1094,7 +1010,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnRequestChanges control.
+        /// Marks the reservation as needing changes after conflict checks and saves through the shared history path.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -1113,11 +1029,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         return;
                     }
 
-                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
-
                     reservation.ApprovalState = ReservationApprovalState.ChangesNeeded;
 
-                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                    rockContext.SaveChanges();
                 }
 
                 ShowDetail( hfReservationId.ValueAsInt() );
@@ -1125,7 +1039,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnSubmit control.
+        /// Submits the reservation for initial approval or required changes; the save hook records the resulting transition.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -1145,8 +1059,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         return;
                     }
 
-                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
-
                     var changesNeeded = reservationService.AreLocationOrResourceChangesNeeded( reservation );
                     if ( changesNeeded )
                     {
@@ -1157,7 +1069,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         reservation.ApprovalState = ReservationApprovalState.PendingInitialApproval;
                     }
 
-                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                    rockContext.SaveChanges();
                 }
 
                 ShowDetail( hfReservationId.ValueAsInt() );
@@ -1165,7 +1077,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Click event of the btnCancelReservation control.
+        /// Cancels the reservation through the shared save-hook history and workflow path.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -1178,11 +1090,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var reservation = reservationService.Get( hfReservationId.ValueAsInt() );
                 if ( reservation != null )
                 {
-                    Reservation oldReservation = BuildOldReservation( new ResourceService( rockContext ), new LocationService( rockContext ), reservationService, reservation );
-
                     reservation.ApprovalState = ReservationApprovalState.Cancelled;
 
-                    SaveReservationChanges( rockContext, reservation, oldReservation );
+                    rockContext.SaveChanges();
                 }
 
                 ShowDetail( hfReservationId.ValueAsInt() );
@@ -1446,7 +1356,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the ApproveClick event of the gResources control.
+        /// Approves a reservation resource.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
@@ -1458,19 +1368,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    var changes = new History.HistoryChangeList();
                     var reservationService = new ReservationService( rockContext );
                     var reservationResourceService = new ReservationResourceService( rockContext );
-                    var resourceService = new ResourceService( rockContext );
-                    var locationService = new LocationService( rockContext );
 
                     var reservationResource = reservationResourceService.Queryable().FirstOrDefault( r => r.Guid.Equals( ( Guid ) e.RowKeyValue ) );
                     if ( reservationResource != null )
                     {
                         failure = false;
-
                         var reservation = reservationResource.Reservation;
-                        Reservation oldReservation = BuildOldReservation( resourceService, locationService, reservationService, reservation );
 
                         reservationResource.ApprovalState = ReservationResourceApprovalState.Approved;
                         if ( reservationService.AreAllLocationsAndResourcesApproved( reservation ) )
@@ -1480,22 +1385,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                             reservation.ApprovalState = ReservationApprovalState.PendingFinalApproval;
                         }
 
-                        changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
-                        History.EvaluateChange( changes, "Approval State", oldReservation.ApprovalState.ToString(), reservation.ApprovalState.ToString() );
-
                         rockContext.SaveChanges();
-
-                        // ..."need to fetch the item using a new service if you need the updated property as a fully hydrated entity"
-                        reservation = new ReservationService( new RockContext() ).Get( reservation.Guid );
-                        if ( changes.Any() )
-                        {
-                            HistoryService.SaveChanges(
-                                rockContext,
-                                typeof( Reservation ),
-                                com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
-                                reservation.Id,
-                                changes );
-                        }
                     }
 
                     ShowDetail( hfReservationId.ValueAsInt() );
@@ -1509,7 +1399,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the DenyClick event of the gResources control.
+        /// Denies a reservation resource.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
@@ -1521,38 +1411,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    var changes = new History.HistoryChangeList();
                     var reservationService = new ReservationService( rockContext );
                     var reservationResourceService = new ReservationResourceService( rockContext );
-                    var resourceService = new ResourceService( rockContext );
-                    var locationService = new LocationService( rockContext );
 
                     var reservationResource = reservationResourceService.Queryable().FirstOrDefault( r => r.Guid.Equals( ( Guid ) e.RowKeyValue ) );
                     if ( reservationResource != null )
                     {
                         failure = false;
                         var reservation = reservationResource.Reservation;
-                        Reservation oldReservation = BuildOldReservation( resourceService, locationService, reservationService, reservation );
 
                         reservationResource.ApprovalState = ReservationResourceApprovalState.Denied;
                         reservation.ApprovalState = ReservationApprovalState.ChangesNeeded;
 
-                        changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
-                        History.EvaluateChange( changes, "Approval State", oldReservation.ApprovalState.ToString(), reservation.ApprovalState.ToString() );
-
                         rockContext.SaveChanges();
-
-                        // ..."need to fetch the item using a new service if you need the updated property as a fully hydrated entity"
-                        reservation = new ReservationService( new RockContext() ).Get( reservation.Guid );
-                        if ( changes.Any() )
-                        {
-                            HistoryService.SaveChanges(
-                                rockContext,
-                                typeof( Reservation ),
-                                com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
-                                reservation.Id,
-                                changes );
-                        }
                     }
 
                     ShowDetail( hfReservationId.ValueAsInt() );
@@ -1833,7 +1704,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the ApproveClick event of the gLocations control.
+        /// Approves a reservation location.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
@@ -1845,18 +1716,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    var changes = new History.HistoryChangeList();
                     var reservationService = new ReservationService( rockContext );
                     var reservationLocationService = new ReservationLocationService( rockContext );
-                    var resourceService = new ResourceService( rockContext );
-                    var locationService = new LocationService( rockContext );
 
                     var reservationLocation = reservationLocationService.Queryable().FirstOrDefault( r => r.Guid.Equals( ( Guid ) e.RowKeyValue ) );
                     if ( reservationLocation != null )
                     {
                         failure = false;
                         var reservation = reservationLocation.Reservation;
-                        Reservation oldReservation = BuildOldReservation( resourceService, locationService, reservationService, reservation );
 
                         reservationLocation.ApprovalState = ReservationLocationApprovalState.Approved;
                         if ( reservationService.AreAllLocationsAndResourcesApproved( reservation ) )
@@ -1866,22 +1733,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                             reservation.ApprovalState = ReservationApprovalState.PendingFinalApproval;
                         }
 
-                        changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
-                        History.EvaluateChange( changes, "Approval State", oldReservation.ApprovalState.ToString(), reservation.ApprovalState.ToString() );
-
                         rockContext.SaveChanges();
-
-                        // ..."need to fetch the item using a new service if you need the updated property as a fully hydrated entity"
-                        reservation = new ReservationService( new RockContext() ).Get( reservation.Guid );
-                        if ( changes.Any() )
-                        {
-                            HistoryService.SaveChanges(
-                                rockContext,
-                                typeof( Reservation ),
-                                com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
-                                reservation.Id,
-                                changes );
-                        }
                     }
 
                     ShowDetail( hfReservationId.ValueAsInt() );
@@ -1895,7 +1747,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the DenyClick event of the gLocations control.
+        /// Denies a reservation location.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
@@ -1907,38 +1759,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 using ( var rockContext = new RockContext() )
                 {
-                    var changes = new History.HistoryChangeList();
                     var reservationService = new ReservationService( rockContext );
                     var reservationLocationService = new ReservationLocationService( rockContext );
-                    var resourceService = new ResourceService( rockContext );
-                    var locationService = new LocationService( rockContext );
 
                     var reservationLocation = reservationLocationService.Queryable().FirstOrDefault( r => r.Guid.Equals( ( Guid ) e.RowKeyValue ) );
                     if ( reservationLocation != null )
                     {
                         failure = false;
                         var reservation = reservationLocation.Reservation;
-                        Reservation oldReservation = BuildOldReservation( resourceService, locationService, reservationService, reservation );
 
                         reservationLocation.ApprovalState = ReservationLocationApprovalState.Denied;
                         reservation.ApprovalState = ReservationApprovalState.ChangesNeeded;
 
-                        changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
-                        History.EvaluateChange( changes, "Approval State", oldReservation.ApprovalState.ToString(), reservation.ApprovalState.ToString() );
-
                         rockContext.SaveChanges();
-
-                        // ..."need to fetch the item using a new service if you need the updated property as a fully hydrated entity"
-                        reservation = new ReservationService( new RockContext() ).Get( reservation.Guid );
-                        if ( changes.Any() )
-                        {
-                            HistoryService.SaveChanges(
-                                rockContext,
-                                typeof( Reservation ),
-                                com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
-                                reservation.Id,
-                                changes );
-                        }
                     }
 
                     ShowDetail( hfReservationId.ValueAsInt() );
@@ -2712,32 +2545,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Saves the reservation changes.
-        /// </summary>
-        /// <param name="rockContext">The rock context.</param>
-        /// <param name="reservation">The reservation.</param>
-        /// <param name="oldReservation">The old reservation.</param>
-        private void SaveReservationChanges( RockContext rockContext, Reservation reservation, Reservation oldReservation )
-        {
-            var changes = new History.HistoryChangeList();
-            changes = EvaluateLocationAndResourceChanges( changes, oldReservation, reservation );
-            History.EvaluateChange( changes, "Approval State", oldReservation.ApprovalState.ToString(), reservation.ApprovalState.ToString() );
-
-            rockContext.SaveChanges();
-            // ..."need to fetch the item using a new service if you need the updated property as a fully hydrated entity"
-            var newReservation = new ReservationService( new RockContext() ).Get( reservation.Guid );
-            if ( changes.Any() )
-            {
-                HistoryService.SaveChanges(
-                    rockContext,
-                    typeof( Reservation ),
-                    com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(),
-                    newReservation.Id,
-                    changes );
-            }
-        }
-
-        /// <summary>
         /// Displays the conflict errors.
         /// </summary>
         /// <param name="reservationService">The reservation service.</param>
@@ -3260,121 +3067,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             return reservation;
-        }
-
-        /// <summary>
-        /// Builds the old reservation.
-        /// </summary>
-        /// <param name="resourceService">The resource service.</param>
-        /// <param name="locationService">The location service.</param>
-        /// <param name="reservationService">The reservation service.</param>
-        /// <param name="reservation">The reservation.</param>
-        /// <returns>Reservation.</returns>
-        private static Reservation BuildOldReservation( ResourceService resourceService, LocationService locationService, ReservationService reservationService, Reservation reservation )
-        {
-            var oldReservation = new Reservation();
-            oldReservation.Schedule = reservation.Schedule ?? new Schedule();
-            if ( reservation.Schedule != null )
-            {
-                oldReservation.Schedule.iCalendarContent = reservation.Schedule.iCalendarContent;
-            }
-            oldReservation.ApprovalState = reservation.ApprovalState;
-            oldReservation.ReservationLocations = new List<ReservationLocation>();
-            oldReservation.ReservationResources = new List<ReservationResource>();
-
-            foreach ( var reservationLocation in reservation.ReservationLocations )
-            {
-                ReservationLocation oldReservationLocation = new ReservationLocation();
-                oldReservation.ReservationLocations.Add( oldReservationLocation );
-                oldReservationLocation.CopyPropertiesFrom( reservationLocation );
-                oldReservationLocation.Reservation = reservationService.Get( oldReservation.Id );
-                oldReservationLocation.Location = locationService.Get( reservationLocation.LocationId );
-                oldReservationLocation.ReservationId = reservation.Id;
-            }
-
-            foreach ( var reservationResource in reservation.ReservationResources )
-            {
-                ReservationResource oldReservationResource = new ReservationResource();
-                oldReservation.ReservationResources.Add( oldReservationResource );
-                oldReservationResource.CopyPropertiesFrom( reservationResource as ReservationResource );
-                oldReservationResource.Reservation = reservationService.Get( oldReservation.Id );
-                oldReservationResource.Resource = resourceService.Get( oldReservationResource.ResourceId );
-                oldReservationResource.ReservationId = reservation.Id;
-            }
-
-            return oldReservation;
-        }
-
-        /// <summary>
-        /// Evaluates the location and resource changes.
-        /// </summary>
-        /// <param name="changes">The changes.</param>
-        /// <param name="oldReservation">The old reservation.</param>
-        /// <param name="reservation">The reservation.</param>
-        /// <returns>History.HistoryChangeList.</returns>
-        private History.HistoryChangeList EvaluateLocationAndResourceChanges( History.HistoryChangeList changes, Reservation oldReservation, Reservation reservation )
-        {
-            foreach ( var reservationLocation in reservation.ReservationLocations )
-            {
-                var oldReservationLocation = oldReservation.ReservationLocations.Where( rl => rl.Guid == reservationLocation.Guid ).FirstOrDefault();
-
-                if ( oldReservationLocation != null )
-                {
-                    History.EvaluateChange( changes, String.Format( "[Location] {0} Approval State", reservationLocation.Location.Name ), oldReservationLocation.ApprovalState.ToString(), reservationLocation.ApprovalState.ToString() );
-                    if ( reservationLocation.Attributes != null )
-                    {
-                        oldReservationLocation.LoadAttributes();
-                        foreach ( var attribute in reservationLocation.Attributes.Select( a => a.Value ) )
-                        {
-                            string originalValue = oldReservationLocation.AttributeValues.ContainsKey( attribute.Key ) ? oldReservationLocation.AttributeValues[attribute.Key].Value : string.Empty;
-                            string newValue = reservationLocation.AttributeValues.ContainsKey( attribute.Key ) ? reservationLocation.AttributeValues[attribute.Key].Value : string.Empty;
-                            if ( newValue != originalValue )
-                            {
-                                string originalFormattedValue = attribute.FieldType.Field.FormatValue( null, originalValue, attribute.QualifierValues, false );
-                                string newFormattedValue = attribute.FieldType.Field.FormatValue( null, newValue, attribute.QualifierValues, false );
-                                History.EvaluateChange( changes, String.Format( "([Location] {0}) {1}", reservationLocation.Location.Name, attribute.Name ), originalFormattedValue, newFormattedValue );
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, String.Format( "[Location] {0}", reservationLocation.Location.Name ) ) );
-                }
-            }
-
-            foreach ( var reservationResource in reservation.ReservationResources )
-            {
-                var oldReservationResource = oldReservation.ReservationResources.Where( rl => rl.Guid == reservationResource.Guid ).FirstOrDefault();
-
-                if ( oldReservationResource != null )
-                {
-                    History.EvaluateChange( changes, String.Format( "[Resource] {0} Approval State", reservationResource.Resource.Name ), oldReservationResource.ApprovalState.ToString(), reservationResource.ApprovalState.ToString() );
-                    History.EvaluateChange( changes, String.Format( "[Resource] {0} Quantity", reservationResource.Resource.Name ), oldReservationResource.Quantity.ToString(), reservationResource.Quantity.ToString() );
-
-                    if ( reservationResource.Attributes != null )
-                    {
-                        oldReservationResource.LoadAttributes();
-                        foreach ( var attribute in reservationResource.Attributes.Select( a => a.Value ) )
-                        {
-                            string originalValue = oldReservationResource.AttributeValues.ContainsKey( attribute.Key ) ? oldReservationResource.AttributeValues[attribute.Key].Value : string.Empty;
-                            string newValue = reservationResource.AttributeValues.ContainsKey( attribute.Key ) ? reservationResource.AttributeValues[attribute.Key].Value : string.Empty;
-                            if ( newValue != originalValue )
-                            {
-                                string originalFormattedValue = attribute.FieldType.Field.FormatValue( null, originalValue, attribute.QualifierValues, false );
-                                string newFormattedValue = attribute.FieldType.Field.FormatValue( null, newValue, attribute.QualifierValues, false );
-                                History.EvaluateChange( changes, String.Format( "([Resource] {0}) {1}", reservationResource.Resource.Name, attribute.Name ), originalFormattedValue, newFormattedValue );
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, String.Format( "[Resource] {0} {1}", reservationResource.Quantity, reservationResource.Resource.Name ) ) );
-                }
-            }
-
-            return changes;
         }
 
         /// <summary>

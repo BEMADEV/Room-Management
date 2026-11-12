@@ -49,13 +49,13 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     public class SetReservationLocationsApprovalStates : ActionComponent
     {
         /// <summary>
-        /// Executes the specified workflow.
+        /// Sets the configured approval state on eligible reservation locations; the reservation save hook records the resulting history.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="action">The action.</param>
         /// <param name="entity">The entity.</param>
         /// <param name="errorMessages">The error messages.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <returns>Whether a valid reservation and approval state were processed.</returns>
         public override bool Execute( RockContext rockContext, WorkflowAction action, Object entity, out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -91,7 +91,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             // Get ignore locations with approval groups value
             var ignoreLocationsWithApprovalGroups = GetAttributeValue( action, "IgnoreLocationsWithApprovalGroups" ).AsBoolean( true );
 
-            var changes = new History.HistoryChangeList();
             var groupService = new GroupService( rockContext );
             foreach ( var reservationLocation in reservation.ReservationLocations )
             {
@@ -106,21 +105,8 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
                 if ( approvalGroup == null || !ignoreLocationsWithApprovalGroups )
                 {
-                    var oldValue = reservationLocation.ApprovalState;
-
                     reservationLocation.ApprovalState = approvalState.Value;
-
-                    if ( oldValue != reservationLocation.ApprovalState )
-                    {
-                        History.EvaluateChange( changes, String.Format( "{0} Approval State", reservationLocation.Location.Name ), oldValue.ToString(), reservationLocation.ApprovalState.ToString() );
-                    }
                 }
-            }
-
-            if ( changes.Any() )
-            {
-                changes.Add( new History.HistoryChange( History.HistoryVerb.Modify, History.HistoryChangeType.Record, string.Format( "Updated by the '{0}' workflow", action.ActionTypeCache.ActivityType.WorkflowType.Name ) ) );
-                HistoryService.SaveChanges( rockContext, typeof( Reservation ), com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(), reservation.Id, changes, false );
             }
 
             rockContext.SaveChanges();

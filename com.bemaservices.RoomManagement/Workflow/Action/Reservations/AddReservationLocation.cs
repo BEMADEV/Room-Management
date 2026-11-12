@@ -47,13 +47,13 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     public class AddReservationLocation : ActionComponent
     {
         /// <summary>
-        /// Executes the specified workflow.
+        /// Adds a location to a reservation; the shared save hook records its custom history before workflow processing.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="action">The action.</param>
         /// <param name="entity">The entity.</param>
         /// <param name="errorMessages">The error messages.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <returns>Whether the configured location was added to a valid reservation.</returns>
         public override bool Execute( RockContext rockContext, WorkflowAction action, Object entity, out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -79,17 +79,12 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                 return false;
             }
 
-            var oldValue = reservation.ApprovalState;
-            var changes = new History.HistoryChangeList();
-
             var reservationLocation = new ReservationLocation();
             reservation.ReservationLocations.Add( reservationLocation );
             reservationLocation.Reservation = reservation;
             reservationLocation.ReservationId = reservation.Id;
             reservationLocation.Location = location;
             reservationLocation.LocationId = location.Id;
-
-            changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, String.Format( "[Location] {0}", reservationLocation.Location.Name ) ) );
 
             var reservedLocationIds = reservationService.GetReservedLocationIds( reservation, true, false );
             if ( reservedLocationIds.Contains( location.Id ) )
@@ -100,21 +95,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
             else
             {
                 reservationLocation.ApprovalState = ReservationLocationApprovalState.Unapproved;
-            }
-
-            if ( oldValue != reservation.ApprovalState )
-            {
-                History.EvaluateChange(
-                    changes,
-                    "Approval State",
-                    oldValue.ToString(),
-                    reservation.ApprovalState.ToString() );
-            }
-
-            if ( changes.Any() )
-            {
-                changes.Add( new History.HistoryChange( History.HistoryVerb.Modify, History.HistoryChangeType.Record, string.Format( "Updated by the '{0}' workflow", action.ActionTypeCache.ActivityType.WorkflowType.Name ) ) );
-                HistoryService.SaveChanges( rockContext, typeof( Reservation ), com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(), reservation.Id, changes, false );
             }
 
             rockContext.SaveChanges();

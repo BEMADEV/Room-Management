@@ -61,13 +61,13 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     public class CreateReservation : ActionComponent
     {
         /// <summary>
-        /// Executes the specified workflow.
+        /// Creates a reservation and lets the shared save hook record its initial history after a successful commit.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="action">The action.</param>
         /// <param name="entity">The entity.</param>
         /// <param name="errorMessages">The error messages.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <returns>Whether the configured reservation was created successfully.</returns>
         public override bool Execute( RockContext rockContext, WorkflowAction action, Object entity, out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -138,18 +138,14 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                     return false;
                 }
 
-                var changes = new History.HistoryChangeList();
-
                 var reservationService = new ReservationService( rockContext );
 
                 var reservation = new Reservation { Id = 0 };
                 reservation.ApprovalState = ReservationApprovalState.Draft;
-                changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Record, "Reservation" ) );
 
                 reservation.ReservationType = reservationType;
                 reservation.ReservationTypeId = reservationType.Id;
 
-                History.EvaluateChange( changes, "Name", reservation.Name, name );
                 reservation.Name = name;
 
                 var reservationSchedule = ReservationService.BuildScheduleFromICalContent( schedule.iCalendarContent );
@@ -163,21 +159,12 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                         approvalState = ReservationApprovalState.ChangesNeeded;
                     }
                 }
-                History.EvaluateChange( changes, "Schedule", "", reservation.GetFriendlyReservationScheduleText() );
-
-                History.EvaluateChange( changes, "Approval State", reservation.ApprovalState.ToString(), approvalState.ToString() );
                 reservation.ApprovalState = approvalState.Value;
 
                 reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
 
                 reservationService.Add( reservation );
                 rockContext.SaveChanges();
-
-                if ( changes.Any() )
-                {
-                    changes.Add( new History.HistoryChange( History.HistoryVerb.Modify, History.HistoryChangeType.Record, string.Format( "Updated by the '{0}' workflow", action.ActionTypeCache.ActivityType.WorkflowType.Name ) ) );
-                    HistoryService.SaveChanges( rockContext, typeof( Reservation ), com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(), reservation.Id, changes, false );
-                }
 
 
                 if ( reservation != null )

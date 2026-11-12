@@ -29,7 +29,7 @@ using Rock.Transactions;
 namespace com.bemaservices.RoomManagement.Transactions
 {
     /// <summary>
-    /// Launches a reservation change workflow
+    /// Persists captured reservation changes and launches matching workflows after the reservation save commits.
     /// </summary>
     public class ReservationChangeTransaction : ITransaction
     {
@@ -46,6 +46,10 @@ namespace com.bemaservices.RoomManagement.Transactions
         /// </summary>
         private int ReservationTypeId;
         /// <summary>
+        /// The reservation identifier after it is assigned by the database.
+        /// </summary>
+        private int ReservationId;
+        /// <summary>
         /// The approval state
         /// </summary>
         private ReservationApprovalState ApprovalState;
@@ -61,13 +65,44 @@ namespace com.bemaservices.RoomManagement.Transactions
         /// The reservation's ModifiedDateTime after the save committed.
         /// </summary>
         private DateTime? TriggerModifiedDateTime;
+        /// <summary>
+        /// The custom history captured before the save; never passed directly to a workflow.
+        /// </summary>
+        private readonly History.HistoryChangeList HistoryChanges;
+        /// <summary>
+        /// The person responsible for the original save, retained across background execution.
+        /// </summary>
+        private int? ModifiedByPersonAliasId;
+        /// <summary>
+        /// The source recorded by the original save context.
+        /// </summary>
+        private readonly string SourceOfChange;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ReservationChangeTransaction" /> class.
+        /// Preserves the existing workflow-only transaction constructor for callers that manage their own history.
         /// </summary>
-        /// <param name="entry">The entry.</param>
+        /// <param name="entry">The tracked reservation entry.</param>
         public ReservationChangeTransaction( DbEntityEntry entry )
+            : this( entry, null, null )
         {
+        }
+
+        /// <summary>
+        /// Captures trigger values and custom history from the save hook for persistence before workflow execution.
+        /// </summary>
+        /// <param name="entry">The tracked reservation entry.</param>
+        /// <param name="changes">The aggregate changes captured by the reservation save hook.</param>
+        /// <param name="sourceOfChange">The source recorded by the original save context.</param>
+        internal ReservationChangeTransaction( DbEntityEntry entry, History.HistoryChangeList changes, string sourceOfChange )
+        {
+            HistoryChanges = new History.HistoryChangeList();
+            if ( changes != null )
+            {
+                HistoryChanges.AddRange( changes );
+            }
+
+            SourceOfChange = sourceOfChange;
+
             // If entity was a reservation, save the values
             var reservation = entry.Entity as Reservation;
             if ( reservation != null )
@@ -102,7 +137,7 @@ namespace com.bemaservices.RoomManagement.Transactions
 
         /// <summary>
         /// Records the reservation's committed ModifiedDateTime for workflow attributes. Called from
-        /// <see cref="Reservation.PostSaveChanges" /> before this transaction is enqueued.
+        /// the reservation save hook before this transaction is enqueued.
         /// </summary>
         /// <param name="modifiedDateTime">The reservation's ModifiedDateTime after the save.</param>
         internal void SetTriggerModifiedDateTime( DateTime? modifiedDateTime )
@@ -111,12 +146,31 @@ namespace com.bemaservices.RoomManagement.Transactions
         }
 
         /// <summary>
-        /// Launches the workflows for the reservation type's triggers that match this save. Each trigger uses its own
-        /// <see cref="RockContext" /> and error handling, so one failing workflow doesn't stop the remaining triggers.
-        /// Run by Rock's transaction queue after <see cref="Reservation.PostSaveChanges" /> enqueues it.
+        /// Records the committed identifier and editor before enqueueing. Rock assigns audit values after the pre-save hook.
+        /// </summary>
+        /// <param name="reservationId">The committed reservation identifier.</param>
+        /// <param name="modifiedByPersonAliasId">The editor recorded on the committed reservation.</param>
+        internal void SetReservationId( int reservationId, int? modifiedByPersonAliasId )
+        {
+            ReservationId = reservationId;
+            ModifiedByPersonAliasId = modifiedByPersonAliasId;
+        }
+
+        /// <summary>
+        /// Persists the captured history, then launches workflows for the reservation type's triggers that match this save. Each
+        /// trigger uses its own <see cref="RockContext" /> and error handling, so one failing workflow doesn't stop the remaining triggers.
+        /// Run by Rock's transaction queue after the reservation save hook enqueues it.
         /// </summary>
         public void Execute()
         {
+            if ( HistoryChanges != null && HistoryChanges.Any() )
+            {
+                using ( var rockContext = new RockContext() )
+                {
+                    new ReservationChangeTrackingHelper( rockContext ).SaveHistory( ReservationId, HistoryChanges, ModifiedByPersonAliasId, SourceOfChange );
+                }
+            }
+
             // Get all the workflows from cache
             var cachedWorkflowTriggers = ReservationWorkflowTriggerService.GetCachedTriggers();
 
@@ -218,10 +272,10 @@ namespace com.bemaservices.RoomManagement.Transactions
         }
 
         /// <summary>
-        /// Activates and processes the trigger's workflow type for the saved reservation, passing PreviousModifiedDateTime when known
-        /// and the Trigger* state, type, and committed ModifiedDateTime values when the workflow defines those attributes. Links a
-        /// persisted workflow to the reservation with a <see cref="ReservationWorkflow" />. Skips triggers without an active workflow
-        /// type and reservations that no longer exist. Called by <see cref="Execute" /> for each matching trigger.
+        /// Activates and processes the trigger's workflow type for the saved reservation, passing PreviousModifiedDateTime when known,
+        /// and the optional Trigger* values. The Modification Process reads its changes from History, not a supplied payload. Links a persisted
+        /// workflow to the reservation with a <see cref="ReservationWorkflow" />. Skips triggers without an active workflow type and
+        /// reservations that no longer exist. Called by <see cref="Execute" /> for each matching trigger.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="reservationWorkflowTrigger">The reservation workflow trigger.</param>

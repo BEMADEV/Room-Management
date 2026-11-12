@@ -53,13 +53,13 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
     public class AddReservationResource : ActionComponent
     {
         /// <summary>
-        /// Executes the specified workflow.
+        /// Adds a resource to a reservation; the shared save hook records its custom history before workflow processing.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="action">The action.</param>
         /// <param name="entity">The entity.</param>
         /// <param name="errorMessages">The error messages.</param>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <returns>Whether the configured resource was added to a valid reservation.</returns>
         public override bool Execute( RockContext rockContext, WorkflowAction action, Object entity, out List<string> errorMessages )
         {
             errorMessages = new List<string>();
@@ -104,9 +104,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                 reservationLocation = reservation.ReservationLocations.Where( rl => rl.LocationId == location.Id ).FirstOrDefault();
             }
 
-            var oldValue = reservation.ApprovalState;
-            var changes = new History.HistoryChangeList();
-
             var reservationResource = new ReservationResource();
             reservation.ReservationResources.Add( reservationResource );
             reservationResource.Reservation = reservation;
@@ -121,8 +118,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                 reservationResource.ReservationLocationId = reservationLocation.Id;
             }
 
-            changes.Add( new History.HistoryChange( History.HistoryVerb.Add, History.HistoryChangeType.Property, String.Format( "[Resource] {0} {1}", reservationResource.Quantity, reservationResource.Resource.Name ) ) );
-
             var availableQuantity = reservationService.GetAvailableResourceQuantity( reservationResource.Resource, reservation, false );
             if ( availableQuantity.HasValue && availableQuantity - reservationResource.Quantity < 0 )
             {
@@ -133,21 +128,6 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
 
             {
                 reservationResource.ApprovalState = ReservationResourceApprovalState.Unapproved;
-            }
-
-            if ( oldValue != reservation.ApprovalState )
-            {
-                History.EvaluateChange(
-                    changes,
-                    "Approval State",
-                    oldValue.ToString(),
-                    reservation.ApprovalState.ToString() );
-            }
-
-            if ( changes.Any() )
-            {
-                changes.Add( new History.HistoryChange( History.HistoryVerb.Modify, History.HistoryChangeType.Record, string.Format( "Updated by the '{0}' workflow", action.ActionTypeCache.ActivityType.WorkflowType.Name ) ) );
-                HistoryService.SaveChanges( rockContext, typeof( Reservation ), com.bemaservices.RoomManagement.SystemGuid.Category.HISTORY_RESERVATION_CHANGES.AsGuid(), reservation.Id, changes, false );
             }
 
             rockContext.SaveChanges();

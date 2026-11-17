@@ -600,27 +600,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Saves the attribute.
+        /// Builds the question attribute and assigns a key that is unique for its resource or location entity type.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
-        /// <returns>Rock.Model.Attribute.</returns>
+        /// <returns>The attribute to associate with the reservation question.</returns>
         private Rock.Model.Attribute GetAttribute( RockContext rockContext )
         {
             List<Rock.Model.Attribute> attributeList = GetAttributeList();
-
-            Rock.Model.Attribute attribute = new Rock.Model.Attribute();
-            edtQuestion.GetAttributeProperties( attribute );
-
-            if ( attributeList.Any( a => a.Guid.Equals( attribute.Guid ) ) )
-            {
-                attribute.Order = attributeList.Where( a => a.Guid.Equals( attribute.Guid ) ).FirstOrDefault().Order;
-            }
-            else
-            {
-                attribute.Order = attributeList.Any() ? attributeList.Count() + 1 : 0;
-            }
-
-
 
             // Create and update a new attribute object with new values
             rockContext = rockContext ?? new RockContext();
@@ -638,25 +624,48 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 newAttribute.CopyPropertiesFrom( oldAttribute );
             }
-            else
-            {
-                newAttribute.Order = internalAttributeService.Queryable().AsNoTracking().Count() + 1;
-            }
 
             edtQuestion.GetAttributeProperties( newAttribute );
 
+            if ( oldAttribute == null )
+            {
+                newAttribute.Order = attributeList.Any() ? attributeList.Max( a => a.Order ) + 1 : 1;
+            }
+
             if ( !newAttribute.Key.Contains( "_ResourceId" ) && !newAttribute.Key.Contains( "_LocationId" ) )
             {
+                int entityTypeId;
+                string keyFormat;
+                int ownerId;
                 if ( ResourceId != 0 )
                 {
-                    newAttribute.Key = String.Format( "Q{0}_ResourceId{1}", newAttribute.Order, ResourceId );
+                    entityTypeId = EntityTypeCache.Get( typeof( ReservationResource ) ).Id;
+                    keyFormat = "Q{0}_ResourceId{1}";
+                    ownerId = ResourceId;
                 }
                 else if ( LocationId != 0 )
                 {
-                    newAttribute.Key = String.Format( "Q{0}_LocationId{1}", newAttribute.Order, LocationId );
+                    entityTypeId = EntityTypeCache.Get( typeof( ReservationLocation ) ).Id;
+                    keyFormat = "Q{0}_LocationId{1}";
+                    ownerId = LocationId;
                 }
-            }
+                else
+                {
+                    return newAttribute;
+                }
 
+                do
+                {
+                    newAttribute.Key = String.Format( keyFormat, newAttribute.Order, ownerId );
+                    newAttribute.Order++;
+                }
+                while ( internalAttributeService.Queryable().Any( a =>
+                    a.EntityTypeId == entityTypeId &&
+                    a.Key == newAttribute.Key &&
+                    ( !edtQuestion.AttributeId.HasValue || a.Id != edtQuestion.AttributeId.Value ) ) );
+
+                newAttribute.Order--;
+            }
 
             return newAttribute;
         }

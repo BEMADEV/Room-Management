@@ -96,7 +96,21 @@ namespace com.bemaservices.RoomManagement.Jobs
                     reservationQuery = reservationQuery.Where( r => states.Contains( r.ApprovalState ) );
                 }
 
-                var reservations = reservationQuery.ToList();
+                // The stored occurrence bounds include setup and cleanup time, so they can only widen the window.
+                // Reservations whose bounds are not yet populated are left for the schedule checks below.
+                if ( dateRange.End.HasValue )
+                {
+                    var rangeEnd = dateRange.End.Value;
+                    reservationQuery = reservationQuery.Where( r => r.FirstOccurrenceStartDateTime == null || r.FirstOccurrenceStartDateTime <= rangeEnd );
+                }
+
+                if ( dateRange.Start.HasValue )
+                {
+                    var rangeStart = dateRange.Start.Value;
+                    reservationQuery = reservationQuery.Where( r => r.LastOccurrenceEndDateTime == null || r.LastOccurrenceEndDateTime >= rangeStart );
+                }
+
+                var reservations = reservationQuery.Include( r => r.Schedule ).ToList();
                 if ( startsInDateRange )
                 {
                     reservationList = reservations

@@ -32,7 +32,7 @@ using Rock.Web.Cache;
 namespace Rock.Rest.Controllers
 {
     /// <summary>
-    /// Controller for the scheduled Resources.
+    /// Returns scheduled-resource categories and available resources for the picker.
     /// </summary>
     public partial class ScheduledResourcesController : Rock.Rest.ApiController<Rock.Model.Category>
     {
@@ -161,11 +161,13 @@ namespace Rock.Rest.Controllers
                     String.Join( ",", locationIdsList ) );
 
                 var resourceHash = resourceHashString.Md5Hash();
+                var resourceEntityTypeId = EntityTypeCache.GetId( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESOURCE );
 
                 // See if the calculations have already been made
                 var resourceAvailabilityList = new List<ResourceAvailability>();
                 var currentDateTime = RockDateTime.Now;
                 var resourceEntitySet = entitySetService.Queryable( "Items" ).AsNoTracking()
+                    .Where( es => es.EntityTypeId == resourceEntityTypeId )
                     .Where( es => es.Note == resourceHash )
                     .Where( es => !es.ExpireDateTime.HasValue || es.ExpireDateTime.Value > currentDateTime )
                     .FirstOrDefault();
@@ -198,7 +200,7 @@ namespace Rock.Rest.Controllers
 
                     var entitySet = new EntitySet()
                     {
-                        EntityTypeId = EntityTypeCache.GetId( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESOURCE ),
+                        EntityTypeId = resourceEntityTypeId,
                         ExpireDateTime = RockDateTime.Now.AddMinutes( 30 ),
                         Note = resourceHash
                     };
@@ -218,48 +220,42 @@ namespace Rock.Rest.Controllers
                     rockContext.SaveChanges();
                 }
 
-                if ( resourceAvailabilityList.Where( r => r.CategoryId == parentItemId ) != null )
+                // do a ToList to load from database prior to ordering by name, just in case Name is a virtual property
+                var itemsList = resourceAvailabilityList.Where( r => r != null && r.CategoryId == parentItemId ).ToList();
+
+                foreach ( var categorizedItem in itemsList.OrderBy( i => i.ResourceName ) )
                 {
-                    // do a ToList to load from database prior to ordering by name, just in case Name is a virtual property
-                    var itemsList = resourceAvailabilityList.Where( r => r.CategoryId == parentItemId ).ToList();
-
-                    foreach ( var categorizedItem in itemsList.OrderBy( i => i.ResourceName ) )
+                    var resource = resourceService.Get( categorizedItem.ResourceId );
+                    if ( resource != null && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
                     {
-                        var resource = resourceService.Get( categorizedItem.ResourceId );
-                        if ( categorizedItem != null && resource != null && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                        var color = "Green";
+                        if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0 )
                         {
-                            var color = "Green";
-                            if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0 )
-                            {
-                                color = "Red";
-                            }
-                            else
-                            {
-                                if ( categorizedItem.UnconflictedQuantity.HasValue && categorizedItem.UnconflictedQuantity <= 0 )
-                                {
-                                    color = "Orange";
-                                }
-                            }
-
-                            var availableQuantity = string.Empty;
-                            if ( categorizedItem.UnreservedQuantity.HasValue )
-                            {
-                                availableQuantity = string.Format( " ({0})", categorizedItem.UnreservedQuantity );
-                            }
-
-                            var scheduledCategoryItem = new ScheduledCategoryItem();
-                            scheduledCategoryItem.Id = resource.Id.ToString();
-                            scheduledCategoryItem.IsActive = true;
-                            scheduledCategoryItem.Name = String.Format( "<span style='color:{0};'>{1}{2} {3}</span>",
-                                color,
-                                resource.Name,
-                                availableQuantity,
-                                resource.Campus != null ? string.Format( "[{0}]", resource.Campus.Name ) : "" );
-                            scheduledCategoryItem.IsCategory = false;
-                            scheduledCategoryItem.IconCssClass = resource.GetPropertyValue( "IconCssClass" ) as string ?? defaultIconCssClass;
-                            scheduledCategoryItem.IconSmallUrl = string.Empty;
-                            categoryItemList.Add( scheduledCategoryItem );
+                            color = "Red";
                         }
+                        else if ( categorizedItem.UnconflictedQuantity.HasValue && categorizedItem.UnconflictedQuantity <= 0 )
+                        {
+                            color = "Orange";
+                        }
+
+                        var availableQuantity = string.Empty;
+                        if ( categorizedItem.UnreservedQuantity.HasValue )
+                        {
+                            availableQuantity = string.Format( " ({0})", categorizedItem.UnreservedQuantity );
+                        }
+
+                        var scheduledCategoryItem = new ScheduledCategoryItem();
+                        scheduledCategoryItem.Id = resource.Id.ToString();
+                        scheduledCategoryItem.IsActive = true;
+                        scheduledCategoryItem.Name = String.Format( "<span style='color:{0};'>{1}{2} {3}</span>",
+                            color,
+                            resource.Name,
+                            availableQuantity,
+                            resource.Campus != null ? string.Format( "[{0}]", resource.Campus.Name ) : "" );
+                        scheduledCategoryItem.IsCategory = false;
+                        scheduledCategoryItem.IconCssClass = resource.GetPropertyValue( "IconCssClass" ) as string ?? defaultIconCssClass;
+                        scheduledCategoryItem.IconSmallUrl = string.Empty;
+                        categoryItemList.Add( scheduledCategoryItem );
                     }
                 }
             }

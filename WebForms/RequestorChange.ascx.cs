@@ -110,7 +110,7 @@ namespace RockWeb.Plugins.com_bemadev.RoomReservation
         }
 
         /// <summary>
-        /// Handles the Click event of the btnChange control.
+        /// Reassigns only selected reservation roles held by the old person; used by the Change Requestors action.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -150,15 +150,21 @@ namespace RockWeb.Plugins.com_bemadev.RoomReservation
 
                             foreach ( var reservation in reservations )
                             {
-                                if ( roles.Contains( "Requester" ) )
+                                if ( roles.Contains( "Requester" ) &&
+                                    reservation.RequesterAliasId.HasValue &&
+                                    oldAliasList.Contains( reservation.RequesterAliasId.Value ) )
                                 {
                                     reservation.RequesterAliasId = newPersonAliasId;
                                 }
-                                if ( roles.Contains( "EventContact" ) )
+                                if ( roles.Contains( "EventContact" ) &&
+                                    reservation.EventContactPersonAliasId.HasValue &&
+                                    oldAliasList.Contains( reservation.EventContactPersonAliasId.Value ) )
                                 {
                                     reservation.EventContactPersonAliasId = newPersonAliasId;
                                 }
-                                if ( roles.Contains( "AdminContact" ) )
+                                if ( roles.Contains( "AdminContact" ) &&
+                                    reservation.AdministrativeContactPersonAliasId.HasValue &&
+                                    oldAliasList.Contains( reservation.AdministrativeContactPersonAliasId.Value ) )
                                 {
                                     reservation.AdministrativeContactPersonAliasId = newPersonAliasId;
                                 }

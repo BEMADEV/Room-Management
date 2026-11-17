@@ -339,10 +339,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( !resourceId.Equals( 0 ) )
             {
                 resource = new ResourceService( rockContext ).Get( resourceId );
-                btnDelete.Visible = true;
-                ddlCampus.SelectedValue = resource.CampusId.ToString();
-                pdAuditDetails.SetEntity( resource, ResolveRockUrl( "~" ) );
-                HideQuestionList( false );
+                if ( resource != null )
+                {
+                    btnDelete.Visible = true;
+                    ddlCampus.SelectedValue = resource.CampusId.ToString();
+                    pdAuditDetails.SetEntity( resource, ResolveRockUrl( "~" ) );
+                    HideQuestionList( false );
+                }
             }
             else
             {

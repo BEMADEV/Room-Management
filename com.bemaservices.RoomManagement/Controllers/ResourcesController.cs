@@ -55,29 +55,51 @@ namespace Rock.Rest.Controllers
 
     public partial class ResourcesController
     {
+        /// <summary>
+        /// Returns the resource tree items the current person is authorized to view.
+        /// </summary>
+        /// <param name="options">The tree picker options.</param>
+        /// <returns>The authorized resource and category tree items.</returns>
         [HttpPost]
+        [Authenticate, Secured]
         [System.Web.Http.Route( "api/v2/plugins/com.bemaservices/roommanagement/models/resource/tree" )]
         [RestActionGuid( "eb007a09-7a4e-4773-bd5a-729c8fc61e93" )]
         public IHttpActionResult PostTreeItems(
             [FromBody] UniversalItemTreePickerOptionsBag options )
         {
+            if ( options == null )
+            {
+                return BadRequest( "Tree picker options are required." );
+            }
+
             using ( var rockContext = new RockContext() )
             {
                 var resourceService = new ResourceService( rockContext );
                 var categoryService = new CategoryService( rockContext );
+                var currentPerson = GetPerson();
                 var expandGuids = GetExpandGuids( resourceService,
-                    options.ExpandToValues?.AsGuidList() );
+                    options.ExpandToValues?.AsGuidList(),
+                    currentPerson );
                 var resourcesAndCategories = LoadCategories( categoryService,
                         resourceService,
                     options.ParentValue.AsGuidOrNull(),
-                    expandGuids );
+                    expandGuids,
+                    currentPerson );
 
                 return Ok( resourcesAndCategories );
             }
         }
 
+        /// <summary>
+        /// Gets the authorized category ancestors needed to expand the requested resources.
+        /// </summary>
+        /// <param name="resourceService">The resource service.</param>
+        /// <param name="expandToGuids">The resource GUIDs to expand to.</param>
+        /// <param name="currentPerson">The person requesting the tree.</param>
+        /// <returns>The authorized category ancestor GUIDs.</returns>
         private List<Guid> GetExpandGuids( ResourceService resourceService,
-            List<Guid> expandToGuids )
+            List<Guid> expandToGuids,
+            Rock.Model.Person currentPerson )
         {
             var expandGuids = new List<Guid>();
 
@@ -88,11 +110,17 @@ namespace Rock.Rest.Controllers
 
             foreach ( var guid in expandToGuids )
             {
-                var category = resourceService.Get( guid )?.Category;
+                var resource = resourceService.Get( guid );
+                if ( resource == null || !resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                {
+                    continue;
+                }
+
+                var category = resource.Category;
 
                 while ( category != null )
                 {
-                    if ( !expandGuids.Contains( category.Guid ) )
+                    if ( category.IsAuthorized( Authorization.VIEW, currentPerson ) && !expandGuids.Contains( category.Guid ) )
                     {
                         expandGuids.Add( category.Guid );
                     }
@@ -104,10 +132,20 @@ namespace Rock.Rest.Controllers
             return expandGuids;
         }
 
+        /// <summary>
+        /// Builds one level of the resource category tree using only categories and resources the person may view.
+        /// </summary>
+        /// <param name="categoryService">The category service.</param>
+        /// <param name="resourceService">The resource service.</param>
+        /// <param name="parentGuid">The parent category GUID, or null for root categories.</param>
+        /// <param name="expandGuids">The category GUIDs to expand.</param>
+        /// <param name="currentPerson">The person requesting the tree.</param>
+        /// <returns>The authorized tree items for this level.</returns>
         private List<TreeItemBag> LoadCategories( CategoryService categoryService,
             ResourceService resourceService,
             Guid? parentGuid,
-            List<Guid> expandGuids )
+            List<Guid> expandGuids,
+            Rock.Model.Person currentPerson )
         {
             var resourceEntityType = EntityTypeCache.Get( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESOURCE.AsGuid() );
             var categoryQry = categoryService.Queryable()
@@ -121,16 +159,32 @@ namespace Rock.Rest.Controllers
                     || ( !parentGuid.HasValue && !c.ParentCategoryId.HasValue ) );
 
             var items = new List<TreeItemBag>();
+            var categoryList = categoryQry.ToList()
+                .Where( c => c.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                .ToList();
+
+            var categoryIds = categoryList.Select( c => c.Id ).ToList();
+            var categoriesWithViewableChildren = categoryIds.Any()
+                ? categoryService.Queryable()
+                    .Where( c => c.ParentCategoryId.HasValue && categoryIds.Contains( c.ParentCategoryId.Value ) )
+                    .Where( c => c.EntityTypeId == resourceEntityType.Id && c.Name != null && c.Name != string.Empty )
+                    .ToList()
+                    .Where( c => c.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                    .Select( c => c.ParentCategoryId.Value )
+                    .Distinct()
+                    .ToList()
+                : new List<int>();
 
             if ( parentGuid != null )
             {
-                items.AddRange( LoadResources( resourceService, parentGuid.Value ) );
+                items.AddRange( LoadResources( resourceService, parentGuid.Value, currentPerson ) );
             }
 
-            foreach ( var category in categoryQry )
+            foreach ( var category in categoryList )
             {
                 var resourceChildren = LoadResources( resourceService,
-                    category.Guid );
+                    category.Guid,
+                    currentPerson );
 
                 var item = new TreeItemBag
                 {
@@ -140,7 +194,7 @@ namespace Rock.Rest.Controllers
                     Type = "Category",
                     IsFolder = true,
                     IsActive = true,
-                    HasChildren = resourceChildren.Any() || category.ChildCategories.Any()
+                    HasChildren = resourceChildren.Any() || categoriesWithViewableChildren.Contains( category.Id )
                 };
 
                 if ( expandGuids.Contains( category.Guid ) )
@@ -148,7 +202,8 @@ namespace Rock.Rest.Controllers
                     var categoryChildren = LoadCategories( categoryService,
                             resourceService,
                         category.Guid,
-                        expandGuids );
+                        expandGuids,
+                        currentPerson );
                     item.Children = new List<TreeItemBag>();
                     item.Children.AddRange( categoryChildren );
                     item.Children.AddRange( resourceChildren );
@@ -160,8 +215,14 @@ namespace Rock.Rest.Controllers
             return items;
         }
 
-        private List<TreeItemBag> LoadResources( ResourceService resourceService,
-            Guid categoryGuid )
+        /// <summary>
+        /// Loads resources in a category that the requesting person is authorized to view.
+        /// </summary>
+        /// <param name="resourceService">The resource service.</param>
+        /// <param name="categoryGuid">The category GUID.</param>
+        /// <param name="currentPerson">The person requesting the tree.</param>
+        /// <returns>The authorized resource tree items.</returns>
+        private List<TreeItemBag> LoadResources( ResourceService resourceService, Guid categoryGuid, Rock.Model.Person currentPerson )
         {
             var resourceQry = resourceService.Queryable()
                 .Where( l => l.Name != null && l.Name != string.Empty )
@@ -171,6 +232,11 @@ namespace Rock.Rest.Controllers
 
             foreach ( var resource in resourceQry )
             {
+                if ( !resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                {
+                    continue;
+                }
+
                 var item = new TreeItemBag
                 {
                     Value = resource.Guid.ToString(),
@@ -187,4 +253,3 @@ namespace Rock.Rest.Controllers
         }
     }
 }
-

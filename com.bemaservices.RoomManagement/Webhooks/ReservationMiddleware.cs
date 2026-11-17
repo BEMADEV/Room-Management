@@ -8,6 +8,7 @@ using Microsoft.Owin;
 using Rock.Data;
 using Rock.Model;
 using Rock;
+using Rock.Web.Cache;
 using static System.Net.Mime.MediaTypeNames;
 using System.Globalization;
 using System.Net;
@@ -68,7 +69,7 @@ namespace com.bemaservices.RoomManagement.Webhooks
         private void SendNotAuthorized( IOwinContext context )
         {
             context.Response.StatusCode = ( int ) HttpStatusCode.Forbidden;
-            context.Response.ReasonPhrase = "Not authorized to view reservation type.";
+            context.Response.ReasonPhrase = "Not authorized to view requested reservation data.";
         }
 
         private void SendBadRequest( IOwinContext context, string addlInfo = "" )
@@ -77,6 +78,12 @@ namespace com.bemaservices.RoomManagement.Webhooks
             context.Response.ReasonPhrase = "Request is invalid or malformed. " + addlInfo;
         }
 
+        /// <summary>
+        /// Restricts the calendar feed to reservation types and data views the caller may use.
+        /// </summary>
+        /// <param name="context">The OWIN request context.</param>
+        /// <param name="reservationCalendarOptions">The requested calendar filters.</param>
+        /// <returns><c>true</c> when the caller may continue; otherwise, sends a forbidden response.</returns>
         private bool ValidateSecurity( IOwinContext context, ReservationCalendarOptions reservationCalendarOptions )
         {
             RockContext rockContext = new RockContext();
@@ -90,6 +97,16 @@ namespace com.bemaservices.RoomManagement.Webhooks
 
             UserLogin currentUser = new UserLoginService( rockContext ).GetByUserName( UserLogin.GetCurrentUserName() );
             Person currentPerson = currentUser != null ? currentUser.Person : null;
+
+            if ( reservationCalendarOptions.DataViewId.HasValue )
+            {
+                var dataView = DataViewCache.Get( reservationCalendarOptions.DataViewId.Value );
+                if ( dataView == null || !dataView.IsAuthorized( Rock.Security.Authorization.VIEW, currentPerson ) )
+                {
+                    SendNotAuthorized( context );
+                    return false;
+                }
+            }
 
             var authorizedReservationTypeIds = new List<int>();
             foreach ( var reservationType in potentialReservationTypeQry )

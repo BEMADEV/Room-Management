@@ -860,7 +860,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// gs the statuses_ show edit.
+        /// Populates and opens the approval-group dialog for adding or editing a reservation-type approval group.
         /// </summary>
         /// <param name="reservationApprovalGroupGuid">The reservation approval group unique identifier.</param>
         protected void gApprovalGroups_ShowEdit( Guid reservationApprovalGroupGuid )
@@ -888,7 +888,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 cpCampus.SelectedCampusId = reservationApprovalGroup.CampusId;
             }
 
-            hfAddMinistryGuid.Value = reservationApprovalGroupGuid.ToString();
+            hfAddApprovalGroupGuid.Value = reservationApprovalGroupGuid.ToString();
             ShowDialog( "RESERVATIONAPPROVALGROUPS", true );
         }
 

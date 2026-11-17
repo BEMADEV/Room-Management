@@ -151,13 +151,14 @@ namespace Rock.Rest.Controllers
                 // if id is zero and we have a rootCategory, show the children of that rootCategory (but don't show the rootCategory)
                 int parentItemId = id == 0 ? rootCategoryId : id;
 
-                var resourceHashString = String.Format( "{0}|{1}|{2}|{3}|{4}|{5}",
+                var resourceHashString = String.Format( "{0}|{1}|{2}|{3}|{4}|{5}|{6}",
                     reservationId.ToStringSafe(),
                     iCalendarContent.ToStringSafe(),
                     setupTime.ToStringSafe(),
                     cleanupTime.ToStringSafe(),
                     includeAllCampuses.ToStringSafe(),
-                    campusId.ToStringSafe() );
+                    campusId.ToStringSafe(),
+                    String.Join( ",", locationIdsList ) );
 
                 var resourceHash = resourceHashString.Md5Hash();
 

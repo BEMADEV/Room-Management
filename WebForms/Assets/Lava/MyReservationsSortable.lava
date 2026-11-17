@@ -1,4 +1,12 @@
 <link rel="stylesheet" href="/Styles/bootstrap-sortable.css">
+<style>
+    .room-management-layout-photo {
+        max-width: 200px;
+        max-height: 200px;
+        width: auto;
+        height: auto;
+    }
+</style>
 
   <div class="panel panel-block">
     <div class="panel-heading">
@@ -40,10 +48,10 @@
                     data-trigger="hover click focus"
                     data-delay="{&quot;hide&quot;: 1500}"
                     data-placement="right"
-                    title="{{layout.Name}}" data-content=""
+                    title="{{layout.Name}}" data-content="
                       <p>{{layout.Description}}</p>{% if layout.LayoutPhotoId %}
                       <a href='/GetFile.ashx?id={{layout.LayoutPhotoId}}' target='_blank'>
-                        <img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}&maxwidth=200&maxheight=200'/>
+                        <img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}' class='room-management-layout-photo' />
                       </a>
                       {% endif %}"
                       >

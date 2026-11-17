@@ -65,7 +65,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         DefaultValue = @"<div class='row'>
     {% if Location.ImageId != null %}
         {% capture imgUrl %}/GetFile.ashx?guid={{Location.Image.Guid}}{% endcapture %}
-        {% capture imgTag %}<img src='{{imgUrl}}&maxwidth=200&maxheight=200'/>{% endcapture %}
+        {% capture imgTag %}<img src='{{imgUrl}}' style='max-width:200px; max-height:200px; width:auto; height:auto;' />{% endcapture %}
         <div class='col-md-4'>
             <div class='photo'>
                 <a href='{{imgUrl}}' target='_blank'>{{imgTag}}</a>
@@ -1785,7 +1785,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the RowDataBound event of the gViewLocations control.
+        /// Binds location approval controls and limits the layout file thumbnail to 150 pixels in the browser.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
@@ -1818,7 +1818,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var lLayoutPhoto = e.Row.FindControl( "lLayoutPhoto" ) as Literal;
                 if ( reservationLocation.LocationLayout != null && reservationLocation.LocationLayout.LayoutPhotoId.HasValue )
                 {
-                    string imgTag = string.Format( "<img src='{0}GetFile.ashx?guid={1}&maxwidth=150&maxheight=150'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservationLocation.LocationLayout.LayoutPhoto.Guid );
+                    string imgTag = string.Format( "<img src='{0}GetFile.ashx?guid={1}' style='max-width:150px; max-height:150px; width:auto; height:auto;' />", VirtualPathUtility.ToAbsolute( "~/" ), reservationLocation.LocationLayout.LayoutPhoto.Guid );
 
                     string imgUrl = string.Format( "~/GetFile.ashx?guid={0}", reservationLocation.LocationLayout.LayoutPhoto.Guid );
                     if ( System.Web.HttpContext.Current != null )
@@ -1867,7 +1867,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the RowDataBound event of the gLocationLayouts control.
+        /// Binds the layout picker row and limits its file thumbnail to 100 pixels high in the browser.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="GridViewRowEventArgs" /> instance containing the event data.</param>
@@ -1910,7 +1910,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     Literal lPhoto = e.Row.FindControl( "lPhoto" ) as Literal;
                     if ( lPhoto != null )
                     {
-                        lPhoto.Text = String.Format( "<img src='/GetFile.ashx?guid={0}' height='100 />'", locationLayout.LayoutPhoto.Guid );
+                        lPhoto.Text = String.Format( "<img src='/GetFile.ashx?guid={0}' style='max-height:100px; width:auto; height:auto;' />", locationLayout.LayoutPhoto.Guid );
                     }
                 }
             }
@@ -2264,7 +2264,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Shows the readonly details.
+        /// Displays the reservation's read-only details with a browser-sized setup file thumbnail.
         /// </summary>
         /// <param name="reservation">The reservation.</param>
         /// <exception cref="System.NotImplementedException"></exception>
@@ -2296,7 +2296,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( reservation.SetupPhotoId.HasValue )
             {
-                string imgTag = string.Format( "<img src='{0}GetFile.ashx?guid={1}&maxwidth=200&maxheight=200'/>", VirtualPathUtility.ToAbsolute( "~/" ), reservation.SetupPhoto.Guid );
+                string imgTag = string.Format( "<img src='{0}GetFile.ashx?guid={1}' style='max-width:200px; max-height:200px; width:auto; height:auto;' />", VirtualPathUtility.ToAbsolute( "~/" ), reservation.SetupPhoto.Guid );
 
                 string imgUrl = string.Format( "~/GetFile.ashx?guid={0}", reservation.SetupPhoto.Guid );
                 if ( System.Web.HttpContext.Current != null )

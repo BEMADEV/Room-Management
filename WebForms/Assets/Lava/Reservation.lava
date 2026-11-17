@@ -2,6 +2,14 @@
  Notes and Requester information is available using {{reservationSummary.Note}}
  and {{reservationSummary.RequesterAlias.Person}}
 -->
+<style>
+    .room-management-layout-photo {
+        max-width: 200px;
+        max-height: 200px;
+        width: auto;
+        height: auto;
+    }
+</style>
   {% assign reservationCount = ReservationSummaries | Size %}
 
   {% if reservationCount == 0 %}
@@ -92,7 +100,7 @@
 							data-delay="{&quot;hide&quot;: 1500}"
 							data-placement="right"
 							title="{{layout.Name}}" data-content="<p>{{layout.Description}}</p>{% if layout.LayoutPhotoId %}
-						<a href='/GetFile.ashx?id={{layout.LayoutPhotoId}}' target='_blank'><img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}&maxwidth=200&maxheight=200'/></a>
+						<a href='/GetFile.ashx?id={{layout.LayoutPhotoId}}' target='_blank'><img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}' class='room-management-layout-photo' /></a>
 						{% endif %}"
 						></i>
 							{% endif %}
@@ -113,7 +121,7 @@
 					</span></td>
 					<td class="hidden-xs hidden-sm"><span class="{{ textclass }}">
 					  {% if reservationSummary.SetupPhotoId %}
-						<a href='{{ reservationSummary.SetupPhotoLink }}' target='_blank'><img src='{{ reservationSummary.SetupPhotoLink }}&maxwidth=30&maxheight=30'/></a>
+						<a href='{{ reservationSummary.SetupPhotoLink }}' target='_blank'><img src='{{ reservationSummary.SetupPhotoLink }}' style='max-width:30px; max-height:30px; width:auto; height:auto;' /></a>
 						{% endif %}
 					</span></td>
 					<td><span class="{{ textclass }}">

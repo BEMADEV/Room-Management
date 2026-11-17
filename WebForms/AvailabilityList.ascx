@@ -1,5 +1,13 @@
 ﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="AvailabilityList.ascx.cs" Inherits="RockWeb.Plugins.com_bemaservices.RoomManagement.AvailabilityList" %>
 <%@ Register TagPrefix="BEMA" Assembly="com.bemaservices.RoomManagement" Namespace="com.bemaservices.RoomManagement.Web.UI.Controls" %>
+<style>
+    .room-management-availability-photo {
+        max-width: 200px;
+        max-height: 200px;
+        width: auto;
+        height: auto;
+    }
+</style>
 <asp:UpdatePanel ID="upPanel" runat="server">
     <ContentTemplate>
 
@@ -32,7 +40,7 @@
                                 <ItemTemplate><%# Convert.ToString( Eval( "LocationName" ) ) == string.Empty ? Convert.ToString( Eval( "Name" ) ) : Convert.ToString( Eval( "Name" ) ) + " <em class='text-muted'>(attached to " + Eval( "LocationName" ) + ")" %></em></ItemTemplate>
                             </Rock:RockTemplateField>
                             <Rock:RockBoundField DataField="Campus.Name" HeaderText="Campus" />
-                            <asp:ImageField DataImageUrlField="PhotoUrl" HeaderText="Photo" />
+                            <asp:ImageField DataImageUrlField="PhotoUrl" HeaderText="Photo" ControlStyle-CssClass="room-management-availability-photo" />
                             <Rock:RockBoundField DataField="Availability" HeaderText="Availability" HtmlEncode="false" />
                         </Columns>
                     </Rock:Grid>

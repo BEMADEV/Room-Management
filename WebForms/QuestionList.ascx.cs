@@ -142,7 +142,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Handles the Delete event of the rGrid control.
+        /// Deletes the selected question and its attribute when present; used by the Question List grid.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="RowEventArgs" /> instance containing the event data.</param>
@@ -153,11 +153,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var questionService = new ReservationQuestionService( rockContext );
                 var attributeService = new AttributeService( rockContext );
                 var question = questionService.Get( e.RowKeyId );
-                var attribute = question.Attribute;
                 if ( question != null )
                 {
+                    var attribute = question.Attribute;
                     questionService.Delete( question );
-                    attributeService.Delete( attribute );
+                    if ( attribute != null )
+                    {
+                        attributeService.Delete( attribute );
+                    }
+
                     rockContext.SaveChanges();
                 }
             }

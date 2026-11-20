@@ -1206,7 +1206,7 @@ namespace com.bemaservices.RoomManagement.Model
         #region GetReservationCalendarFeed
 
         /// <summary>
-        /// Creates the iCalendar.
+        /// Builds the reservation calendar feed from occurrences in the requested date range.
         /// </summary>
         /// <param name="reservationCalendarOptions">The reservation calendar options.</param>
         /// <returns>System.String.</returns>
@@ -1214,7 +1214,8 @@ namespace com.bemaservices.RoomManagement.Model
         {
             // Get a list of Rock Reservations that match the specified filter.
             var reservations = this.Queryable( reservationCalendarOptions )
-                .Where( r => r.Schedule.EffectiveStartDate <= reservationCalendarOptions.EndDate && reservationCalendarOptions.StartDate <= r.Schedule.EffectiveEndDate )
+                .Where( r => r.Schedule.EffectiveStartDate <= reservationCalendarOptions.EndDate &&
+                    ( !r.Schedule.EffectiveEndDate.HasValue || reservationCalendarOptions.StartDate <= r.Schedule.EffectiveEndDate ) )
                 .ToList();
 
             // Create the iCalendar.

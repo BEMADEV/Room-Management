@@ -997,9 +997,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Loads the drop downs.
+        /// Loads filter controls from user preferences and migrates legacy date preference keys.
         /// </summary>
-        /// <returns><c>true</c> if XXXX, <c>false</c> otherwise.</returns>
+        /// <returns><c>true</c> after the filter controls are loaded.</returns>
         private bool SetFilterControls()
         {
             var preferences = GetBlockPersonPreferences();
@@ -1142,6 +1142,34 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             // Date Range Filter
             dpStartDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
             var startDate = preferences.GetValue( "StartDate" ).AsDateTime();
+            var legacyStartDatePreference = preferences.GetValue( "Start Date" );
+            if ( !startDate.HasValue && !string.IsNullOrWhiteSpace( legacyStartDatePreference ) )
+            {
+                startDate = legacyStartDatePreference.AsDateTime();
+                if ( startDate.HasValue )
+                {
+                    preferences.SetValue( "StartDate", legacyStartDatePreference );
+                }
+            }
+
+            var endDate = preferences.GetValue( "EndDate" ).AsDateTime();
+            var legacyEndDatePreference = preferences.GetValue( "End Date" );
+            if ( !endDate.HasValue && !string.IsNullOrWhiteSpace( legacyEndDatePreference ) )
+            {
+                endDate = legacyEndDatePreference.AsDateTime();
+                if ( endDate.HasValue )
+                {
+                    preferences.SetValue( "EndDate", legacyEndDatePreference );
+                }
+            }
+
+            if ( !string.IsNullOrWhiteSpace( legacyStartDatePreference ) || !string.IsNullOrWhiteSpace( legacyEndDatePreference ) )
+            {
+                preferences.SetValue( "Start Date", null );
+                preferences.SetValue( "End Date", null );
+                preferences.Save();
+            }
+
             if ( dpStartDate.Visible && startDate.HasValue )
             {
                 FilterStartDate = dpStartDate.SelectedDate = startDate.Value;
@@ -1152,7 +1180,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             dpEndDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
-            var endDate = preferences.GetValue( "EndDate" ).AsDateTime();
             if ( dpEndDate.Visible && endDate.HasValue )
             {
                 FilterEndDate = dpEndDate.SelectedDate = endDate.Value;
@@ -1206,6 +1233,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             preferences.SetValue( "ReservationType", "" );
             preferences.SetValue( "StartDate", "" );
             preferences.SetValue( "EndDate", "" );
+            preferences.SetValue( "Start Date", null );
+            preferences.SetValue( "End Date", null );
             preferences.Save();
             SetFilterControls();
             BindDataOrReloadPage();
@@ -1240,6 +1269,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             dpStartDate.SelectedDate = dpEndDate.SelectedDate = null;
             var preferences = GetBlockPersonPreferences();
+            preferences.SetValue( "StartDate", null );
+            preferences.SetValue( "EndDate", null );
             preferences.SetValue( "Start Date", null );
             preferences.SetValue( "End Date", null );
             preferences.Save();

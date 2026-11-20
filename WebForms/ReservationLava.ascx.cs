@@ -268,6 +268,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     }
 
                     var selectedValue = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
+                    if ( selectedValue == null )
+                    {
+                        pnlDetails.Visible = false;
+                        ShowWarning( "Configuration Error", "No valid reservation view is available for this block." );
+                        return;
+                    }
 
                     if ( definedValueList.Count > 1 )
                     {
@@ -629,6 +635,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( definedValueId.HasValue )
             {
                 var selectedValue = DefinedValueCache.Get( definedValueId.Value );
+                if ( selectedValue == null )
+                {
+                    ShowWarning( "View Unavailable", "The selected reservation view could not be found." );
+                    return;
+                }
+
                 var preferences = GetBlockPersonPreferences();
                 preferences.SetValue( "ReservationViewId", selectedValue.Id.ToString() );
                 preferences.Save();
@@ -648,6 +660,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         private void BindDataOrReloadPage()
         {
             var selectedView = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
+            if ( selectedView == null )
+            {
+                ShowWarning( "View Unavailable", "The selected reservation view could not be found." );
+                return;
+            }
+
             var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
             var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
 
@@ -685,6 +703,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="selectedView">The selected view.</param>
         private void BindData( DefinedValueCache selectedView )
         {
+            if ( selectedView == null )
+            {
+                ShowWarning( "View Unavailable", "The selected reservation view could not be found." );
+                return;
+            }
+
             var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
             BindData( selectedView, showBy );
         }

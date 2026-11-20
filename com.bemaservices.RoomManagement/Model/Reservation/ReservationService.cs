@@ -1141,10 +1141,10 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Sets the first last occurrence date times.
+        /// Updates cached occurrence timestamps from a reservation schedule when saving reservations or populating occurrence dates.
         /// </summary>
         /// <param name="reservation">The reservation.</param>
-        /// <returns>Reservation.</returns>
+        /// <returns>The reservation with updated occurrence timestamps, or null when no reservation is supplied.</returns>
         public Reservation SetFirstLastOccurrenceDateTimes( Reservation reservation )
         {
 
@@ -1153,7 +1153,7 @@ namespace com.bemaservices.RoomManagement.Model
 
             var maximumReservationDate = RockDateTime.Now.AddDays( reservation?.ReservationType?.DefaultReservationDuration ?? 7305 );
 
-            var calEvent = reservation.Schedule.GetICalEvent();
+            var calEvent = reservation?.Schedule?.GetICalEvent();
             if ( calEvent != null )
             {
                 var countRules = calEvent.RecurrenceRules.Where( rule => rule.Count > 0 );

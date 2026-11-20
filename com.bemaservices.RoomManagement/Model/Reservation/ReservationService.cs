@@ -1085,7 +1085,7 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Updates the schedule with maximum end date.
+        /// Applies the reservation type's maximum duration to a schedule before the Create Reservation workflow action saves it.
         /// </summary>
         /// <param name="schedule">The schedule.</param>
         /// <param name="reservationType">Type of the reservation.</param>
@@ -1099,16 +1099,17 @@ namespace com.bemaservices.RoomManagement.Model
             var maxDuration = reservationType.MaximumReservationDuration;
             if ( maxDuration.HasValue && maxDuration > 0 )
             {
-                var scheduledStartTimesOverMax = schedule.GetScheduledStartTimes( DateTime.Now.AddDays( maxDuration.Value ), DateTime.Now.AddDays( maxDuration.Value + 366 ) );
+                var currentDateTime = RockDateTime.Now;
+                var scheduledStartTimesOverMax = schedule.GetScheduledStartTimes( currentDateTime.AddDays( maxDuration.Value ), currentDateTime.AddDays( maxDuration.Value + 366 ) );
 
-                if ( ( maxDuration > 0 && scheduledStartTimesOverMax != null && scheduledStartTimesOverMax.Count() > 0 ) || schedule.EffectiveEndDate > DateTime.Now.AddDays( maxDuration.Value ) )
+                if ( ( maxDuration > 0 && scheduledStartTimesOverMax != null && scheduledStartTimesOverMax.Count() > 0 ) || schedule.EffectiveEndDate > currentDateTime.AddDays( maxDuration.Value ) )
                 {
                     var icalEvent = schedule.GetICalEvent();
 
                     var countRules = icalEvent.RecurrenceRules.Where( rule => rule.Count > 0 );
                     if ( countRules.Any() )
                     {
-                        var scheduledStartTimesWithinMax = schedule.GetScheduledStartTimes( DateTime.Now, DateTime.Now.AddDays( maxDuration.Value ) );
+                        var scheduledStartTimesWithinMax = schedule.GetScheduledStartTimes( currentDateTime, currentDateTime.AddDays( maxDuration.Value ) );
                         icalEvent.RecurrenceRules.FirstOrDefault().Count = scheduledStartTimesWithinMax.Count;
 
                         scheduleErrorMessage = "Reservations can only be submitted for " + maxDuration.ToString() + " days.  The recurrence has been adjusted accordingly.";
@@ -1116,7 +1117,7 @@ namespace com.bemaservices.RoomManagement.Model
 
                     if ( !countRules.Any() && icalEvent.RecurrenceRules.Count > 0 )
                     {
-                        icalEvent.RecurrenceRules[0].Until = DateTime.Now.AddDays( maxDuration.Value );
+                        icalEvent.RecurrenceRules[0].Until = currentDateTime.AddDays( maxDuration.Value );
 
                         scheduleErrorMessage = "Reservations can only be submitted for " + maxDuration.ToString() + " days.  The recurrence has been adjusted accordingly.";
                     }

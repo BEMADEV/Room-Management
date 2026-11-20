@@ -31,7 +31,7 @@ namespace com.bemaservices.RoomManagement.Model
     public static partial class ReservationExtensionMethods
     {
         /// <summary>
-        /// Gets the reservation summaries.
+        /// Builds reservation summaries for conflict checks, calendar feeds, controller results, and Lava.
         /// </summary>
         /// <param name="qry">The qry.</param>
         /// <param name="filterStartDateTime">The filter start date time.</param>
@@ -50,14 +50,15 @@ namespace com.bemaservices.RoomManagement.Model
                 return reservationSummaryList;
             }
 
+            var currentDateTime = RockDateTime.Now;
             if ( filterStartDateTime == null )
             {
-                filterStartDateTime = DateTime.Now;
+                filterStartDateTime = currentDateTime;
             }
 
             if ( filterEndDateTime == null )
             {
-                filterEndDateTime = DateTime.Now.AddMonths( 1 );
+                filterEndDateTime = currentDateTime.AddMonths( 1 );
             }
 
             if ( filterStartDateTime < DateTime.MinValue.AddYears( 1 ) )

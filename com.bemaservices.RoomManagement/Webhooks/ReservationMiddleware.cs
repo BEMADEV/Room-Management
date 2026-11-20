@@ -128,6 +128,11 @@ namespace com.bemaservices.RoomManagement.Webhooks
             return false;
         }
 
+        /// <summary>
+        /// Reads calendar-feed filters from the request and supplies default dates in Rock's local time zone.
+        /// </summary>
+        /// <param name="context">The OWIN request context.</param>
+        /// <returns>The calendar-feed filter options used by the request handler.</returns>
         private ReservationCalendarOptions ValidateRequestData( IOwinContext context )
         {
             var query = context.Request.Query;
@@ -164,6 +169,7 @@ namespace com.bemaservices.RoomManagement.Webhooks
             }
             reservationCalendarOptions.ApprovalStates = approvalStates;
 
+            var currentDateTime = RockDateTime.Now;
             string startDate = query.Get( "startdate" );
             if ( !string.IsNullOrWhiteSpace( startDate ) )
             {
@@ -171,7 +177,7 @@ namespace com.bemaservices.RoomManagement.Webhooks
             }
             else
             {
-                reservationCalendarOptions.StartDate = DateTime.Now.AddMonths( -3 ).Date;
+                reservationCalendarOptions.StartDate = currentDateTime.AddMonths( -3 ).Date;
             }
 
             string endDate = query.Get( "enddate" );
@@ -181,7 +187,7 @@ namespace com.bemaservices.RoomManagement.Webhooks
             }
             else
             {
-                reservationCalendarOptions.EndDate = DateTime.Now.AddMonths( 12 ).Date;
+                reservationCalendarOptions.EndDate = currentDateTime.AddMonths( 12 ).Date;
             }
 
             return reservationCalendarOptions;

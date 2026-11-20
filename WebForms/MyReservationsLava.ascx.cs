@@ -106,7 +106,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Methods
 
         /// <summary>
-        /// Binds the data.
+        /// Renders the configured reservation Lava template, using an empty list for anonymous visitors.
         /// </summary>
         private void BindData()
         {
@@ -132,40 +132,46 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 string themeRoot = ResolveRockUrl( "~~/" );
                 contents = contents.Replace( "~~/", themeRoot ).Replace( "~/", appRoot );
 
-                using ( var rockContext = new RockContext() )
+                IEnumerable<Reservation> reservations = Enumerable.Empty<Reservation>();
+                if ( CurrentPersonId.HasValue )
                 {
-                    var reservationQueryOptions = new ReservationQueryOptions();
-                    if ( role == "1" )
+                    using ( var rockContext = new RockContext() )
                     {
-                        reservationQueryOptions.ReservationsByPersonId = CurrentPerson.Id;
-                    }
-                    else
-                    {
-                        reservationQueryOptions.ApprovalsByPersonId = CurrentPerson.Id;
-                    }
+                        var reservationQueryOptions = new ReservationQueryOptions();
+                        if ( role == "1" )
+                        {
+                            reservationQueryOptions.ReservationsByPersonId = CurrentPersonId.Value;
+                        }
+                        else
+                        {
+                            reservationQueryOptions.ApprovalsByPersonId = CurrentPersonId.Value;
+                        }
 
-                    var reservationService = new ReservationService( rockContext );
-                    var reservationQry = reservationService.Queryable( reservationQueryOptions ).AsNoTracking();
+                        var reservationService = new ReservationService( rockContext );
+                        var reservationQry = reservationService.Queryable( reservationQueryOptions ).AsNoTracking();
 
-                    var rockDateTime = RockDateTime.Now;
-                    if ( status == "1" )
-                    {
-                        reservationQry = reservationQry.Where( r => r.LastOccurrenceEndDateTime < rockDateTime );
+                        var rockDateTime = RockDateTime.Now;
+                        if ( status == "1" )
+                        {
+                            reservationQry = reservationQry.Where( r => r.LastOccurrenceEndDateTime < rockDateTime );
+                        }
+                        else
+                        {
+                            reservationQry = reservationQry.Where( r => r.LastOccurrenceEndDateTime >= rockDateTime );
+                        }
+
+                        reservations = reservationQry.ToList().OrderBy( r => r.NextStartDateTime ).ToList();
                     }
-                    else
-                    {
-                        reservationQry = reservationQry.Where( r => r.LastOccurrenceEndDateTime >= rockDateTime );
-                    }
-
-                    var mergeFields = new Dictionary<string, object>();
-                    mergeFields.Add( "Role", role );
-                    mergeFields.Add( "Status", status );
-                    mergeFields.Add( "Reservations", reservationQry.ToList().OrderBy( r => r.NextStartDateTime ) );
-                    mergeFields.Add( "PanelTitle", panelTitle );
-                    mergeFields.Add( "PanelIcon", panelIcon );
-
-                    lContents.Text = contents.ResolveMergeFields( mergeFields );
                 }
+
+                var mergeFields = new Dictionary<string, object>();
+                mergeFields.Add( "Role", role );
+                mergeFields.Add( "Status", status );
+                mergeFields.Add( "Reservations", reservations );
+                mergeFields.Add( "PanelTitle", panelTitle );
+                mergeFields.Add( "PanelIcon", panelIcon );
+
+                lContents.Text = contents.ResolveMergeFields( mergeFields );
 
             }
             catch ( Exception ex )

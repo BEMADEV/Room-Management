@@ -898,12 +898,17 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Gets the reservation summaries.
+        /// Gets reservation summaries for the selected view, returning no results for anonymous personal views.
         /// </summary>
         /// <param name="showBy">The show by.</param>
-        /// <returns>List&lt;ReservationService.ReservationSummary&gt;.</returns>
+        /// <returns>The matching reservation summaries.</returns>
         private List<ReservationSummary> GetReservationSummaries( ShowBy showBy )
         {
+            if ( ( showBy == ShowBy.MyReservations || showBy == ShowBy.MyApprovals ) && !CurrentPersonId.HasValue )
+            {
+                return new List<ReservationSummary>();
+            }
+
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var locationService = new LocationService( rockContext );
@@ -914,13 +919,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             switch ( showBy )
             {
                 case ShowBy.MyReservations:
-                    reservationQueryOptions.ReservationsByPersonId = CurrentPerson.Id;
+                    reservationQueryOptions.ReservationsByPersonId = CurrentPersonId.Value;
                     break;
                 case ShowBy.MyApprovals:
-                    if ( CurrentPersonId.HasValue )
-                    {
-                        reservationQueryOptions.ApprovalsByPersonId = CurrentPerson.Id;
-                    }
+                    reservationQueryOptions.ApprovalsByPersonId = CurrentPersonId.Value;
                     break;
                 default:
                     break;

@@ -54,7 +54,7 @@ namespace com.bemaservices.RoomManagement.Webhooks
                 var reservationService = new ReservationService( rockContext );
                 var icalendarString = reservationService.CreateICalendar( reservationCalendarOptions );
 
-                context.Response.Headers.Add( "content-disposition", new[] { string.Format( "attachment; filename={0}_ical.ics", RockDateTime.Now.ToString( "yyyy-MM-dd_hhmmss" ) ) } );
+                context.Response.Headers.Add( "content-disposition", new[] { string.Format( "attachment; filename={0}_ical.ics", RockDateTime.Now.ToString( "yyyy-MM-dd_HHmmss" ) ) } );
                 context.Response.ContentType = "text/calendar";
                 context.Response.StatusCode = (int)HttpStatusCode.OK;
                 await context.Response.WriteAsync( icalendarString );

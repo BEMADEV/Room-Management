@@ -940,28 +940,26 @@ namespace com.bemaservices.RoomManagement.Model
         #region Location Approval Methods
 
         /// <summary>
-        /// Gets the locations where the given person is in the location's approval group.
+        /// Gets location IDs in a person's approval groups for reservation approval queries.
         /// </summary>
         /// <param name="personId">The person identifier.</param>
-        /// <returns>IEnumerable&lt;Location&gt;.</returns>
+        /// <returns>The matching location identifiers.</returns>
         public IEnumerable<int> GetLocationIdsByApprovalGroupMembership( int personId )
         {
-            // select location where location.approvalgroup in (select group where group.groupmember contains person ) 
-            var rockContext = new RockContext();
-            var results = rockContext.Database.SqlQuery<int>(
-                $@"
-                Declare @PersonId int = {personId}
+            using ( var rockContext = new RockContext() )
+            {
+                return rockContext.Database.SqlQuery<int>(
+                @"
                 SELECT l.Id
                 FROM [Location] l
                 INNER JOIN [AttributeValue] av ON av.[EntityId] = l.[Id]
                 INNER JOIN [Attribute] a ON a.[Id] = av.[AttributeId] AND a.[Guid] = '96C07909-E34A-4379-854F-C05E79F772E4'
                 INNER JOIN [Group] g on g.Guid = Try_Cast(av.Value as uniqueidentifier) and g.IsActive = 1 and g.IsArchived = 0
                 INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id] and gm.IsArchived = 0 and gm.GroupMemberStatus = 1
-                Inner Join Person p on p.Id = gm.PersonId and p.Id = @PersonId
+                Inner Join Person p on p.Id = gm.PersonId and p.Id = @p0
                 Group By l.Id
-                " ).ToList<int>();
-
-            return results;
+                ", personId ).ToList();
+            }
         }
 
         /// <summary>
@@ -1005,26 +1003,24 @@ namespace com.bemaservices.RoomManagement.Model
         #region Resource Approval Methods
 
         /// <summary>
-        /// Gets the resources where the given person is in the resources's approval group.
+        /// Gets resource IDs in a person's approval groups for reservation approval queries.
         /// </summary>
         /// <param name="personId">The person identifier.</param>
-        /// <returns>IEnumerable&lt;Resource&gt;.</returns>
+        /// <returns>IEnumerable&lt;int&gt;.</returns>
         public IEnumerable<int> GetResourceIdsByApprovalGroupMembership( int personId )
         {
-            //// select location where location.approvalgroup in (select group where group.groupmember contains person ) 
-            var rockContext = new RockContext();
-            var results = rockContext.Database.SqlQuery<int>(
-                $@"
-                Declare @PersonId int = {personId}
+            using ( var rockContext = new RockContext() )
+            {
+                return rockContext.Database.SqlQuery<int>(
+                @"
                 SELECT r.Id 
                 FROM [_com_bemaservices_RoomManagement_Resource] r
                 INNER JOIN [Group] g ON g.[Id] = r.[ApprovalGroupId] and g.IsActive = 1 and g.IsArchived = 0
                 INNER JOIN [GroupMember] gm ON gm.[GroupId] = g.[Id] and gm.IsArchived = 0 and gm.GroupMemberStatus = 1
-                Inner Join Person p on p.Id = gm.PersonId and p.Id = @PersonId
+                Inner Join Person p on p.Id = gm.PersonId and p.Id = @p0
                 Group By r.Id
-                " ).ToList<int>();
-
-            return results;
+                ", personId ).ToList();
+            }
         }
 
         /// <summary>

@@ -70,7 +70,7 @@ namespace com.bemaservices.RoomManagement.Model
                 using ( var rockContext = new RockContext() )
                 {
                     var groupMemberService = new GroupMemberService( rockContext );
-                    if ( groupMemberService.GetByGroupIdAndPersonId( groupId.Value, person.Id, true )
+                    if ( groupMemberService.GetByGroupIdAndPersonId( groupId.Value, person.Id, false )
                         .AsNoTracking().Where( gm => gm.GroupMemberStatus == GroupMemberStatus.Active && gm.Group.IsActive == true && gm.Group.IsArchived == false ).Any() )
                     {
                         isInGroup = true;

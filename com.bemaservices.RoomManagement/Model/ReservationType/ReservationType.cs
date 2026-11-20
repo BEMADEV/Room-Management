@@ -455,7 +455,9 @@ namespace com.bemaservices.RoomManagement.Model
         {
             var approvalGroups = GetApprovalGroups( approvalGroupType, campusId );
 
-            return approvalGroups.SelectMany( ag => ag.ApprovalGroup.Members ).Where( gm => gm.PersonId == person.Id && gm.GroupMemberStatus == GroupMemberStatus.Active ).Any();
+            return !person.IsDeceased &&
+                approvalGroups.SelectMany( ag => ag.ApprovalGroup.Members )
+                    .Any( gm => gm.PersonId == person.Id && gm.GroupMemberStatus == GroupMemberStatus.Active );
         }
 
 

@@ -58,6 +58,10 @@ namespace com.bemaservices.RoomManagement.Jobs
         /// The reservation records updated
         /// </summary>
         private int _reservationRecordsUpdated = 0;
+        /// <summary>
+        /// The reservation records that failed to update.
+        /// </summary>
+        private int _reservationRecordsFailed = 0;
 
         /// <summary>
         /// Executes the specified context.
@@ -95,18 +99,20 @@ namespace com.bemaservices.RoomManagement.Jobs
             this.UpdateLastStatusMessage( $@"Remaining Reservation Records: {_remainingReservationRecords},
                     Reservation Records Loaded: {_reservationRecordsLoaded}, 
                     Reservation Records Read: {_reservationRecordsRead}, 
-                    Reservation Records Updated: { _reservationRecordsUpdated}
+                    Reservation Records Updated: {_reservationRecordsUpdated},
+                    Reservation Records Failed: {_reservationRecordsFailed}
                     " );
         }
 
         /// <summary>
-        /// Migrates the page views data.
+        /// Updates missing occurrence timestamps for reservations and logs failures per reservation.
         /// </summary>
         private void PopulateOccurrenceData( )
         {
             List<int> reservationIdList = new List<int>();
             _reservationRecordsUpdated = 0;
             _reservationRecordsRead = 0;
+            _reservationRecordsFailed = 0;
             using ( var rockContext = new RockContext() )
             {
                 reservationIdList = new ReservationService( rockContext ).Queryable()
@@ -117,9 +123,9 @@ namespace com.bemaservices.RoomManagement.Jobs
             }
             _reservationRecordsLoaded = reservationIdList.Count();
 
-            try
+            foreach ( var reservationId in reservationIdList )
             {
-                foreach ( var reservationId in reservationIdList )
+                try
                 {
                     using ( var rockContext = new RockContext() )
                     {
@@ -131,24 +137,19 @@ namespace com.bemaservices.RoomManagement.Jobs
                         {
                             _reservationRecordsRead++;
 
-                            try
-                            {
-                                reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
-                                rockContext.SaveChanges();
-                                _reservationRecordsUpdated++;
-                            }
-                            catch
-                            {
-
-                            }
-
+                            reservation = reservationService.SetFirstLastOccurrenceDateTimes( reservation );
+                            rockContext.SaveChanges();
+                            _reservationRecordsUpdated++;
                         }
                     }
                 }
-            }
-            catch
-            {
-
+                catch ( Exception ex )
+                {
+                    _reservationRecordsFailed++;
+                    ExceptionLogService.LogException(
+                        new Exception( string.Format( "Failed to populate occurrence timestamps for reservation {0}.", reservationId ), ex ),
+                        System.Web.HttpContext.Current );
+                }
             }
         }
     }

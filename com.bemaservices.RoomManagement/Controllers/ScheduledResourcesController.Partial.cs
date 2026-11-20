@@ -265,9 +265,9 @@ namespace Rock.Rest.Controllers
                         scheduledCategoryItem.IsActive = true;
                         scheduledCategoryItem.Name = String.Format( "<span style='color:{0};'>{1}{2} {3}</span>",
                             color,
-                            resource.Name,
+                            System.Web.HttpUtility.HtmlEncode( resource.Name ),
                             availableQuantity,
-                            resource.Campus != null ? string.Format( "[{0}]", resource.Campus.Name ) : "" );
+                            resource.Campus != null ? string.Format( "[{0}]", System.Web.HttpUtility.HtmlEncode( resource.Campus.Name ) ) : "" );
                         scheduledCategoryItem.IsCategory = false;
                         scheduledCategoryItem.IconCssClass = resource.GetPropertyValue( "IconCssClass" ) as string ?? defaultIconCssClass;
                         scheduledCategoryItem.IconSmallUrl = string.Empty;

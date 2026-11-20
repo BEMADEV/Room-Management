@@ -71,7 +71,7 @@ namespace com.bemaservices.RoomManagement.Model
                 {
                     var groupMemberService = new GroupMemberService( rockContext );
                     if ( groupMemberService.GetByGroupIdAndPersonId( groupId.Value, person.Id, true )
-                        .AsNoTracking().Where( gm => gm.GroupMemberStatus == GroupMemberStatus.Active && gm.Group.IsActive == true ).Any() )
+                        .AsNoTracking().Where( gm => gm.GroupMemberStatus == GroupMemberStatus.Active && gm.Group.IsActive == true && gm.Group.IsArchived == false ).Any() )
                     {
                         isInGroup = true;
                     }
@@ -96,7 +96,7 @@ namespace com.bemaservices.RoomManagement.Model
                 {
                     var groupMemberService = new GroupMemberService( rockContext );
                     if ( groupMemberService.Queryable().AsNoTracking()
-                        .Where( gm => gm.Group.Guid == groupGuid && gm.PersonId == person.Id && gm.GroupMemberStatus == GroupMemberStatus.Active && gm.Group.IsActive == true ).Any() )
+                        .Where( gm => gm.Group.Guid == groupGuid && gm.PersonId == person.Id && gm.GroupMemberStatus == GroupMemberStatus.Active && gm.Group.IsActive == true && gm.Group.IsArchived == false ).Any() )
                     {
                         isInGroup = true;
                     }

@@ -45,7 +45,7 @@ namespace Rock.Rest.Controllers
     public partial class ScheduledResourcesController
     {
         /// <summary>
-        /// Controller for the scheduled Resources.
+        /// Gets the child categories or authorized resources matching the scheduled-resource picker filters.
         /// </summary>
         /// <param name="id">The identifier.</param>
         /// <param name="rootCategoryId">The root category identifier.</param>
@@ -222,11 +222,27 @@ namespace Rock.Rest.Controllers
 
                 // do a ToList to load from database prior to ordering by name, just in case Name is a virtual property
                 var itemsList = resourceAvailabilityList.Where( r => r != null && r.CategoryId == parentItemId ).ToList();
+                var resourceIds = itemsList.Select( item => item.ResourceId ).Distinct().ToList();
+                var resourcesById = new Dictionary<int, Resource>();
+                const int resourceBatchSize = 1000;
+
+                for ( int batchStart = 0; batchStart < resourceIds.Count; batchStart += resourceBatchSize )
+                {
+                    var resourceIdBatch = resourceIds.Skip( batchStart ).Take( resourceBatchSize ).ToList();
+                    var resources = resourceService.Queryable( "Campus" ).AsNoTracking()
+                        .Where( resource => resourceIdBatch.Contains( resource.Id ) )
+                        .ToList();
+
+                    foreach ( var resource in resources )
+                    {
+                        resourcesById.Add( resource.Id, resource );
+                    }
+                }
 
                 foreach ( var categorizedItem in itemsList.OrderBy( i => i.ResourceName ) )
                 {
-                    var resource = resourceService.Get( categorizedItem.ResourceId );
-                    if ( resource != null && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                    Resource resource;
+                    if ( resourcesById.TryGetValue( categorizedItem.ResourceId, out resource ) && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
                     {
                         var color = "Green";
                         if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0 )

@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Web.UI;
@@ -50,13 +51,17 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <returns>A list of item bags that will be rendered in the picker.</returns>
         protected override List<ListItemBag> GetListItems( Dictionary<string, string> privateConfigurationValues )
         {
-            return new ReservationService( new RockContext() ).Queryable()
-            .Select( item => new ListItemBag
+            using ( var rockContext = new RockContext() )
             {
-                Value = item.Guid.ToString(),
-                Text = item.Name
-            } )
-            .ToList();
+                var reservationQuery = new ReservationService( rockContext ).Queryable().AsNoTracking();
+                return reservationQuery
+                    .Select( item => new ListItemBag
+                    {
+                        Value = item.Guid.ToString(),
+                        Text = item.Name
+                    } )
+                    .ToList();
+            }
         }
 
         /// <summary>
@@ -69,14 +74,33 @@ namespace com.bemaservices.RoomManagement.Field.Types
         /// <returns>A list of <see cref="T:Rock.ViewModels.Utility.ListItemBag" /> objects that have the <see cref="P:Rock.ViewModels.Utility.ListItemBag.Value" /> and <see cref="P:Rock.ViewModels.Utility.ListItemBag.Text" /> properties filled in.</returns>
         protected override List<ListItemBag> GetItemBags( IEnumerable<string> values, Dictionary<string, string> privateConfigurationValues )
         {
-            return new ReservationService( new RockContext() ).Queryable()
-            .Where( item => values.Contains( item.Guid.ToString() ) )
-            .Select( item => new ListItemBag
+            var reservationGuids = new List<Guid>();
+            foreach ( var value in values )
             {
-                Value = item.Guid.ToString(),
-                Text = item.Name
-            } )
-            .ToList();
+                Guid reservationGuid;
+                if ( Guid.TryParse( value, out reservationGuid ) )
+                {
+                    reservationGuids.Add( reservationGuid );
+                }
+            }
+
+            if ( !reservationGuids.Any() )
+            {
+                return new List<ListItemBag>();
+            }
+
+            reservationGuids = reservationGuids.Distinct().ToList();
+            using ( var rockContext = new RockContext() )
+            {
+                return new ReservationService( rockContext ).Queryable().AsNoTracking()
+                    .Where( item => reservationGuids.Contains( item.Guid ) )
+                    .Select( item => new ListItemBag
+                    {
+                        Value = item.Guid.ToString(),
+                        Text = item.Name
+                    } )
+                    .ToList();
+            }
         }
 
         #region Entity Methods

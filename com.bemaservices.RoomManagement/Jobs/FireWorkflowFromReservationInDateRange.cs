@@ -54,7 +54,7 @@ namespace com.bemaservices.RoomManagement.Jobs
         }
 
         /// <summary>
-        /// Executes the specified context.
+        /// Finds reservations matching the configured status and date filters, then launches one workflow for each.
         /// </summary>
         public override void Execute()
         {
@@ -76,84 +76,94 @@ namespace com.bemaservices.RoomManagement.Jobs
                 }
             }
 
-            var rockContext = new RockContext();
             WorkflowTypeCache workflowType = null;
             Guid? workflowTypeGuid = GetAttributeValue( "WorkflowType" ).ToStringSafe().AsGuidOrNull();
             if ( workflowTypeGuid.HasValue )
             {
-                var workflowTypeService = new WorkflowTypeService( rockContext );
                 workflowType = WorkflowTypeCache.Get( workflowTypeGuid.Value );
             }
 
+            var reservationIds = new List<int>();
             if ( workflowType != null && ( workflowType.IsActive ?? true ) )
             {
-                var reservationService = new ReservationService( rockContext );
-                var reservationQuery = reservationService.Queryable().AsNoTracking();
-                var reservationList = new List<Reservation>();
-
-                if ( states.Any() )
+                using ( var queryRockContext = new RockContext() )
                 {
-                    reservationQuery = reservationQuery.Where( r => states.Contains( r.ApprovalState ) );
+                    var reservationService = new ReservationService( queryRockContext );
+                    var reservationQuery = reservationService.Queryable().AsNoTracking();
+
+                    if ( states.Any() )
+                    {
+                        reservationQuery = reservationQuery.Where( r => states.Contains( r.ApprovalState ) );
+                    }
+
+                    // The stored occurrence bounds include setup and cleanup time, so they can only widen the window.
+                    // Reservations whose bounds are not yet populated are left for the schedule checks below.
+                    if ( dateRange.End.HasValue )
+                    {
+                        var rangeEnd = dateRange.End.Value;
+                        reservationQuery = reservationQuery.Where( r => r.FirstOccurrenceStartDateTime == null || r.FirstOccurrenceStartDateTime <= rangeEnd );
+                    }
+
+                    if ( dateRange.Start.HasValue )
+                    {
+                        var rangeStart = dateRange.Start.Value;
+                        reservationQuery = reservationQuery.Where( r => r.LastOccurrenceEndDateTime == null || r.LastOccurrenceEndDateTime >= rangeStart );
+                    }
+
+                    var reservations = reservationQuery.Include( r => r.Schedule ).ToList();
+                    if ( startsInDateRange )
+                    {
+                        reservationIds = reservations
+                            .Select( r => new
+                            {
+                                Reservation = r,
+                                ReservationDateTimes = r.GetReservationTimes( dateRange.Start ?? DateTime.MinValue, dateRange.End ?? DateTime.MaxValue )
+                            } )
+                            .Where( r => r.ReservationDateTimes.Any() )
+                            .Select( r => r.Reservation.Id )
+                            .ToList();
+
+                    }
+                    else
+                    {
+                        reservationIds = reservations
+                            .Select( r => new
+                            {
+                                Reservation = r,
+                                ReservationDateTimes = r.GetReservationTimes( dateRange.Start.HasValue ? dateRange.Start.Value.AddMonths( -1 ) : DateTime.MinValue, dateRange.End.HasValue ? dateRange.End.Value.AddMonths( 1 ) : DateTime.MaxValue )
+                            } )
+                            .Where( r => r.ReservationDateTimes.Any( rdt =>
+                                ( ( rdt.StartDateTime > ( dateRange.Start ?? DateTime.MinValue ) ) || ( rdt.EndDateTime > ( dateRange.Start ?? DateTime.MinValue ) ) ) &&
+                                ( ( rdt.StartDateTime < ( dateRange.End ?? DateTime.MaxValue ) ) || ( rdt.EndDateTime < ( dateRange.End ?? DateTime.MaxValue ) ) ) )
+                                )
+                            .Select( r => r.Reservation.Id )
+                            .ToList();
+                    }
                 }
 
-                // The stored occurrence bounds include setup and cleanup time, so they can only widen the window.
-                // Reservations whose bounds are not yet populated are left for the schedule checks below.
-                if ( dateRange.End.HasValue )
-                {
-                    var rangeEnd = dateRange.End.Value;
-                    reservationQuery = reservationQuery.Where( r => r.FirstOccurrenceStartDateTime == null || r.FirstOccurrenceStartDateTime <= rangeEnd );
-                }
-
-                if ( dateRange.Start.HasValue )
-                {
-                    var rangeStart = dateRange.Start.Value;
-                    reservationQuery = reservationQuery.Where( r => r.LastOccurrenceEndDateTime == null || r.LastOccurrenceEndDateTime >= rangeStart );
-                }
-
-                var reservations = reservationQuery.Include( r => r.Schedule ).ToList();
-                if ( startsInDateRange )
-                {
-                    reservationList = reservations
-                        .Select( r => new
-                        {
-                            Reservation = r,
-                            ReservationDateTimes = r.GetReservationTimes( dateRange.Start ?? DateTime.MinValue, dateRange.End ?? DateTime.MaxValue )
-                        } )
-                        .Where( r => r.ReservationDateTimes.Any() )
-                        .Select( r => r.Reservation )
-                        .ToList();
-
-                }
-                else
-                {
-                    reservationList = reservations
-                        .Select( r => new
-                        {
-                            Reservation = r,
-                            ReservationDateTimes = r.GetReservationTimes( dateRange.Start.HasValue ? dateRange.Start.Value.AddMonths( -1 ) : DateTime.MinValue, dateRange.End.HasValue ? dateRange.End.Value.AddMonths( 1 ) : DateTime.MaxValue )
-                        } )
-                        .Where( r => r.ReservationDateTimes.Any( rdt =>
-                            ( ( rdt.StartDateTime > ( dateRange.Start ?? DateTime.MinValue ) ) || ( rdt.EndDateTime > ( dateRange.Start ?? DateTime.MinValue ) ) ) &&
-                            ( ( rdt.StartDateTime < ( dateRange.End ?? DateTime.MaxValue ) ) || ( rdt.EndDateTime < ( dateRange.End ?? DateTime.MaxValue ) ) ) )
-                            )
-                        .Select( r => r.Reservation )
-                        .ToList();
-                }
-
-                foreach ( var reservation in reservationList )
+                foreach ( var reservationId in reservationIds )
                 {
                     try
                     {
-                        var workflowService = new WorkflowService( rockContext );
-                        var workflow = Rock.Model.Workflow.Activate( workflowType, reservation.Name );
+                        using ( var workflowRockContext = new RockContext() )
+                        {
+                            var reservation = new ReservationService( workflowRockContext ).Get( reservationId );
+                            if ( reservation == null )
+                            {
+                                throw new InvalidOperationException( string.Format( "Reservation {0} no longer exists.", reservationId ) );
+                            }
 
-                        // set attributes
-                        workflow.SetAttributeValue( "ReservationId", reservation.Id.ToString() );
+                            var workflowService = new WorkflowService( workflowRockContext );
+                            var workflow = Rock.Model.Workflow.Activate( workflowType, reservation.Name );
 
-                        // launch workflow
-                        workflowService.Process( workflow, reservation, out workflowErrors );
+                            // set attributes
+                            workflow.SetAttributeValue( "ReservationId", reservation.Id.ToString() );
 
-                        reservationsProcessed++;
+                            // launch workflow
+                            workflowService.Process( workflow, reservation, out workflowErrors );
+
+                            reservationsProcessed++;
+                        }
                     }
                     catch ( Exception ex )
                     {

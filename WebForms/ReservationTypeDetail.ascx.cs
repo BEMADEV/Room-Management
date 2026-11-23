@@ -264,6 +264,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var rockContext = new RockContext();
             var reservationType = new ReservationTypeService( rockContext ).Get( hfReservationTypeId.Value.AsInteger() );
 
+            // Hiding the Edit button isn't enough; a crafted postback can still reach this handler
+            if ( reservationType == null || !CanAdministrate( reservationType ) )
+            {
+                mdDeleteWarning.Show( "You are not authorized to edit this reservation type.", ModalAlertType.Information );
+                return;
+            }
+
             LoadStateDetails( reservationType, rockContext );
             ShowEditDetails( reservationType );
         }
@@ -368,6 +375,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 AttributeQualifierService qualifierService = new AttributeQualifierService( rockContext );
 
                 int reservationTypeId = int.Parse( hfReservationTypeId.Value );
+
+                // Only someone who could open the editor may save; hiding the buttons doesn't stop a crafted postback
+                var reservationTypeToAuthorize = reservationTypeId == 0 ? new ReservationType() : reservationTypeService.Get( reservationTypeId );
+                if ( reservationTypeToAuthorize == null || !CanAdministrate( reservationTypeToAuthorize ) )
+                {
+                    mdDeleteWarning.Show( "You are not authorized to edit this reservation type.", ModalAlertType.Information );
+                    return;
+                }
 
                 if ( reservationTypeId == 0 )
                 {
@@ -1275,6 +1290,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Internal Methods
 
         /// <summary>
+        /// Determines whether the current person may edit the reservation type: they need Administrate on this block
+        /// or on the reservation type itself (Edit rights only allow adding and removing items). <see cref="ShowDetail(int)" />
+        /// uses this to decide whether to offer the editor, and the Edit and Save handlers check it again on the server,
+        /// since hidden buttons don't stop a crafted postback.
+        /// </summary>
+        /// <param name="reservationType">The reservation type, or a new unsaved one when adding.</param>
+        /// <returns><c>true</c> if the current person may edit the reservation type; otherwise, <c>false</c>.</returns>
+        private bool CanAdministrate( ReservationType reservationType )
+        {
+            return UserCanAdministrate || reservationType.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
+        }
+
+        /// <summary>
         /// Shows the edit.
         /// </summary>
         /// <param name="reservationTypeId">The Reservation Type Type identifier.</param>
@@ -1301,7 +1329,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 // Admin rights are needed to edit a reservation type ( Edit rights only allow adding/removing items )
-                bool adminAllowed = UserCanAdministrate || reservationType.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
+                bool adminAllowed = CanAdministrate( reservationType );
                 pnlDetails.Visible = true;
                 hfReservationTypeId.Value = reservationType.Id.ToString();
                 lIcon.Text = string.Format( "<i class='{0}'></i>", reservationType.IconCssClass );

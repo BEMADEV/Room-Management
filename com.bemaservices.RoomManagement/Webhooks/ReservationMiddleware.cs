@@ -79,11 +79,13 @@ namespace com.bemaservices.RoomManagement.Webhooks
         }
 
         /// <summary>
-        /// Restricts the calendar feed to reservation types and data views the caller may use.
+        /// Restricts the calendar feed to reservation types and data views the caller may use. A data view
+        /// must also be a Reservation data view, since its ids are used as reservation ids.
         /// </summary>
         /// <param name="context">The OWIN request context.</param>
         /// <param name="reservationCalendarOptions">The requested calendar filters.</param>
-        /// <returns><c>true</c> when the caller may continue; otherwise, sends a forbidden response.</returns>
+        /// <returns><c>true</c> when the caller may continue; otherwise, sends a forbidden response, or a bad
+        /// request response for a data view of another entity type.</returns>
         private bool ValidateSecurity( IOwinContext context, ReservationCalendarOptions reservationCalendarOptions )
         {
             RockContext rockContext = new RockContext();
@@ -104,6 +106,13 @@ namespace com.bemaservices.RoomManagement.Webhooks
                 if ( dataView == null || !dataView.IsAuthorized( Rock.Security.Authorization.VIEW, currentPerson ) )
                 {
                     SendNotAuthorized( context );
+                    return false;
+                }
+
+                // Only a Reservation data view can filter the feed; any other type's ids aren't reservation ids
+                if ( dataView.EntityTypeId != EntityTypeCache.GetId<Reservation>() )
+                {
+                    SendBadRequest( context, "The data view must be a Reservation data view." );
                     return false;
                 }
             }

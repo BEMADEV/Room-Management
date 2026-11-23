@@ -237,7 +237,12 @@ namespace com.bemaservices.RoomManagement.Model
             if ( reservationQueryOptions.DataViewId != null )
             {
                 var dataView = DataViewCache.Get( reservationQueryOptions.DataViewId.Value );
-                if ( dataView != null )
+                if ( dataView != null && dataView.EntityTypeId != EntityTypeCache.GetId<Reservation>() )
+                {
+                    // Another entity type's ids would match unrelated reservations, so match nothing instead
+                    qry = qry.Where( r => false );
+                }
+                else if ( dataView != null )
                 {
                     var dataViewReservationIds = dataView.GetQuery().Select( r => r.Id ).ToList();
                     qry = qry.Where( r => dataViewReservationIds.Contains( r.Id ) );

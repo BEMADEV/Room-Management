@@ -445,7 +445,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reservationService = new ReservationService( rockContext );
             var resourceService = new ResourceService( rockContext );
 
-            var resourceQry = resourceService.Queryable().AsNoTracking();
+            // Load each resource's campus and location with it; the grid shows both for every row
+            var resourceQry = resourceService.Queryable().AsNoTracking()
+                .Include( r => r.Campus )
+                .Include( r => r.Location );
             if ( cpResource.SelectedValueAsInt().HasValue )
             {
                 int categoryId = cpResource.SelectedValueAsInt().Value;

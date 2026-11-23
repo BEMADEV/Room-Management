@@ -42,7 +42,7 @@ namespace com.bemaservices.RoomManagement.Model
     /// Implements the <see cref="Rock.Data.Service{com.bemaservices.RoomManagement.Model.Reservation}" />
     /// </summary>
     /// <seealso cref="Rock.Data.Service{com.bemaservices.RoomManagement.Model.Reservation}" />
-    public class ReservationService : Service<Reservation>
+    public partial class ReservationService : Service<Reservation>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ReservationService" /> class.
@@ -386,15 +386,9 @@ namespace com.bemaservices.RoomManagement.Model
             var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
             var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
 
-            var qryStartTime = RockDateTime.Now;
-            if ( newReservation.FirstOccurrenceStartDateTime.HasValue && newReservation.FirstOccurrenceStartDateTime > qryStartTime )
-            {
-                qryStartTime = newReservation.FirstOccurrenceStartDateTime.Value;
-            }
-
-            var qryEndTime = newReservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
-            var newReservationSummaries = newReservationQry.GetReservationSummaries( qryStartTime, qryEndTime );
-            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( qryStartTime, qryEndTime );
+            var window = ConflictWindow.ForConflicts( newReservation, RockDateTime.Now );
+            var newReservationSummaries = newReservationQry.GetReservationSummaries( window.Start, window.End );
+            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( window.Start, window.End );
 
             return existingReservationSummaries.WhereConflictsExist( newReservationSummaries );
         }
@@ -411,15 +405,7 @@ namespace com.bemaservices.RoomManagement.Model
             // Check to make sure that nothing has a scheduling conflict.
             bool hasConflict = false;
             StringBuilder sb = new StringBuilder();
-
-            if ( arePotentialConflictsReturned )
-            {
-                sb.Append( "<b>The following items can be reserved, but have also been requested for the scheduled times:</b><br><ul>" );
-            }
-            else
-            {
-                sb.Append( "<b>The following items can not be reserved, as they are already reserved for the scheduled times:</b><br><ul>" );
-            }
+            sb.Append( FormatConflictInfoHeader( arePotentialConflictsReturned ) );
 
             var reservedLocationIds = GetReservedLocationIds( reservation, true, arePotentialConflictsReturned );
 
@@ -427,16 +413,8 @@ namespace com.bemaservices.RoomManagement.Model
             string message = string.Empty;
             foreach ( var location in reservation.ReservationLocations.Where( l => reservedLocationIds.Contains( l.LocationId ) ) )
             {
-                //sb.AppendFormat( "<li>{0}</li>", location.Location.Name );
                 message = BuildLocationConflictHtmlList( reservation, location.Location.Id, detailPageRoute, arePotentialConflictsReturned );
-                if ( message != null )
-                {
-                    sb.AppendFormat( "<li>{0} due to:<ul>{1}</ul></li>", location.Location.Name, message );
-                }
-                else
-                {
-                    sb.AppendFormat( "<li>{0}</li>", location.Location.Name );
-                }
+                sb.Append( FormatLocationConflictItem( location.Location.Name, message ) );
                 hasConflict = true;
             }
 
@@ -449,14 +427,14 @@ namespace com.bemaservices.RoomManagement.Model
                 if ( availableQuantity.HasValue && availableQuantity - reservationQuantity < 0 )
                 {
                     message = BuildResourceConflictHtmlList( reservation, resource.Id, detailPageRoute, arePotentialConflictsReturned );
-                    sb.AppendFormat( "<li>{0} [note: only {1} available] due to:<ul>{2}</ul></li>", resource.Name, availableQuantity, message );
+                    sb.Append( FormatResourceConflictItem( resource.Name, availableQuantity, message ) );
                     hasConflict = true;
                 }
             }
 
             if ( hasConflict )
             {
-                sb.Append( "</ul>" );
+                sb.Append( FormatConflictInfoFooter() );
                 return sb.ToString();
             }
             else
@@ -574,28 +552,7 @@ namespace com.bemaservices.RoomManagement.Model
         public string BuildLocationConflictHtmlList( Reservation newReservation, int locationId, string detailPageRoute, bool arePotentialConflictsReturned = false )
         {
             var conflicts = GetConflictsForLocationId( locationId, newReservation, arePotentialConflictsReturned );
-
-            if ( conflicts.Any() )
-            {
-                StringBuilder sb = new StringBuilder();
-                detailPageRoute = detailPageRoute.StartsWith( "/" ) ? detailPageRoute : "/" + detailPageRoute;
-
-                foreach ( var conflict in conflicts )
-                {
-                    sb.AppendFormat( "<li>{0} [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
-                        conflict.LocationName,
-                        conflict.ReservationSchedule,
-                        conflict.ReservationId,
-                        conflict.ReservationName,
-                        detailPageRoute
-                        );
-                }
-                return sb.ToString();
-            }
-            else
-            {
-                return null;
-            }
+            return FormatLocationConflicts( conflicts, detailPageRoute );
         }
 
         #endregion
@@ -684,17 +641,16 @@ namespace com.bemaservices.RoomManagement.Model
         /// <returns>a quantity of available resources at</returns>
         public int? GetBookedResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
         {
-            var qryStartTime = reservation.FirstOccurrenceStartDateTime ?? RockDateTime.Now.AddMonths( -1 );
-            var qryEndTime = reservation.LastOccurrenceEndDateTime ?? RockDateTime.Now.AddYears( 1 );
+            var window = ConflictWindow.ForBookedQuantity( reservation, RockDateTime.Now );
 
             // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
             // now) which have the given resource in them.
             var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
-            var existingReservationSummaries = existingValidReservations.GetReservationSummaries( qryStartTime, qryEndTime );
+            var existingReservationSummaries = existingValidReservations.GetReservationSummaries( window.Start, window.End );
 
             // Now narrow the reservations down to only the ones in the matching/overlapping time frame
             var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
-            var newReservationSummaries = newReservationList.GetReservationSummaries( qryStartTime, qryEndTime );
+            var newReservationSummaries = newReservationList.GetReservationSummaries( window.Start, window.End );
             var reservedQuantities = newReservationSummaries
                 .Select( newReservationSummary =>
                     newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )
@@ -748,29 +704,7 @@ namespace com.bemaservices.RoomManagement.Model
         public string BuildResourceConflictHtmlList( Reservation newReservation, int resourceId, string detailPageRoute, bool arePotentialConflictsReturned = false )
         {
             var conflicts = GetConflictsForResourceId( resourceId, newReservation, arePotentialConflictsReturned );
-
-            if ( conflicts.Any() )
-            {
-                StringBuilder sb = new StringBuilder();
-                detailPageRoute = detailPageRoute.StartsWith( "/" ) ? detailPageRoute : "/" + detailPageRoute;
-
-                foreach ( var conflict in conflicts )
-                {
-                    sb.AppendFormat( "<li>{0} ({5}) [on {1} via <a href='{4}?ReservationId={2}' target='_blank'>'{3}'</a>]</li>",
-                        conflict.ResourceName,
-                        conflict.ReservationSchedule,
-                        conflict.ReservationId,
-                        conflict.ReservationName,
-                        detailPageRoute,
-                        conflict.ResourceQuantity
-                        );
-                }
-                return sb.ToString();
-            }
-            else
-            {
-                return null;
-            }
+            return FormatResourceConflicts( conflicts, detailPageRoute );
         }
 
         #endregion

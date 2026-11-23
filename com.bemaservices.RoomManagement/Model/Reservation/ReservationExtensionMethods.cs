@@ -80,7 +80,9 @@ namespace com.bemaservices.RoomManagement.Model
             var reservations = qry
                 .Where( r => r.FirstOccurrenceStartDateTime == null || r.FirstOccurrenceStartDateTime <= filterEndDateTime )
                 .Where( r => r.LastOccurrenceEndDateTime == null || r.LastOccurrenceEndDateTime >= filterStartDateTime )
-                .Where( r => r.Schedule.iCalendarContent.Contains( "RRULE" ) || r.Schedule.iCalendarContent.Contains( "RDATE" ) ||
+                // The null check changes nothing in SQL (a NULL never matches LIKE) but keeps in-memory lists, such as the
+                // batch conflict check's preloaded reservations, from throwing on a schedule without iCalendar content.
+                .Where( r => ( r.Schedule.iCalendarContent != null && ( r.Schedule.iCalendarContent.Contains( "RRULE" ) || r.Schedule.iCalendarContent.Contains( "RDATE" ) ) ) ||
                         (
                             r.Schedule.EffectiveStartDate >= qryStartDateTime &&
                             r.Schedule.EffectiveEndDate <= qryEndDateTime )

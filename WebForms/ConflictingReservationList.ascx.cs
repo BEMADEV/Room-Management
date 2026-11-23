@@ -479,10 +479,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var reservationIdList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false ).Select( rs => rs.ReservationId ).ToList();
                 var reservationList = qry.Where( r => reservationIdList.Contains( r.Id ) ).ToList();
 
+                // Check every reservation's conflicts in one batch rather than several queries per reservation
+                var conflictInfoByReservationId = reservationService.GenerateConflictInfo( reservationList, LinkedPageUrl( AttributeKey.DetailPage ) );
+
                 List<ConflictedReservation> conflictedReservationList = new List<ConflictedReservation>();
                 foreach ( var reservation in reservationList )
                 {
-                    var conflictInfo = reservationService.GenerateConflictInfo( reservation, LinkedPageUrl( AttributeKey.DetailPage ) );
+                    var conflictInfo = conflictInfoByReservationId[reservation.Id];
                     if ( !string.IsNullOrWhiteSpace( conflictInfo ) )
                     {
                         ConflictedReservation conflictedReservation = new ConflictedReservation( reservation, conflictInfo );

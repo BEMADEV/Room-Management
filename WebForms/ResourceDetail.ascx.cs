@@ -84,6 +84,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             ClearErrorMessage();
 
+            // "Resource saved." is only shown right after Save Then Add
+            nbSaveMessage.Visible = false;
+
             if ( !Page.IsPostBack )
             {
                 ShowDetail( PageParameter( "ResourceId" ).AsInteger() );
@@ -156,7 +159,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             ShowDetail( 0, resetCampus: false );
             nbSaveMessage.Text = "Resource saved.";
-            nbErrorMessage.Visible = true;
+            nbSaveMessage.Visible = true;
         }
 
         /// <summary>

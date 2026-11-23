@@ -320,6 +320,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservationResourceService.DeleteRange( reservationResourceQry );
                     reservationLocationService.DeleteRange( reservationLocationQry );
                     reservationService.DeleteRange( reservationQry );
+
+                    // Remove the reservation attributes that only apply to this type, so they aren't left orphaned;
+                    // their values (including any left by the reservations deleted above) are cascade-deleted with them
+                    var attributeService = new AttributeService( rockContext );
+                    var reservationTypeAttributes = attributeService
+                        .GetByEntityTypeQualifier( new Reservation().TypeId, "ReservationTypeId", reservationType.Id.ToString(), true )
+                        .ToList();
+                    attributeService.DeleteRange( reservationTypeAttributes );
+
                     reservationTypeService.Delete( reservationType );
 
                     rockContext.SaveChanges();

@@ -371,6 +371,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     nbErrorMessage.Text = "An incorrect querystring parameter was used.  A valid ResourceId parameter is required.";
                 }
 
+                // Hide the question list too; it reads the ResourceId from the URL and would let questions be added to a missing resource
+                HideQuestionList( true );
                 pnlEditDetails.Visible = false;
                 return;
             }

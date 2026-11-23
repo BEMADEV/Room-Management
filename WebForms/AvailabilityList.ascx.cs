@@ -324,10 +324,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Binds the locations grid.
+        /// Binds the locations grid. A parent location or campus filter is required, since without one this would load
+        /// and check every active named location in Rock; until one is chosen the grid shows a prompt instead.
         /// </summary>
         private void BindLocationsGrid()
         {
+            if ( !lipLocation.SelectedValueAsInt().HasValue && !cpCampus.SelectedValuesAsInt.Any() )
+            {
+                gLocations.EmptyDataText = "Select a parent location or campus to see location availability.";
+                gLocations.DataSource = new List<object>();
+                gLocations.DataBind();
+                return;
+            }
+
+            // An empty value restores Rock's default "No Locations Found"
+            gLocations.EmptyDataText = string.Empty;
+
             var rockContext = new RockContext();
             var reservationService = new ReservationService( rockContext );
             var locationService = new LocationService( rockContext );

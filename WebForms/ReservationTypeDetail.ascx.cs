@@ -632,7 +632,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             AttributesState.Where( a => !a.Guid.Equals( attributeGuid ) ).Select( a => a.Key ).ToList().ForEach( a => reservedKeyNames.Add( a ) );
             edtAttributes.AllowSearchVisible = true;
             edtAttributes.ReservedKeyNames = reservedKeyNames.ToList();
-            edtAttributes.SetAttributeProperties( attribute, typeof( ReservationType ) );
+            // These attributes belong to reservations (qualified by reservation type), so reserve Reservation's property names as keys
+            edtAttributes.SetAttributeProperties( attribute, typeof( Reservation ) );
 
             ShowDialog( "Attributes" );
         }

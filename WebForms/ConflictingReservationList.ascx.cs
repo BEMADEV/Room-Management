@@ -95,7 +95,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             //// Set postback timeout and request-timeout to whatever the DatabaseTimeout is plus an extra 5 seconds so that page doesn't timeout before the database does
             int databaseTimeout = GetAttributeValue( AttributeKey.DatabaseTimeoutSeconds ).AsIntegerOrNull() ?? 180;
             var sm = ScriptManager.GetCurrent( this.Page );
-            if ( sm.AsyncPostBackTimeout < databaseTimeout + 5 )
+            if ( sm != null && sm.AsyncPostBackTimeout < databaseTimeout + 5 )
             {
                 sm.AsyncPostBackTimeout = databaseTimeout + 5;
                 Server.ScriptTimeout = databaseTimeout + 5;
@@ -497,8 +497,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 gReservations.EntityTypeId = EntityTypeCache.Get<Reservation>().Id;
                 gReservations.DataBind();
             }
-            catch ( TimeoutException ex )
+            catch ( Exception ex ) when ( Rock.Reporting.ReportingHelper.FindSqlTimeoutException( ex ) != null )
             {
+                // A query timeout reaches us as a SqlException (Number -2), usually wrapped by EF, not as a TimeoutException
+                this.LogException( ex );
                 nbMessage.Visible = true;
                 nbMessage.Text = "There are too many reservations to analyze. Please narrow down your search or extend the timeout window in the block settings.";
             }

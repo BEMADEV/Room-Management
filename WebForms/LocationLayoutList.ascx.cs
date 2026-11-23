@@ -303,7 +303,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         private void BindGrid()
         {
             List<LocationLayout> layoutList = GetLayouts();
-            string photoFormat = "<img src=\"/GetFile.ashx?id={0}\" height=\"{1}\"></img>";
+            // Resolve the handler path so photos still load when Rock isn't at the site root
+            string photoFormat = "<img src=\"" + ResolveRockUrl( "~/GetFile.ashx" ) + "?id={0}\" height=\"{1}\"></img>";
 
             rGrid.DataSource = layoutList.Select( l => new
             {

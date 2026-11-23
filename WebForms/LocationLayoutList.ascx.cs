@@ -76,7 +76,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             // Offer adding, editing and deleting only to people who may change this location's layouts
             var canEdit = CanEditLayouts( LocationId );
-            rGrid.Actions.ShowAdd = canEdit;
+
+            // New layouts need a location to belong to
+            rGrid.Actions.ShowAdd = canEdit && LocationId != 0;
             rGrid.RowClickEnabled = canEdit;
             var deleteField = rGrid.ColumnsOfType<DeleteField>().FirstOrDefault();
             if ( deleteField != null )
@@ -210,12 +212,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( layout == null )
             {
-                layout = new LocationLayout();
-                if ( LocationId != 0 )
+                // A layout must belong to a location; without one on the page the save would fail on the required LocationId
+                if ( LocationId == 0 )
                 {
-                    layout.LocationId = LocationId;
+                    hfIdValue.Value = string.Empty;
+                    modalDetails.Hide();
+                    return;
                 }
 
+                layout = new LocationLayout();
+                layout.LocationId = LocationId;
                 locationLayoutService.Add( layout );
             }
 

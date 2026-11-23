@@ -687,7 +687,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var selectedView = DefinedValueCache.Get( hfSelectedView.ValueAsInt() );
             if ( selectedView == null )
             {
-                ShowWarning( "View Unavailable", "The selected reservation view could not be found." );
+                ShowSelectedViewUnavailable();
                 return;
             }
 
@@ -745,7 +745,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             if ( selectedView == null )
             {
-                ShowWarning( "View Unavailable", "The selected reservation view could not be found." );
+                ShowSelectedViewUnavailable();
                 return;
             }
 
@@ -1356,6 +1356,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             FilterStartDate = calReservationCalendar.SelectedDates.Count > 0 ? calReservationCalendar.SelectedDates[0] : ( DateTime? ) null;
             FilterEndDate = calReservationCalendar.SelectedDates.Count > 0 ? calReservationCalendar.SelectedDates[calReservationCalendar.SelectedDates.Count - 1] : ( DateTime? ) null;
+        }
+
+        /// <summary>
+        /// Warns that the currently selected view no longer exists and clears what it last rendered. The output
+        /// literals keep their text in view state, so without clearing them the deleted view's old results would
+        /// stay on screen under the warning and look current after a filter change.
+        /// </summary>
+        private void ShowSelectedViewUnavailable()
+        {
+            lOutput.Text = string.Empty;
+            lDebug.Text = string.Empty;
+            lDebug.Visible = false;
+            RenderedViewId = null;
+            RenderedViewHasScript = false;
+
+            ShowWarning( "View Unavailable", "The selected reservation view could not be found." );
         }
 
         /// <summary>

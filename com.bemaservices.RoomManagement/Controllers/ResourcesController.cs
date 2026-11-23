@@ -56,12 +56,14 @@ namespace Rock.Rest.Controllers
     public partial class ResourcesController
     {
         /// <summary>
-        /// Returns the resource tree items the current person is authorized to view.
+        /// Returns the resource tree items the current person is authorized to view. The picker reads the
+        /// tree with a POST, which Rock's <see cref="SecuredAttribute" /> would otherwise treat as an edit,
+        /// so the endpoint asks only for View; each category and resource is still filtered by View below.
         /// </summary>
         /// <param name="options">The tree picker options.</param>
         /// <returns>The authorized resource and category tree items.</returns>
         [HttpPost]
-        [Authenticate, Secured]
+        [Authenticate, Secured( Authorization.VIEW )]
         [System.Web.Http.Route( "api/v2/plugins/com.bemaservices/roommanagement/models/resource/tree" )]
         [RestActionGuid( "eb007a09-7a4e-4773-bd5a-729c8fc61e93" )]
         public IHttpActionResult PostTreeItems(

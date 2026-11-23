@@ -168,6 +168,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <value>The reservation dates.</value>
         private List<DateTime> ReservationDates { get; set; }
 
+        /// <summary>
+        /// Gets or sets the identifier of the view whose Lava was last rendered into the output.
+        /// Used with <see cref="RenderedViewHasScript" /> so a postback can decide between a partial
+        /// update and a page reload without rendering the template an extra time.
+        /// </summary>
+        /// <value>The rendered view identifier, or <c>null</c> if nothing has been rendered yet.</value>
+        private int? RenderedViewId { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the last render of <see cref="RenderedViewId" />
+        /// contained a script tag. Scripts don't run when they arrive through a partial postback,
+        /// so views that emit them must be shown by reloading the page.
+        /// </summary>
+        /// <value><c>true</c> if the last render contained a script tag; otherwise, <c>false</c>.</value>
+        private bool RenderedViewHasScript { get; set; }
+
         #endregion
 
         #region Base ControlMethods
@@ -185,6 +201,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             FilterStartDate = ViewState["FilterStartDate"] as DateTime?;
             FilterEndDate = ViewState["FilterEndDate"] as DateTime?;
             ReservationDates = ViewState["ReservationDates"] as List<DateTime>;
+            RenderedViewId = ViewState["RenderedViewId"] as int?;
+            RenderedViewHasScript = ViewState["RenderedViewHasScript"] as bool? ?? false;
         }
 
         /// <summary>
@@ -308,6 +326,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             ViewState["FilterStartDate"] = FilterStartDate;
             ViewState["FilterEndDate"] = FilterEndDate;
             ViewState["ReservationDates"] = ReservationDates;
+            ViewState["RenderedViewId"] = RenderedViewId;
+            ViewState["RenderedViewHasScript"] = RenderedViewHasScript;
 
             return base.SaveViewState();
         }
@@ -656,7 +676,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Methods
 
         /// <summary>
-        /// Binds the data or reload page.
+        /// Shows the selected view after a filter or view change. Scripts in a partial postback don't run,
+        /// so a view that emits a script tag is shown by reloading the page instead of rebinding in place.
+        /// When the selected view was already rendered on this page, the result of that render decides,
+        /// so the template is only resolved once per postback. A view that hasn't been rendered yet
+        /// (for example, right after switching views) is resolved once without reservations to find out.
         /// </summary>
         private void BindDataOrReloadPage()
         {
@@ -667,18 +691,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 return;
             }
 
-            var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
-            var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
+            var hasJavascript = RenderedViewId == selectedView.Id
+                ? RenderedViewHasScript
+                : ViewEmitsScript( selectedView );
 
-            var mergeFields = new Dictionary<string, object>();
-            mergeFields.Add( "TimeFrame", ViewMode );
-            mergeFields.Add( "FilterStartDate", FilterStartDate );
-            mergeFields.Add( "FilterEndDate", FilterEndDate );
-            mergeFields.Add( "DetailsPage", LinkedPageUrl( "DetailsPage", null ) );
-            mergeFields.Add( "CurrentPerson", CurrentPerson );
-
-            var formattedOutput = lavaTemplate.ResolveMergeFields( mergeFields, lavaCommands );
-            var hasJavascript = formattedOutput.Contains( "<script" );
             if ( hasJavascript )
             {
                 NavigateToCurrentPageReference();
@@ -687,6 +703,29 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 BindData( selectedView );
             }
+        }
+
+        /// <summary>
+        /// Resolves the view's Lava without reservations to see whether it emits a script tag. This is the
+        /// original check, kept for views that haven't been rendered on this page yet.
+        /// </summary>
+        /// <param name="selectedView">The view to check.</param>
+        /// <returns><c>true</c> if the resolved template contains a script tag; otherwise, <c>false</c>.</returns>
+        private bool ViewEmitsScript( DefinedValueCache selectedView )
+        {
+            var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
+            var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
+
+            var mergeFields = new Dictionary<string, object>
+            {
+                { "TimeFrame", ViewMode },
+                { "FilterStartDate", FilterStartDate },
+                { "FilterEndDate", FilterEndDate },
+                { "DetailsPage", LinkedPageUrl( "DetailsPage", null ) },
+                { "CurrentPerson", CurrentPerson }
+            };
+
+            return lavaTemplate.ResolveMergeFields( mergeFields, lavaCommands ).Contains( "<script" );
         }
 
         /// <summary>
@@ -819,6 +858,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
 
             lOutput.Text = lavaTemplate.ResolveMergeFields( mergeFields, lavaCommands );
+
+            // Remember whether this view emits scripts so the next postback can skip a probe render
+            RenderedViewId = selectedView.Id;
+            RenderedViewHasScript = lOutput.Text.Contains( "<script" );
 
             // show debug info
             if ( GetAttributeValue( "EnableDebug" ).AsBoolean() && IsUserAuthorized( Authorization.EDIT ) )

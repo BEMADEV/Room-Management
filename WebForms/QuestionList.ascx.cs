@@ -350,38 +350,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var questionService = new ReservationQuestionService( rockContext );
                 var attributeService = new AttributeService( rockContext );
 
-                // Build a dictionary of all existing resource attribute keys
-                var keyMap = new Dictionary<string, bool>();
-                var originalAttributeList = new List<Rock.Model.Attribute>();
-
-                if ( ResourceId != 0 )
-                {
-                    originalAttributeList = questionService.Queryable().Where( q => q.ResourceId == ResourceId ).Select( q => q.Attribute ).ToList();
-                }
-                else if ( LocationId != 0 )
-                {
-                    originalAttributeList = questionService.Queryable().Where( q => q.LocationId == LocationId ).Select( q => q.Attribute ).ToList();
-                }
-
-                foreach ( var attribute in originalAttributeList )
-                {
-                    keyMap.AddOrReplace( attribute.Key, true );
-                }
-
-                var nextOrder = attributeService.Queryable().AsNoTracking().Count() + 1;
+                // Number the copies after this resource's or location's existing questions, the same way adding a question does
+                var existingAttributes = GetAttributeList();
+                var nextOrder = existingAttributes.Any() ? existingAttributes.Max( a => a.Order ) + 1 : 1;
 
                 // Copy questions from a source Resource..
                 if ( sourceResourceId != null )
                 {
-                    var sourceQuestionList = questionService.Queryable().Where( q => q.ResourceId == sourceResourceId ).ToList();
-                    nextOrder = CopyQuestionAttributes( rockContext, questionService, attributeService, keyMap, nextOrder, sourceQuestionList );
+                    var sourceQuestionList = questionService.Queryable().Where( q => q.ResourceId == sourceResourceId ).OrderBy( q => q.Attribute.Order ).ToList();
+                    nextOrder = CopyQuestionAttributes( rockContext, questionService, attributeService, nextOrder, sourceQuestionList );
                 }
 
                 // Copy questions from a source Location... (as long as the source location is not the same as the location being edited)
                 if ( sourceLocationId != null && sourceLocationId != LocationId )
                 {
-                    var sourceQuestionList = questionService.Queryable().Where( q => q.LocationId == sourceLocationId ).ToList();
-                    nextOrder = CopyQuestionAttributes( rockContext, questionService, attributeService, keyMap, nextOrder, sourceQuestionList );
+                    var sourceQuestionList = questionService.Queryable().Where( q => q.LocationId == sourceLocationId ).OrderBy( q => q.Attribute.Order ).ToList();
+                    nextOrder = CopyQuestionAttributes( rockContext, questionService, attributeService, nextOrder, sourceQuestionList );
                 }
 
                 EntityTypeAttributesCache.Clear();
@@ -397,27 +381,35 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Copies the question attributes to either a resource or a location.
-        /// NOTE: This method calls the SaveChanges() method on the rockContext multiple times.
+        /// Copies the question attributes to either a resource or a location. Each copy is numbered from
+        /// <paramref name="nextOrder" /> and keyed with <see cref="AssignUniqueQuestionKey" />, so copies get the same
+        /// entity-type-wide unique keys as questions added by hand, and their order matches their key.
+        /// NOTE: This method calls the SaveChanges() method on the rockContext multiple times, so each saved copy
+        /// counts as taken when the next one is keyed.
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
         /// <param name="questionService">The question service where the new questions are being added.</param>
         /// <param name="attributeService">The attribute service.</param>
-        /// <param name="keyMap">The key map.</param>
-        /// <param name="nextOrder">The next order.</param>
-        /// <param name="sourceQuestionList">The source question list.</param>
-        /// <returns>System.Int32.</returns>
-        private int CopyQuestionAttributes( RockContext rockContext, ReservationQuestionService questionService, AttributeService attributeService, Dictionary<string, bool> keyMap, int nextOrder, List<ReservationQuestion> sourceQuestionList )
+        /// <param name="nextOrder">The order to try for the first copy.</param>
+        /// <param name="sourceQuestionList">The source questions, in the order they should be copied.</param>
+        /// <returns>The order to try for the next copy.</returns>
+        private int CopyQuestionAttributes( RockContext rockContext, ReservationQuestionService questionService, AttributeService attributeService, int nextOrder, List<ReservationQuestion> sourceQuestionList )
         {
-            // Set the entityType based on the type being edited (resource or location)
+            // Set the entityType and key format based on the type being edited (resource or location)
             var entityTypeId = 0;
+            var keyFormat = string.Empty;
+            var ownerId = 0;
             if ( ResourceId != 0 )
             {
                 entityTypeId = new EntityTypeService( rockContext ).Get( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESERVATION_RESOURCE.AsGuid() ).Id;
+                keyFormat = "Q{0}_ResourceId{1}";
+                ownerId = ResourceId;
             }
             else if ( LocationId != 0 )
             {
                 entityTypeId = new EntityTypeService( rockContext ).Get( com.bemaservices.RoomManagement.SystemGuid.EntityType.RESERVATION_LOCATION.AsGuid() ).Id;
+                keyFormat = "Q{0}_LocationId{1}";
+                ownerId = LocationId;
             }
 
             foreach ( ReservationQuestion question in sourceQuestionList )
@@ -445,20 +437,20 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 cloneAttribute.EntityTypeId = entityTypeId;
                 cloneAttribute.AttributeQualifiers.Clear();
 
-                // Set the cloned question to this resource's Id.
+                // Set the cloned question to this resource's or location's Id.
                 if ( ResourceId != 0 )
                 {
                     cloneQuestion.ResourceId = ResourceId;
-                    cloneAttribute.Key = String.Format( "Q{0}_ResourceId{1}", nextOrder, ResourceId );
-
                 }
                 else if ( LocationId != 0 )
                 {
                     cloneQuestion.LocationId = LocationId;
-                    cloneAttribute.Key = String.Format( "Q{0}_LocationId{1}", nextOrder, LocationId );
                 }
 
-                nextOrder++;
+                // Key the copy after this owner's existing questions, unique across the entity type
+                cloneAttribute.Order = nextOrder;
+                AssignUniqueQuestionKey( cloneAttribute, attributeService, entityTypeId, keyFormat, ownerId, null );
+                nextOrder = cloneAttribute.Order + 1;
 
                 foreach ( var qualifier in question.Attribute.AttributeQualifiers )
                 {
@@ -469,19 +461,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     newQualifier.Attribute = null;
                     newQualifier.AttributeId = 0;
                     cloneAttribute.AttributeQualifiers.Add( newQualifier );
-                }
-
-                // Verify the key is unique
-                string key = cloneAttribute.Key;
-                if ( keyMap.ContainsKey( key ) )
-                {
-                    int count = 0;
-                    while ( keyMap.ContainsKey( key ) )
-                    {
-                        count++;
-                        key = cloneAttribute.Key + count;
-                    }
-                    cloneAttribute.Key = key;
                 }
 
                 attributeService.Add( cloneAttribute );
@@ -658,20 +637,39 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     return newAttribute;
                 }
 
-                do
-                {
-                    newAttribute.Key = String.Format( keyFormat, newAttribute.Order, ownerId );
-                    newAttribute.Order++;
-                }
-                while ( internalAttributeService.Queryable().Any( a =>
-                    a.EntityTypeId == entityTypeId &&
-                    a.Key == newAttribute.Key &&
-                    ( !edtQuestion.AttributeId.HasValue || a.Id != edtQuestion.AttributeId.Value ) ) );
-
-                newAttribute.Order--;
+                AssignUniqueQuestionKey( newAttribute, internalAttributeService, entityTypeId, keyFormat, ownerId, edtQuestion.AttributeId );
             }
 
             return newAttribute;
+        }
+
+        /// <summary>
+        /// Gives a question attribute the first <c>Q{Order}_ResourceId{Id}</c> or <c>Q{Order}_LocationId{Id}</c> key, starting
+        /// at its current <see cref="Rock.Model.Attribute.Order" />, that no other attribute of the same entity type already uses,
+        /// and sets the order to match the key. Keys must be unique across the whole entity type, not just one resource or
+        /// location, because Rock loads attributes by key and silently drops duplicates. Used when adding, editing and copying
+        /// questions so all three number keys the same way.
+        /// </summary>
+        /// <param name="attribute">The question attribute to key. Its order is the first number tried.</param>
+        /// <param name="attributeService">The attribute service used to look for existing keys.</param>
+        /// <param name="entityTypeId">The ReservationResource or ReservationLocation entity type identifier.</param>
+        /// <param name="keyFormat">The key format, with the order as {0} and the owner identifier as {1}.</param>
+        /// <param name="ownerId">The resource or location identifier.</param>
+        /// <param name="excludeAttributeId">The attribute being edited, so its own key doesn't count as taken.</param>
+        private static void AssignUniqueQuestionKey( Rock.Model.Attribute attribute, AttributeService attributeService, int entityTypeId, string keyFormat, int ownerId, int? excludeAttributeId )
+        {
+            // Try each order in turn until the key isn't used by another attribute of this entity type
+            do
+            {
+                attribute.Key = String.Format( keyFormat, attribute.Order, ownerId );
+                attribute.Order++;
+            }
+            while ( attributeService.Queryable().Any( a =>
+                a.EntityTypeId == entityTypeId &&
+                a.Key == attribute.Key &&
+                ( !excludeAttributeId.HasValue || a.Id != excludeAttributeId.Value ) ) );
+
+            attribute.Order--;
         }
 
         /// <summary>

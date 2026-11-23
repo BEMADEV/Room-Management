@@ -175,8 +175,10 @@ namespace RockWeb.Plugins.com_bemadev.RoomReservation
                             nbMessage.Text = "Transfer Success.";
                             nbMessage.Visible = true;
                         }
-                        catch
+                        catch ( Exception ex )
                         {
+                            // Log the failure so it can be diagnosed; the person still gets the short message
+                            this.LogException( ex );
                             nbMessage.NotificationBoxType = NotificationBoxType.Danger;
                             nbMessage.Text = "An error occurred.";
                             nbMessage.Visible = true;

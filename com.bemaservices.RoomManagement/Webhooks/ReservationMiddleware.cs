@@ -80,7 +80,8 @@ namespace com.bemaservices.RoomManagement.Webhooks
 
         /// <summary>
         /// Restricts the calendar feed to reservation types and data views the caller may use. A data view
-        /// must also be a Reservation data view, since its ids are used as reservation ids.
+        /// must also be a Reservation data view, since its ids are used as reservation ids. Person filters given
+        /// by Id are limited to the caller themselves or an administrator; see <see cref="TryGetPersonFilter" />.
         /// </summary>
         /// <param name="context">The OWIN request context.</param>
         /// <param name="reservationCalendarOptions">The requested calendar filters.</param>
@@ -117,24 +118,87 @@ namespace com.bemaservices.RoomManagement.Webhooks
                 }
             }
 
-            var authorizedReservationTypeIds = new List<int>();
-            foreach ( var reservationType in potentialReservationTypeQry )
+            var authorizedReservationTypes = potentialReservationTypeQry
+                .ToList()
+                .Where( rt => rt.IsAuthorized( Rock.Security.Authorization.VIEW, currentPerson ) )
+                .ToList();
+
+            reservationCalendarOptions.ReservationTypeIds = authorizedReservationTypes.Select( rt => rt.Id ).ToList();
+
+            if ( !reservationCalendarOptions.ReservationTypeIds.Any() )
             {
-                if ( reservationType.IsAuthorized( Rock.Security.Authorization.VIEW, currentPerson ) )
+                SendNotAuthorized( context );
+                return false;
+            }
+
+            // The older *personid filters use a guessable person Id, so only the logged-in person themselves, or someone
+            // who can administrate every reservation type in the feed, may use them. The *personguid filters are open to
+            // anyone, since calendar apps subscribe without logging in.
+            var query = context.Request.Query;
+            var personIdsFromIdParameters = PersonFilterPrefixes
+                .Where( prefix => string.IsNullOrWhiteSpace( query.Get( prefix + "guid" ) ) )
+                .Select( prefix => query.Get( prefix + "id" ).AsIntegerOrNull() )
+                .Where( id => id.HasValue )
+                .Select( id => id.Value )
+                .Distinct()
+                .ToList();
+
+            if ( personIdsFromIdParameters.Any() )
+            {
+                var isSelf = currentPerson != null && personIdsFromIdParameters.All( id => id == currentPerson.Id );
+                var isAdmin = currentPerson != null && authorizedReservationTypes.All( rt => rt.IsAuthorized( Rock.Security.Authorization.ADMINISTRATE, currentPerson ) );
+                if ( !isSelf && !isAdmin )
                 {
-                    authorizedReservationTypeIds.Add( reservationType.Id );
+                    SendNotAuthorized( context );
+                    return false;
                 }
             }
 
-            reservationCalendarOptions.ReservationTypeIds = authorizedReservationTypeIds;
+            return true;
+        }
 
-            if ( reservationCalendarOptions.ReservationTypeIds.Any() )
+        /// <summary>
+        /// The person filter parameters, without their "id" or "guid" suffix (for example "creatorperson" for
+        /// creatorpersonid and creatorpersonguid).
+        /// </summary>
+        private static readonly string[] PersonFilterPrefixes =
+        {
+            "approvalsbyperson",
+            "reservationsbyperson",
+            "creatorperson",
+            "eventcontactperson",
+            "administrativecontactperson"
+        };
+
+        /// <summary>
+        /// Reads one person filter from its Guid parameter (for example creatorpersonguid) or, failing that, its older Id
+        /// parameter (creatorpersonid). The Guid is preferred because it can't be guessed, so feeds that use it can be shared
+        /// with calendar apps that subscribe without logging in.
+        /// </summary>
+        /// <param name="query">The request's query string.</param>
+        /// <param name="personService">The person service used to look up the Guid.</param>
+        /// <param name="parameterPrefix">The parameter name without its "id" or "guid" suffix.</param>
+        /// <param name="personId">The person identifier to filter by, or <c>null</c> if neither parameter was given.</param>
+        /// <returns><c>false</c> if a Guid was given that doesn't match a person; otherwise, <c>true</c>.</returns>
+        private static bool TryGetPersonFilter( IReadableStringCollection query, PersonService personService, string parameterPrefix, out int? personId )
+        {
+            personId = query.Get( parameterPrefix + "id" ).AsIntegerOrNull();
+
+            var personGuidValue = query.Get( parameterPrefix + "guid" );
+            if ( string.IsNullOrWhiteSpace( personGuidValue ) )
             {
                 return true;
             }
 
-            SendNotAuthorized( context );
-            return false;
+            var personGuid = personGuidValue.AsGuidOrNull();
+            var person = personGuid.HasValue ? personService.Get( personGuid.Value ) : null;
+            if ( person == null )
+            {
+                return false;
+            }
+
+            personId = person.Id;
+            return true;
         }
 
         /// <summary>
@@ -149,11 +213,45 @@ namespace com.bemaservices.RoomManagement.Webhooks
 
             reservationCalendarOptions.Name = query.Get( "name" ) ?? string.Empty;
 
-            reservationCalendarOptions.ApprovalsByPersonId = query.Get( "approvalsbypersonid" ).AsIntegerOrNull();
-            reservationCalendarOptions.ReservationsByPersonId = query.Get( "reservationsbypersonid" ).AsIntegerOrNull();
-            reservationCalendarOptions.CreatorPersonId = query.Get( "creatorpersonid" ).AsIntegerOrNull();
-            reservationCalendarOptions.EventContactPersonId = query.Get( "eventcontactpersonid" ).AsIntegerOrNull();
-            reservationCalendarOptions.AdministrativeContactPersonId = query.Get( "administrativecontactpersonid" ).AsIntegerOrNull();
+            // Person filters: a *personguid parameter wins over its older *personid parameter. An unknown Guid is a bad
+            // request rather than an ignored filter, which would widen the feed. ValidateSecurity limits the Id parameters.
+            var personService = new PersonService( new RockContext() );
+            int? personId;
+
+            if ( !TryGetPersonFilter( query, personService, "approvalsbyperson", out personId ) )
+            {
+                return null;
+            }
+
+            reservationCalendarOptions.ApprovalsByPersonId = personId;
+
+            if ( !TryGetPersonFilter( query, personService, "reservationsbyperson", out personId ) )
+            {
+                return null;
+            }
+
+            reservationCalendarOptions.ReservationsByPersonId = personId;
+
+            if ( !TryGetPersonFilter( query, personService, "creatorperson", out personId ) )
+            {
+                return null;
+            }
+
+            reservationCalendarOptions.CreatorPersonId = personId;
+
+            if ( !TryGetPersonFilter( query, personService, "eventcontactperson", out personId ) )
+            {
+                return null;
+            }
+
+            reservationCalendarOptions.EventContactPersonId = personId;
+
+            if ( !TryGetPersonFilter( query, personService, "administrativecontactperson", out personId ) )
+            {
+                return null;
+            }
+
+            reservationCalendarOptions.AdministrativeContactPersonId = personId;
             reservationCalendarOptions.DataViewId = query.Get( "dataviewid" ).AsIntegerOrNull();
 
             reservationCalendarOptions.ReservationTypeIds = ( query.Get( "reservationtypeids" ) ?? string.Empty ).SplitDelimitedValues().AsIntegerList();

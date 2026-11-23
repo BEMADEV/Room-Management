@@ -847,10 +847,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                         phEventItemAttributes.Controls.Add( new LiteralControl( String.Format( "<h3>{0}</h3>", Server.HtmlEncode( eventCalendarService.Get( eventCalendarId )?.Name ) ) ) );
                         Rock.Attribute.Helper.AddEditControls( eventCalendarItem, phEventItemAttributes, true, BlockValidationGroup );
                     }
-                    else
-                    {
-                        wpAttributes.Visible = false;
-                    }
+
+                    // No else: the panel starts hidden above, and a later calendar without attributes
+                    // mustn't hide the fields already added for an earlier one
                 }
             }
         }

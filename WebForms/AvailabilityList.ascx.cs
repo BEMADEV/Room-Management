@@ -354,8 +354,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var locationIdList = new List<int>();
                 foreach ( var campusId in cpCampus.SelectedValuesAsInt )
                 {
+                    // A saved filter can still hold a campus that has since been deleted
                     var campusCache = CampusCache.Get( campusId );
-                    if ( campusCache.LocationId != null )
+                    if ( campusCache != null && campusCache.LocationId != null )
                     {
                         locationIdList.AddRange( locationService.GetAllDescendents( campusCache.LocationId.Value ).Select( l => l.Id ) );
                         locationIdList.Add( campusCache.LocationId.Value );

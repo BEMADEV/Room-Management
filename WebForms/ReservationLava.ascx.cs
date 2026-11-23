@@ -1050,15 +1050,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             // Get the first/last dates based on today's date and the viewmode setting
             var today = RockDateTime.Today;
-            var selectedDate = PageParameter( "SelectedDate" ).AsDateTime();
 
-            if ( selectedDate.HasValue )
+            if ( PageParameter( "SelectedDate" ).AsDateTime() != null )
             {
-                today = selectedDate.Value;
-                Session["CalendarVisibleDate"] = today;
+                today = PageParameter( "SelectedDate" ).AsDateTime().Value;
                 calReservationCalendar.VisibleDate = today;
             }
-            else if ( Session["CalendarVisibleDate"] != null )
+
+            // Use the CalendarVisibleDate if it's in session.
+            if ( Session["CalendarVisibleDate"] != null )
             {
                 today = ( DateTime ) Session["CalendarVisibleDate"];
                 calReservationCalendar.VisibleDate = today;

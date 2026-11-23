@@ -1367,7 +1367,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             nbMessage.Heading = heading;
             nbMessage.Text = string.Format( "<p>{0}</p>", message );
-            nbMessage.NotificationBoxType = NotificationBoxType.Danger;
+            nbMessage.NotificationBoxType = NotificationBoxType.Warning;
             nbMessage.Visible = true;
         }
 

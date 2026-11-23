@@ -83,7 +83,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             base.OnInit( e );
 
             rGrid.DataKeyNames = new string[] { "QuestionId" };
-            rGrid.Actions.ShowAdd = true;
+
+            // Offer adding, editing, reordering, deleting and copying only to people who may change these questions
+            var canEdit = CanEditQuestions( ResourceId, LocationId );
+            rGrid.Actions.ShowAdd = canEdit;
+            rGrid.RowClickEnabled = canEdit;
+            var reorderField = rGrid.ColumnsOfType<ReorderField>().FirstOrDefault();
+            if ( reorderField != null )
+            {
+                reorderField.Visible = canEdit;
+            }
+
+            var deleteField = rGrid.ColumnsOfType<DeleteField>().FirstOrDefault();
+            if ( deleteField != null )
+            {
+                deleteField.Visible = canEdit;
+            }
 
             rGrid.Actions.AddClick += rGrid_Add;
             rGrid.GridReorder += rGrid_GridReorder;
@@ -103,6 +118,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             lbCopyQuestions.Text = "<i class='fa fa-clone'></i> Copy Questions From...";
             lbCopyQuestions.ToolTip = "Copies questions from another resource/location to this one.";
             lbCopyQuestions.Click += lbCopyQuestions_Click;
+            lbCopyQuestions.Visible = canEdit;
             rGrid.Actions.AddCustomActionControl( lbCopyQuestions );
         }
 
@@ -155,6 +171,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var question = questionService.Get( e.RowKeyId );
                 if ( question != null )
                 {
+                    // Check the question's own resource or location, so a crafted row key can't delete another owner's question
+                    if ( !CanEditQuestions( question.ResourceId, question.LocationId ) )
+                    {
+                        ShowNotAuthorizedToEdit();
+                        return;
+                    }
+
                     var attribute = question.Attribute;
                     questionService.Delete( question );
                     if ( attribute != null )
@@ -196,6 +219,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="GridReorderEventArgs" /> instance containing the event data.</param>
         protected void rGrid_GridReorder( object sender, GridReorderEventArgs e )
         {
+            if ( !CanEditQuestions( ResourceId, LocationId ) )
+            {
+                ShowNotAuthorizedToEdit();
+                return;
+            }
+
             var rockContext = new RockContext();
             var attributes = GetAttributeList();
             if ( attributes != null )
@@ -232,6 +261,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( questionId != 0 )
             {
                 question = questionService.Get( questionId );
+            }
+
+            // Check the owner being saved to: the existing question's own resource or location, or this page's for a new one
+            var canSave = question != null
+                ? CanEditQuestions( question.ResourceId, question.LocationId )
+                : CanEditQuestions( ResourceId, LocationId );
+            if ( !canSave )
+            {
+                hfIdValue.Value = string.Empty;
+                modalDetails.Hide();
+                ShowNotAuthorizedToEdit();
+                return;
             }
 
             if ( question == null )
@@ -299,6 +340,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         void lbCopyQuestions_Click( object sender, EventArgs e )
         {
+            if ( !CanEditQuestions( ResourceId, LocationId ) )
+            {
+                ShowNotAuthorizedToEdit();
+                return;
+            }
+
             ddlResourceCopySource.Items.Clear();
 
             var rockContext = new RockContext();
@@ -337,6 +384,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void mdCopyQuestions_SaveClick( object sender, EventArgs e )
         {
+            if ( !CanEditQuestions( ResourceId, LocationId ) )
+            {
+                mdCopyQuestions.Hide();
+                ShowNotAuthorizedToEdit();
+                return;
+            }
+
             try
             {
                 var sourceResourceId = ddlResourceCopySource.SelectedValue.AsIntegerOrNull();
@@ -533,6 +587,47 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
+        /// Determines whether the current person may add, edit, reorder, delete or copy questions for a resource or location:
+        /// they need Edit on this block or Edit on the resource (or location) that owns the questions, matching the Resource
+        /// Detail and Location Layout List rules. The grid uses this to show its editing controls, and every handler that
+        /// changes questions checks it again on the server, against the question's own owner where there is one.
+        /// </summary>
+        /// <param name="resourceId">The owning resource identifier, or <c>null</c>/0 if the questions belong to a location.</param>
+        /// <param name="locationId">The owning location identifier, used when there is no resource.</param>
+        /// <returns><c>true</c> if the current person may change the questions; otherwise, <c>false</c>.</returns>
+        private bool CanEditQuestions( int? resourceId, int? locationId )
+        {
+            if ( UserCanEdit )
+            {
+                return true;
+            }
+
+            var rockContext = new RockContext();
+            if ( resourceId.HasValue && resourceId.Value != 0 )
+            {
+                var resource = new ResourceService( rockContext ).Get( resourceId.Value );
+                return resource != null && resource.IsAuthorized( Authorization.EDIT, CurrentPerson );
+            }
+
+            if ( locationId.HasValue && locationId.Value != 0 )
+            {
+                var location = new LocationService( rockContext ).Get( locationId.Value );
+                return location != null && location.IsAuthorized( Authorization.EDIT, CurrentPerson );
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Tells the person they aren't allowed to change these questions.
+        /// </summary>
+        private void ShowNotAuthorizedToEdit()
+        {
+            nbMessage.Text = "You are not authorized to change these questions.";
+            nbMessage.Visible = true;
+        }
+
+        /// <summary>
         /// Shows the edit.
         /// </summary>
         /// <param name="questionId">The question identifier.</param>
@@ -548,6 +643,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 question = new ReservationQuestion();
                 question.Attribute = new Rock.Model.Attribute();
                 question.Attribute.FieldTypeId = FieldTypeCache.Get( Rock.SystemGuid.FieldType.TEXT ).Id;
+            }
+
+            // Hidden add buttons and disabled row clicks don't stop a crafted postback, so check before opening the editor
+            var canEdit = questionId.HasValue
+                ? question != null && CanEditQuestions( question.ResourceId, question.LocationId )
+                : CanEditQuestions( ResourceId, LocationId );
+            if ( !canEdit )
+            {
+                ShowNotAuthorizedToEdit();
+                return;
             }
 
             var reservedKeyNames = new List<string>();

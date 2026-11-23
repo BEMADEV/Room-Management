@@ -1187,7 +1187,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     var reservation = new ReservationService( rockContext ).Get( hfReservationId.ValueAsInt() );
                     var reservationWorkflowTrigger = new ReservationWorkflowTriggerService( rockContext ).Get( e.CommandArgument.ToString().AsInteger() );
-                    if ( reservation != null && reservationWorkflowTrigger != null && reservationWorkflowTrigger.WorkflowType.IsAuthorized( Authorization.VIEW, CurrentPerson ) )
+
+                    // Only launch what the button list offers: a manual trigger of this reservation's type whose workflow type
+                    // still exists and is viewable (the trigger id comes back from the browser, so check it here too)
+                    var canLaunch = reservation != null &&
+                        reservationWorkflowTrigger != null &&
+                        reservationWorkflowTrigger.ReservationTypeId == reservation.ReservationTypeId &&
+                        reservationWorkflowTrigger.TriggerType == com.bemaservices.RoomManagement.Model.ReservationWorkflowTriggerType.Manual &&
+                        reservationWorkflowTrigger.WorkflowType != null &&
+                        reservationWorkflowTrigger.WorkflowType.IsAuthorized( Authorization.VIEW, CurrentPerson );
+                    if ( canLaunch )
                     {
                         LaunchWorkflow( rockContext, reservation, reservationWorkflowTrigger );
                     }
@@ -3077,12 +3086,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="reservationWorkflowTrigger">The reservation workflow trigger.</param>
         private void LaunchWorkflow( RockContext rockContext, Reservation reservation, ReservationWorkflowTrigger reservationWorkflowTrigger )
         {
-            if ( reservation != null && reservationWorkflowTrigger != null )
+            // The trigger's workflow type is optional in the database and may have been removed
+            if ( reservation != null && reservationWorkflowTrigger != null && reservationWorkflowTrigger.WorkflowTypeId.HasValue )
             {
                 var workflowType = WorkflowTypeCache.Get( reservationWorkflowTrigger.WorkflowTypeId.Value );
                 if ( workflowType != null && ( workflowType.IsActive ?? true ) )
                 {
-                    var workflow = Rock.Model.Workflow.Activate( workflowType, reservationWorkflowTrigger.WorkflowType.WorkTerm, rockContext );
+                    var workflow = Rock.Model.Workflow.Activate( workflowType, workflowType.WorkTerm, rockContext );
                     if ( workflow != null )
                     {
                         var workflowService = new Rock.Model.WorkflowService( rockContext );

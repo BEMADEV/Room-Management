@@ -105,11 +105,15 @@ namespace com.bemaservices.RoomManagement.Jobs
         }
 
         /// <summary>
-        /// Updates missing occurrence timestamps for reservations and logs failures per reservation.
+        /// Updates missing occurrence timestamps for reservations. One failing reservation doesn't stop the rest.
+        /// Failures are logged as a single exception per run, since the same reservations keep failing every
+        /// night until their schedules are fixed and one entry per reservation would flood the exception log.
         /// </summary>
         private void PopulateOccurrenceData( )
         {
             List<int> reservationIdList = new List<int>();
+            var failedReservationIds = new List<int>();
+            Exception firstFailure = null;
             _reservationRecordsUpdated = 0;
             _reservationRecordsRead = 0;
             _reservationRecordsFailed = 0;
@@ -146,10 +150,21 @@ namespace com.bemaservices.RoomManagement.Jobs
                 catch ( Exception ex )
                 {
                     _reservationRecordsFailed++;
-                    ExceptionLogService.LogException(
-                        new Exception( string.Format( "Failed to populate occurrence timestamps for reservation {0}.", reservationId ), ex ),
-                        System.Web.HttpContext.Current );
+                    failedReservationIds.Add( reservationId );
+                    firstFailure = firstFailure ?? ex;
                 }
+            }
+
+            // Log one summary for the run, with the first error attached for its stack trace
+            if ( failedReservationIds.Any() )
+            {
+                const int maxListedIds = 25;
+                var listedIds = string.Join( ", ", failedReservationIds.Take( maxListedIds ) );
+                var moreIds = failedReservationIds.Count > maxListedIds ? string.Format( " and {0} more", failedReservationIds.Count - maxListedIds ) : string.Empty;
+
+                ExceptionLogService.LogException(
+                    new Exception( string.Format( "Failed to populate occurrence timestamps for {0} reservation(s): {1}{2}.", failedReservationIds.Count, listedIds, moreIds ), firstFailure ),
+                    System.Web.HttpContext.Current );
             }
         }
     }

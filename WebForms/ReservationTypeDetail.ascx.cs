@@ -1060,12 +1060,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 reservationWorkflowTrigger = new ReservationWorkflowTrigger();
             }
-            try
+            // The workflow type is required in the dialog, but that's only enforced in the browser
+            var workflowTypeId = ddlWorkflowType.SelectedValueAsId();
+            if ( !workflowTypeId.HasValue )
             {
-                reservationWorkflowTrigger.WorkflowType = new WorkflowTypeService( new RockContext() ).Get( ddlWorkflowType.SelectedValueAsId().Value );
+                return;
             }
-            catch { }
-            reservationWorkflowTrigger.WorkflowTypeId = ddlWorkflowType.SelectedValueAsId().Value;
+
+            reservationWorkflowTrigger.WorkflowType = new WorkflowTypeService( new RockContext() ).Get( workflowTypeId.Value );
+            reservationWorkflowTrigger.WorkflowTypeId = workflowTypeId.Value;
             reservationWorkflowTrigger.TriggerType = ddlTriggerType.SelectedValueAsEnum<com.bemaservices.RoomManagement.Model.ReservationWorkflowTriggerType>();
             reservationWorkflowTrigger.QualifierValue = String.Format( "|{0}|{1}|", ddlPrimaryQualifier.SelectedValue, ddlSecondaryQualifier.SelectedValue );
             if ( !reservationWorkflowTrigger.IsValid )

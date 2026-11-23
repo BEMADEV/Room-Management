@@ -136,9 +136,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnSave_Click( object sender, EventArgs e )
         {
-            SaveResource();
-
-            if ( Page.IsValid )
+            if ( SaveResource() )
             {
                 NavigateToParentPage();
             }
@@ -151,20 +149,21 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnSaveThenAdd_Click( object sender, EventArgs e )
         {
-            SaveResource();
-
-            if ( Page.IsValid )
+            if ( !SaveResource() )
             {
-                ShowDetail( 0, resetCampus: false );
+                return;
             }
+
+            ShowDetail( 0, resetCampus: false );
             nbSaveMessage.Text = "Resource saved.";
             nbErrorMessage.Visible = true;
         }
 
         /// <summary>
-        /// Saves the resource.
+        /// Saves the resource, if the page is valid and the current person may edit it.
         /// </summary>
-        private void SaveResource()
+        /// <returns><c>true</c> if the resource was saved; otherwise, <c>false</c>.</returns>
+        private bool SaveResource()
         {
             if ( Page.IsValid )
             {
@@ -186,6 +185,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     // load existing resource
                     resource = resourceService.Get( resourceId );
+                }
+
+                // Hiding the Save buttons isn't enough; a crafted postback can still reach this handler
+                if ( resource == null || !CanEditResource( resource ) )
+                {
+                    ShowNotAuthorizedToEdit();
+                    return false;
                 }
 
                 resource.Name = tbName.Text;
@@ -216,7 +222,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
                 if ( !Page.IsValid )
                 {
-                    return;
+                    return false;
                 }
 
                 // using WrapTransaction because there are three Saves
@@ -250,8 +256,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                             rockContext.SaveChanges();
                         }
                     }
-                } );                
+                } );
+
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
@@ -278,6 +288,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var resource = resourceService.Get( PageParameter( "ResourceId" ).AsInteger() );
                 if ( resource != null )
                 {
+                    // Hiding the Delete button isn't enough; a crafted postback can still reach this handler
+                    if ( !CanEditResource( resource ) )
+                    {
+                        mdDeleteWarning.Show( "You are not authorized to delete this resource.", Rock.Web.UI.Controls.ModalAlertType.Information );
+                        return;
+                    }
+
                     string errorMessage;
                     if ( !resourceService.CanDelete( resource, out errorMessage ) )
                     {
@@ -381,19 +398,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             hfResourceId.Value = resource.Id.ToString();
 
-            // render UI based on Authorized and IsSystem
-            bool readOnly = false;
-
-            if ( resource.Id.Equals( 0 ) )
+            // render UI based on Authorized
+            bool readOnly = !CanEditResource( resource );
+            if ( readOnly )
             {
-                btnSaveThenAdd.Visible = true;
-            }
-            else
-            {
-                btnSaveThenAdd.Visible = false;
+                ShowNotAuthorizedToEdit();
             }
 
+            btnSaveThenAdd.Visible = resource.Id.Equals( 0 ) && !readOnly;
             btnSave.Visible = !readOnly;
+            btnDelete.Visible = btnDelete.Visible && !readOnly;
 
             tbName.Text = resource.Name;
             cbIsActive.Checked = resource.IsActive;
@@ -408,6 +422,29 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             gpApprovalGroup.SetValue( resource.ApprovalGroupId );
             fuPhoto.BinaryFileId = resource.PhotoId;
 
+        }
+
+        /// <summary>
+        /// Determines whether the current person may add, edit or delete the resource: they need Edit on this block or
+        /// Edit on the resource itself. <see cref="ShowDetail(int, bool)" /> uses this to hide the save and delete buttons,
+        /// and the save and delete handlers check it again on the server, since hidden buttons don't stop a crafted postback.
+        /// </summary>
+        /// <param name="resource">The resource, or a new unsaved one when adding.</param>
+        /// <returns><c>true</c> if the current person may change the resource; otherwise, <c>false</c>.</returns>
+        private bool CanEditResource( Resource resource )
+        {
+            return UserCanEdit || resource.IsAuthorized( Authorization.EDIT, CurrentPerson );
+        }
+
+        /// <summary>
+        /// Tells the person they can view the resource but not change it.
+        /// </summary>
+        private void ShowNotAuthorizedToEdit()
+        {
+            nbErrorMessage.NotificationBoxType = Rock.Web.UI.Controls.NotificationBoxType.Info;
+            nbErrorMessage.Title = string.Empty;
+            nbErrorMessage.Text = EditModeMessage.ReadOnlyEditActionNotAllowed( Resource.FriendlyTypeName );
+            nbErrorMessage.Visible = true;
         }
 
         /// <summary>

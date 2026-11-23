@@ -497,6 +497,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var rockContext = new RockContext();
                 var eventItemService = new EventItemService( rockContext );
                 var eventItem = eventItemService.Get( eipSelectedEvent.SelectedValueAsId().Value );
+
+                // The picked event may have been deleted since the picker loaded
+                if ( eventItem == null )
+                {
+                    return;
+                }
+
                 var eventItemOccurrences = eventItem.EventItemOccurrences;
                 if ( eventItemOccurrences.Any() )
                 {
@@ -740,11 +747,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     if ( reservation != null )
                     {
                         workflow.SetAttributeValue( "Reservation", reservation.Guid );
-                    }
 
-                    if ( reservation.EventItemOccurrence != null )
-                    {
-                        workflow.SetAttributeValue( "EventItemOccurrenceGuid", reservation.EventItemOccurrence.Guid );
+                        if ( reservation.EventItemOccurrence != null )
+                        {
+                            workflow.SetAttributeValue( "EventItemOccurrenceGuid", reservation.EventItemOccurrence.Guid );
+                        }
                     }
 
                     // launch workflow
@@ -833,7 +840,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     if ( eventCalendarItem.Attributes.Count > 0 )
                     {
                         wpAttributes.Visible = true;
-                        phEventItemAttributes.Controls.Add( new LiteralControl( String.Format( "<h3>{0}</h3>", eventCalendarService.Get( eventCalendarId ).Name ) ) );
+                        // The calendar could be deleted mid-wizard; its name is also encoded since it goes straight into the markup
+                        phEventItemAttributes.Controls.Add( new LiteralControl( String.Format( "<h3>{0}</h3>", Server.HtmlEncode( eventCalendarService.Get( eventCalendarId )?.Name ) ) ) );
                         Rock.Attribute.Helper.AddEditControls( eventCalendarItem, phEventItemAttributes, true, BlockValidationGroup );
                     }
                     else
@@ -948,8 +956,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( calendarGuid != null )
             {
                 var calendarService = new EventCalendarService( rockContext );
+                // The Default Calendar setting can still point at a calendar that has since been deleted
                 var calendar = calendarService.Get( calendarGuid.Value );
-                defaultCalendarId = calendar.Id;
+                defaultCalendarId = calendar?.Id ?? -1;
             }
 
             cblCalendars.Items.Clear();

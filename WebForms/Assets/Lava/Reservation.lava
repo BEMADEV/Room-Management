@@ -61,6 +61,7 @@
 			{% assign totalItems = 1 %}
 			{% assign approvedItems = 0 %}
 			{% assign approvalNeededBy = "" %}
+			{% comment %}Names in approvalNeededBy are escaped twice: once for the data-content attribute, once because the popover renders it as HTML{% endcomment %}
 
 			{% if reservationSummary.ApprovalState == 'Unapproved' %}
 				{% assign textclass = 'text-warning' %}
@@ -89,7 +90,7 @@
 						<li>{{ reservationLocation.Location.Name }}{% if reservationLocation.ApprovalState == 2 %}{% assign approvedItems = approvedItems|Plus:1 %} <i class="fa fa-check"></i>
 							{% else %}
 							{% assign approvalGroup = reservationLocation.Location | Attribute:'ApprovalGroup','Object' %}
-							{% capture linkToApprover %}<li><a href='/Group/{{approvalGroup.Id}}'>{{approvalGroup.Name}}</a> for {{reservationLocation.Location.Name}} </li>{% endcapture %}{% assign approvalNeededBy = approvalNeededBy | Append:linkToApprover %}
+							{% capture linkToApprover %}<li><a href='/Group/{{approvalGroup.Id}}'>{{ approvalGroup.Name | Escape | Escape }}</a> for {{ reservationLocation.Location.Name | Escape | Escape }} </li>{% endcapture %}{% assign approvalNeededBy = approvalNeededBy | Append:linkToApprover %}
 							{% endif %}
 							{% if reservationLocation.LocationLayoutId != null %}
 							{% assign layout = reservationLocation.LocationLayout %}
@@ -116,7 +117,7 @@
   						{% assign totalItems = reservationSummary.Resources | Size | Plus: totalItems %}
 						{% for reservationResource in reservationSummary.Resources %}
 						<li>{{ reservationResource.Resource.Name }}{% if reservationResource.Quantity != null %}({{reservationResource.Quantity}}){% endif %} {% if reservationResource.ApprovalState == 2 %}{% assign approvedItems = approvedItems|Plus:1 %} <i class="fa fa-check"></i>
-							{% else %}{% capture linkToApprover %}<li><a href='/Group/{{reservationResource.Resource.ApprovalGroupId}}'>{{reservationResource.Resource.ApprovalGroup.Name}}</a> for {{reservationResource.Resource.Name}}</li>{% endcapture %}{% assign approvalNeededBy = approvalNeededBy | Append:linkToApprover %}
+							{% else %}{% capture linkToApprover %}<li><a href='/Group/{{reservationResource.Resource.ApprovalGroupId}}'>{{ reservationResource.Resource.ApprovalGroup.Name | Escape | Escape }}</a> for {{ reservationResource.Resource.Name | Escape | Escape }}</li>{% endcapture %}{% assign approvalNeededBy = approvalNeededBy | Append:linkToApprover %}
 							{% endif %}
 						</li>
 						{% endfor %}

@@ -380,7 +380,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 .GroupBy( r => r.LocationId.Value )
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Select( r => r.Name + " (" + r.Quantity + ")" ).ToList().AsDelimited( "</br>" ) );
+                    g => g.Select( r => Server.HtmlEncode( r.Name ) + " (" + r.Quantity + ")" ).ToList().AsDelimited( "</br>" ) );
 
             var reservationQueryOptions = new ReservationQueryOptions();
             reservationQueryOptions.ApprovalStates = new List<ReservationApprovalState> {
@@ -407,7 +407,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 .ToDictionary( g => g.Key, g => g.Select( x => x.ReservationSummary ).ToList() );
 
             // Bind to Grid
-            gLocations.DataSource = locationList.Select( l =>
+            gLocations.DataSource = locationList.OrderBy( l => l.Name ).Select( l =>
             {
                 var locationReservations = reservationSummariesByLocationId.ContainsKey( l.Id )
                     ? reservationSummariesByLocationId[l.Id]
@@ -420,17 +420,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 return new
                 {
                     Id = l.Id,
+                    // These columns render HTML, so encode the names they contain
                     Name = String.Format( "{0}<small>{1}{2}</small>",
-                                l.Name,
+                                Server.HtmlEncode( l.Name ),
                                 locationResourceText.IsNotNullOrWhiteSpace() ? "</br>" : String.Empty,
                                 locationResourceText ),
                     MaxOccupants = l.FirmRoomThreshold,
                     IsAvailable = !locationReservations.Any(),
                     Availability = locationReservations.Any()
-                        ? locationReservations.Select( r => r.ReservationName + "</br>" + r.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" )
+                        ? locationReservations.Select( r => Server.HtmlEncode( r.ReservationName ) + "</br>" + r.ReservationDateTimeDescription ).ToList().AsDelimited( "</br></br>" )
                         : "Available"
                 };
-            } ).OrderBy( l => l.Name ).ToList();
+            } ).ToList();
             gLocations.EntityTypeId = EntityTypeCache.Get<Location>().Id;
             gLocations.DataBind();
         }
@@ -494,12 +495,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reservationDetailsByResourceId = reservationSummaryList
                 .SelectMany( reservation => reservation.ReservationResources
                     .Where( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied )
-                    .Select( rr => new { rr.ResourceId, Text = reservation.ReservationName + "</br>" + reservation.ReservationDateTimeDescription } ) )
+                    .Select( rr => new { rr.ResourceId, Text = Server.HtmlEncode( reservation.ReservationName ) + "</br>" + reservation.ReservationDateTimeDescription } ) )
                 .GroupBy( x => x.ResourceId )
                 .ToDictionary( g => g.Key, g => g.Select( x => x.Text ).ToList().AsDelimited( "</br></br>" ) );
 
             // Bind to Grid
-            gResources.DataSource = resourceList.Select( resource =>
+            gResources.DataSource = resourceList.OrderBy( r => r.Name ).Select( resource =>
             {
                 var reservedResources = reservedQuantityByResourceId.ContainsKey( resource.Id )
                     ? reservedQuantityByResourceId[resource.Id]
@@ -512,17 +513,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 return new
                 {
                     Id = resource.Id,
-                    Name = resource.Name,
+
+                    // The Name template and Availability column render HTML, so encode the names they contain
+                    Name = Server.HtmlEncode( resource.Name ),
                     // GetFile ignores size parameters; the room-management-availability-photo CSS class sizes the thumbnail
                     PhotoUrl = Resource.GetPhotoUrl( resource ),
                     Campus = resource.Campus,
-                    LocationName = ( resource.Location == null ) ? "" : resource.Location.Name,
+                    LocationName = ( resource.Location == null ) ? "" : Server.HtmlEncode( resource.Location.Name ),
                     IsAvailable = !resource.Quantity.HasValue ? true : ( resource.Quantity - reservedResources > 0 ),
                     Availability = ( !resource.Quantity.HasValue || resource.Quantity - reservedResources > 0 )
                         ? String.Format( "{0} Available", resource.Quantity - reservedResources )
                         : resourceAvailabilityText
                 };
-            } ).OrderBy( l => l.Name ).ToList();
+            } ).ToList();
             gResources.EntityTypeId = EntityTypeCache.Get<Resource>().Id;
             gResources.DataBind();
         }

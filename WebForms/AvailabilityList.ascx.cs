@@ -512,7 +512,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     Id = resource.Id,
                     Name = resource.Name,
-                    PhotoUrl = Resource.GetPhotoUrl( resource, 200, 200 ),
+                    // GetFile ignores size parameters; the room-management-availability-photo CSS class sizes the thumbnail
+                    PhotoUrl = Resource.GetPhotoUrl( resource ),
                     Campus = resource.Campus,
                     LocationName = ( resource.Location == null ) ? "" : resource.Location.Name,
                     IsAvailable = !resource.Quantity.HasValue ? true : ( resource.Quantity - reservedResources > 0 ),

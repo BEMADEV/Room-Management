@@ -723,11 +723,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Reservation Event Occurrence  Methods
 
         /// <summary>
-        /// Starts the workflow.
+        /// Launches the block's Completion Workflow, if one is set, after the wizard links the reservation to an event
+        /// occurrence. The workflow gets the reservation and the occurrence that was just linked.
         /// </summary>
-        /// <param name="rockContext">The workflow service.</param>
-        /// <param name="reservation">The reservation.</param>
-        protected void LaunchPostWizardWorkflow( RockContext rockContext, Reservation reservation )
+        /// <param name="rockContext">The rock context.</param>
+        /// <param name="reservation">The linked reservation.</param>
+        /// <param name="eventItemOccurrence">The event occurrence it was linked to.</param>
+        protected void LaunchPostWizardWorkflow( RockContext rockContext, Reservation reservation, EventItemOccurrence eventItemOccurrence )
         {
             //Set Completion Workflow
             var workFlowGuid = GetAttributeValue( AttributeKey.CompletionWorkflow ).AsGuidOrNull();
@@ -747,11 +749,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     if ( reservation != null )
                     {
                         workflow.SetAttributeValue( "Reservation", reservation.Guid );
+                    }
 
-                        if ( reservation.EventItemOccurrence != null )
-                        {
-                            workflow.SetAttributeValue( "EventItemOccurrenceGuid", reservation.EventItemOccurrence.Guid );
-                        }
+                    // Use the occurrence just linked; Reservation.EventItemOccurrence is an older, separate field
+                    if ( eventItemOccurrence != null )
+                    {
+                        workflow.SetAttributeValue( "EventItemOccurrenceGuid", eventItemOccurrence.Guid );
                     }
 
                     // launch workflow
@@ -1227,10 +1230,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                             result.ReservationId = reservation.Id.ToString();
                             result.ReservationName = reservation.Name;
 
+                            // Only a completed linkage launches the Completion Workflow
+                            LaunchPostWizardWorkflow( rockContext, reservation, eventItemOccurrence );
                         }
                     }
-
-                    LaunchPostWizardWorkflow( rockContext, reservation );
                 }
             }
 

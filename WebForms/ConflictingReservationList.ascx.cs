@@ -455,13 +455,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     entityId = PageParameter( relatedEntity ).AsIntegerOrNull();
 
-                    if ( entityId != null && RelatedEntities.EventItemOccurrenceId.ToString() == relatedEntity )
+                    // Tell an unsupported setting apart from a supported one whose value is missing from the URL
+                    if ( RelatedEntities.EventItemOccurrenceId.ToString() != relatedEntity )
                     {
-                        qry = qry.Where( r => r.ReservationLinkages.Any( rl => rl.EventItemOccurrenceId == entityId ) );
+                        ShowMessage( string.Format( "Unsupported Related Entity QueryString Parameter '{0}'", relatedEntity ) );
+                    }
+                    else if ( entityId == null )
+                    {
+                        ShowMessage( string.Format( "No event occurrence was found for the '{0}' query string parameter.", relatedEntity ) );
                     }
                     else
                     {
-                        ShowMessage( string.Format( "Unsupported Related Entity QueryString Parameter '{0}'", relatedEntity ) );
+                        qry = qry.Where( r => r.ReservationLinkages.Any( rl => rl.EventItemOccurrenceId == entityId ) );
                     }
                 }
 

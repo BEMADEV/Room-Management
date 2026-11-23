@@ -186,7 +186,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 EventEndDateTime = r.EventEndDateTime,
                 ReservationStartDateTime = r.ReservationStartDateTime,
                 ReservationEndDateTime = r.ReservationEndDateTime,
-                EventDateTimeDescription = r.EventTimeDescription.Replace( "a", " AM" ).Replace( "p", " PM" ),
+                EventDateTimeDescription = FormatEventTime( r.EventStartDateTime, r.EventEndDateTime ),
                 ReservationDateTimeDescription = r.ReservationTimeDescription,
                 SetupPhotoId = r.SetupPhotoId,
                 Note = r.Note,
@@ -235,12 +235,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             reservationQueryOptions.LocationIds = new List<int> { locationId };
 
             // Filter by Approval
-            List<ReservationApprovalState> approvalValues = new List<ReservationApprovalState>();
-            approvalValues.Add( ReservationApprovalState.Approved );
-            if ( approvalValues.Any() )
-            {
-                reservationQueryOptions.ApprovalStates = approvalValues;
-            }
+            reservationQueryOptions.ApprovalStates = new List<ReservationApprovalState> { ReservationApprovalState.Approved };
 
             // Filter by Time
             var today = RockDateTime.Today;
@@ -251,6 +246,28 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             var reservationSummaryList = qry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, true );
             return reservationSummaryList;
+        }
+
+        /// <summary>
+        /// Formats an event's times for the kiosk with a spaced AM/PM ("09:00 AM - 10:30 AM"), adding the dates when the
+        /// event spans days, in the same layout as the shared time description. The kiosk used to get this by replacing every
+        /// "a" and "p" in that description, which breaks for any other text containing those letters.
+        /// </summary>
+        /// <param name="startDateTime">The event start.</param>
+        /// <param name="endDateTime">The event end.</param>
+        /// <returns>The formatted event times.</returns>
+        private static string FormatEventTime( DateTime startDateTime, DateTime endDateTime )
+        {
+            if ( startDateTime.Date == endDateTime.Date )
+            {
+                return string.Format( "{0} - {1}", startDateTime.ToString( "hh:mm tt" ), endDateTime.ToString( "hh:mm tt" ) );
+            }
+
+            return string.Format( "{0} {1} - {2} {3}",
+                startDateTime.ToString( "MM/dd/yy" ),
+                startDateTime.ToString( "hh:mm tt" ),
+                endDateTime.ToString( "MM/dd/yy" ),
+                endDateTime.ToString( "hh:mm tt" ) );
         }
 
         /// <summary>

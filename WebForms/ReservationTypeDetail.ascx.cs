@@ -1257,34 +1257,23 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
-        /// Binds the connection workflows grid.
+        /// Binds the workflow triggers grid, ordered by workflow type and then trigger. A trigger whose workflow type has
+        /// been deleted is shown as missing rather than breaking the page, so it can be found and removed.
         /// </summary>
         private void BindReservationWorkflowTriggersGrid()
         {
-            SetReservationWorkflowTriggerListOrder( ReservationWorkflowTriggersState );
-            gWorkflowTriggers.DataSource = ReservationWorkflowTriggersState.Select( c => new
-            {
-                c.Id,
-                c.Guid,
-                WorkflowType = c.WorkflowType.Name,
-                Trigger = c.TriggerType.ConvertToString()
-            } ).ToList();
-            gWorkflowTriggers.DataBind();
-        }
-
-        /// <summary>
-        /// Sets the connection workflow list order.
-        /// </summary>
-        /// <param name="reservationWorkflowTriggerList">The connection workflow list.</param>
-        private void SetReservationWorkflowTriggerListOrder( List<ReservationWorkflowTrigger> reservationWorkflowTriggerList )
-        {
-            if ( reservationWorkflowTriggerList != null )
-            {
-                if ( reservationWorkflowTriggerList.Any() )
+            gWorkflowTriggers.DataSource = ReservationWorkflowTriggersState
+                .Select( c => new
                 {
-                    reservationWorkflowTriggerList.OrderBy( c => c.WorkflowType.Name ).ThenBy( c => c.TriggerType.ConvertToString() ).ToList();
-                }
-            }
+                    c.Id,
+                    c.Guid,
+                    WorkflowType = c.WorkflowType != null ? c.WorkflowType.Name : "(Missing Workflow Type)",
+                    Trigger = c.TriggerType.ConvertToString()
+                } )
+                .OrderBy( c => c.WorkflowType )
+                .ThenBy( c => c.Trigger )
+                .ToList();
+            gWorkflowTriggers.DataBind();
         }
 
         #endregion

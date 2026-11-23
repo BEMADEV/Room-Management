@@ -449,6 +449,26 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
+        /// Gets the most of a resource in use at any one moment. Walks through every booking's start (+quantity) and end
+        /// (-quantity) in time order, keeping a running total; at the same moment, ends are counted before starts, so a
+        /// booking that ends exactly when another starts doesn't overlap it, matching the reservation conflict checks.
+        /// </summary>
+        /// <param name="quantityChanges">Each booking's start time with its quantity and end time with its negative quantity.</param>
+        /// <returns>The peak quantity in use, or 0 if there are no bookings.</returns>
+        private static int GetPeakQuantity( IEnumerable<KeyValuePair<DateTime, int>> quantityChanges )
+        {
+            var inUse = 0;
+            var peak = 0;
+            foreach ( var change in quantityChanges.OrderBy( c => c.Key ).ThenBy( c => c.Value ) )
+            {
+                inUse += change.Value;
+                peak = Math.Max( peak, inUse );
+            }
+
+            return peak;
+        }
+
+        /// <summary>
         /// Binds the resources grid.
         /// </summary>
         private void BindResourcesGrid()
@@ -497,15 +517,28 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 .Where( reservationSummary =>
                     ( reservationSummary.ReservationStartDateTime > filterStartDateTime || reservationSummary.ReservationEndDateTime > filterStartDateTime ) &&
                     ( reservationSummary.ReservationStartDateTime < filterEndDateTime || reservationSummary.ReservationEndDateTime < filterEndDateTime ) )
-                .DistinctBy( reservationSummary => reservationSummary.Id )
                 .ToList();
 
+            // Each occurrence books its quantity from its start to its end (setup and cleanup included); availability
+            // is based on the most of each resource in use at any one time, not the total across the whole window
             var reservedQuantityByResourceId = reservationSummariesInWindow
                 .SelectMany( reservationSummary => reservationSummary.ReservationResources
                     .Where( rr => rr.Quantity.HasValue && rr.ApprovalState != ReservationResourceApprovalState.Denied )
-                    .Select( rr => new { rr.ResourceId, Quantity = rr.Quantity.Value } ) )
-                .GroupBy( x => x.ResourceId )
-                .ToDictionary( g => g.Key, g => g.Sum( x => x.Quantity ) );
+                    .Select( rr => new
+                    {
+                        rr.ResourceId,
+                        Quantity = rr.Quantity.Value,
+                        Start = reservationSummary.ReservationStartDateTime,
+                        End = reservationSummary.ReservationEndDateTime
+                    } ) )
+                .GroupBy( booking => booking.ResourceId )
+                .ToDictionary(
+                    g => g.Key,
+                    g => GetPeakQuantity( g.SelectMany( booking => new[]
+                    {
+                        new KeyValuePair<DateTime, int>( booking.Start, booking.Quantity ),
+                        new KeyValuePair<DateTime, int>( booking.End, -booking.Quantity )
+                    } ) ) );
 
             var reservationDetailsByResourceId = reservationSummaryList
                 .SelectMany( reservation => reservation.ReservationResources

@@ -42,14 +42,17 @@
                     {{ reservationLocation.Location.Name }}{% if reservationLocation.ApprovalState == 2 %} <i class="fa fa-check"></i>{% endif %}
                     {% if reservationLocation.LocationLayoutId != null %}
                     {% assign layout = reservationLocation.LocationLayout %}
+                    {% comment %}Escaped twice: once for the attribute, once because the popover renders it as HTML{% endcomment %}
+                    {% assign layoutName = layout.Name | Escape | Escape %}
+                    {% assign layoutDescription = layout.Description | Escape | Escape %}
                     <i class="fa fa-info-circle"
                     data-toggle="popover"
                     data-html="true"
                     data-trigger="hover click focus"
                     data-delay="{&quot;hide&quot;: 1500}"
                     data-placement="right"
-                    title="{{layout.Name}}" data-content="
-                      <p>{{layout.Description}}</p>{% if layout.LayoutPhotoId %}
+                    title="{{layoutName}}" data-content="
+                      <p>{{layoutDescription}}</p>{% if layout.LayoutPhotoId %}
                       <a href='/GetFile.ashx?id={{layout.LayoutPhotoId}}' target='_blank'>
                         <img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}' class='room-management-layout-photo' />
                       </a>

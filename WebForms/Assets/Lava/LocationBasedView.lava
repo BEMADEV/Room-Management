@@ -98,8 +98,11 @@
 
 							{% if reservationLocation.LocationLayoutId != null %}
 							    {% assign layout = reservationLocation.LocationLayout %}
+                                {% comment %}Escaped twice: once for the attribute, once because the popover renders it as HTML{% endcomment %}
+                                {% assign layoutName = layout.Name | Escape | Escape %}
+                                {% assign layoutDescription = layout.Description | Escape | Escape %}
                                 {% capture dataContent %}
-                                    <p>{{layout.Description}}</p>
+                                    <p>{{layoutDescription}}</p>
                                     {% if layout.LayoutPhotoId %}
 									<a href='/GetFile.ashx?id={{layout.LayoutPhotoId}}' target='_blank'><img src='/GetFile.ashx?id={{layout.LayoutPhotoId}}' class='room-management-layout-photo' /></a>
 						            {% endif %}
@@ -110,7 +113,7 @@
 							    data-trigger="hover click focus"
 							    data-delay="{&quot;hide&quot;: 1500}"
 							    data-placement="right"
-							    title="{{layout.Name}}" data-content="{{dataContent}}"></i>
+							    title="{{layoutName}}" data-content="{{dataContent}}"></i>
 							{% endif %}
 
                             {% assign assignedResourceSize = reservationLocation.ReservationResources | Size %}

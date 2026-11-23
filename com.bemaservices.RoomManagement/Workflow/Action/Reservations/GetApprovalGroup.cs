@@ -125,29 +125,9 @@ namespace com.bemaservices.RoomManagement.Workflow.Actions.Reservations
                     campus = campusService.Get( GetAttributeValue( action, "Campus" ).AsGuid() );
                 }
 
-                Group group = null;
-
-                var approvalGroupService = new ReservationApprovalGroupService( rockContext );
-                var approvalGroupQry = approvalGroupService.Queryable().Where( ag =>
-                    ag.ReservationTypeId == reservationType.Id &&
-                    ag.ApprovalGroupType == approvalGroupType
-                    );
-
-                if ( campus != null )
-                {
-                    approvalGroupQry = approvalGroupQry.Where( ag => ag.CampusId == null || ag.CampusId == campus.Id );
-                }
-                else
-                {
-                    approvalGroupQry = approvalGroupQry.Where( ag => ag.CampusId == null );
-                }
-
-                var approvalGroup = approvalGroupQry.OrderBy( a => a.ApprovalGroupType ).ThenBy( a => a.CampusId.HasValue ).ThenBy( a => a.Campus.Name ).FirstOrDefault();
-
-                if ( approvalGroup != null )
-                {
-                    group = approvalGroup.ApprovalGroup;
-                }
+                // Use the reservation type's own lookup so the action picks the same group the rest of the
+                // plugin does: active and unarchived only, preferring the campus's group over the all-campus one
+                var group = reservationType.GetApprovalGroup( approvalGroupType.Value, campus?.Id );
 
                 if ( group != null )
                 {

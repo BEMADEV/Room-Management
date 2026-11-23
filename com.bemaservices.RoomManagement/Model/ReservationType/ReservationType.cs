@@ -385,14 +385,21 @@ namespace com.bemaservices.RoomManagement.Model
         #region Methods
 
         /// <summary>
-        /// Gets the approval groups.
+        /// Gets this reservation type's approval groups of the given type for the campus, including the groups
+        /// that apply to all campuses. Only groups that still exist and are active and not archived are returned,
+        /// so an archived or inactive group neither grants approval rights nor is chosen as the approval group;
+        /// this matches the group rules in <see cref="ReservationTypeService.IsPersonInGroupWithId" />.
         /// </summary>
         /// <param name="approvalGroupType">Type of the approval group.</param>
-        /// <param name="campusId">The campus identifier.</param>
-        /// <returns>List&lt;ReservationApprovalGroup&gt;.</returns>
+        /// <param name="campusId">The campus identifier, or <c>null</c> for only the all-campus groups.</param>
+        /// <returns>The usable approval groups.</returns>
         public List<ReservationApprovalGroup> GetApprovalGroups( ApprovalGroupType approvalGroupType, int? campusId )
         {
-            var approvalGroups = ReservationApprovalGroups.Where( g => g.ApprovalGroupType == approvalGroupType );
+            var approvalGroups = ReservationApprovalGroups.Where( g =>
+                g.ApprovalGroupType == approvalGroupType &&
+                g.ApprovalGroup != null &&
+                g.ApprovalGroup.IsActive &&
+                !g.ApprovalGroup.IsArchived );
 
             if ( campusId.HasValue )
             {
@@ -445,19 +452,25 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Determines whether [has approval rights] [the specified person].
+        /// Determines whether the person can approve for this reservation type at the given campus. The person
+        /// must be living and an active, unarchived member of one of the groups from <see cref="GetApprovalGroups" />,
+        /// which already leaves out inactive and archived groups. The group's <c>Members</c> collection includes
+        /// archived members, unlike <see cref="GroupMemberService" /> queries, so they are excluded here explicitly.
         /// </summary>
         /// <param name="person">The person.</param>
         /// <param name="approvalGroupType">Type of the approval group.</param>
         /// <param name="campusId">The campus identifier.</param>
-        /// <returns><c>true</c> if [has approval rights] [the specified person]; otherwise, <c>false</c>.</returns>
+        /// <returns><c>true</c> if the person has approval rights; otherwise, <c>false</c>.</returns>
         public bool HasApprovalRights( Person person, ApprovalGroupType approvalGroupType, int? campusId )
         {
-            var approvalGroups = GetApprovalGroups( approvalGroupType, campusId );
+            if ( person == null || person.IsDeceased )
+            {
+                return false;
+            }
 
-            return !person.IsDeceased &&
-                approvalGroups.SelectMany( ag => ag.ApprovalGroup.Members )
-                    .Any( gm => gm.PersonId == person.Id && gm.GroupMemberStatus == GroupMemberStatus.Active );
+            return GetApprovalGroups( approvalGroupType, campusId )
+                .SelectMany( ag => ag.ApprovalGroup.Members )
+                .Any( gm => gm.PersonId == person.Id && gm.GroupMemberStatus == GroupMemberStatus.Active && !gm.IsArchived );
         }
 
 

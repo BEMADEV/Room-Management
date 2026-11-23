@@ -73,7 +73,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             base.OnInit( e );
 
             rGrid.DataKeyNames = new string[] { "Id" };
-            rGrid.Actions.ShowAdd = true;
+
+            // Offer adding, editing and deleting only to people who may change this location's layouts
+            var canEdit = CanEditLayouts( LocationId );
+            rGrid.Actions.ShowAdd = canEdit;
+            rGrid.RowClickEnabled = canEdit;
+            var deleteField = rGrid.ColumnsOfType<DeleteField>().FirstOrDefault();
+            if ( deleteField != null )
+            {
+                deleteField.Visible = canEdit;
+            }
 
             rGrid.Actions.AddClick += rGrid_Add;
             rGrid.GridRebind += rGrid_GridRebind;
@@ -128,7 +137,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var locationLayoutService = new LocationLayoutService( rockContext );
                 var reservationLocationService = new ReservationLocationService( rockContext );
                 var locationLayout = locationLayoutService.Get( e.RowKeyId );
-                if ( locationLayout != null )
+
+                // Check the layout's own location, so a crafted row key can't delete another location's layout
+                if ( locationLayout != null && CanEditLayouts( locationLayout.LocationId ) )
                 {
                     var reservationLocations = reservationLocationService.Queryable().Where( rl => rl.LocationLayoutId == locationLayout.Id ).ToList();
                     foreach(var reservationLocation in reservationLocations )
@@ -187,6 +198,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             if ( layoutId != 0 )
             {
                 layout = locationLayoutService.Get( layoutId );
+            }
+
+            // Check the location being saved to: the existing layout's own location, or this page's location for a new one
+            if ( !CanEditLayouts( layout != null ? layout.LocationId : LocationId ) )
+            {
+                hfIdValue.Value = string.Empty;
+                modalDetails.Hide();
+                return;
             }
 
             if ( layout == null )
@@ -312,6 +331,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         }
 
         /// <summary>
+        /// Determines whether the current person may add, edit or delete layouts on a location: they need Edit on this
+        /// block or Edit on the location itself. The grid uses this to show its add, row-click and delete controls, and
+        /// the edit, delete and save handlers check it again on the server against the layout's own location.
+        /// </summary>
+        /// <param name="locationId">The location the layouts belong to.</param>
+        /// <returns><c>true</c> if the current person may change the location's layouts; otherwise, <c>false</c>.</returns>
+        private bool CanEditLayouts( int locationId )
+        {
+            if ( UserCanEdit )
+            {
+                return true;
+            }
+
+            var location = new LocationService( new RockContext() ).Get( locationId );
+            return location != null && location.IsAuthorized( Authorization.EDIT, CurrentPerson );
+        }
+
+        /// <summary>
         /// Shows the edit.
         /// </summary>
         /// <param name="layoutId">The layout identifier.</param>
@@ -326,6 +363,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             {
                 layout = new LocationLayout();
                 layout.IsActive = true;
+            }
+
+            // Hidden add buttons and disabled row clicks don't stop a crafted postback, so check before opening the editor
+            if ( layout == null || !CanEditLayouts( layoutId.HasValue ? layout.LocationId : LocationId ) )
+            {
+                return;
             }
 
             tbName.Text = layout.Name;

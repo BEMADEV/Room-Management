@@ -327,7 +327,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             bool readOnly = true;
 
-            int? reservationId = PageParameter( "ReservationId" ).AsInteger();
+            int? reservationId = PageParameter( "ReservationId" ).AsIntegerOrNull();
 
             if ( reservationId.HasValue )
             {
@@ -385,7 +385,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         private void BindLinkagesGrid()
         {
-            int? reservationId = PageParameter( "ReservationId" ).AsInteger();
+            int? reservationId = PageParameter( "ReservationId" ).AsIntegerOrNull();
 
             if ( !reservationId.HasValue )
             {

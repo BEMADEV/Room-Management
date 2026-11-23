@@ -19,8 +19,8 @@
                             <ItemTemplate>
                                 <li>
                                     <asp:LinkButton ID="lbReservationType" runat="server" CommandArgument='<%# Eval("Id") %>' CommandName="Display">
-                                        <i class='<%# Eval("IconCssClass") %>'></i>
-                                        <h3><%# Eval("Name") %> </h3>
+                                        <i class='<%#: Eval("IconCssClass") %>'></i>
+                                        <h3><%#: Eval("Name") %> </h3>
                                     </asp:LinkButton>
                                 </li>
                             </ItemTemplate>

@@ -373,11 +373,6 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             BindFilter();
         }
 
-        protected void _ddlCommunicate_SelectedIndexChanged( object sender, EventArgs e )
-        {
-            throw new NotImplementedException();
-        }
-
         /// <summary>
         /// Handles the BlockUpdated event of the control.
         /// </summary>

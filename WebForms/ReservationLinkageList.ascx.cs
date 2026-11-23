@@ -299,6 +299,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var reservationLinkage = reservationLinkageService.Get( e.RowKeyId );
                 if ( reservationLinkage != null )
                 {
+                    // Check the linkage's own reservation, so a crafted row key can't delete another reservation's linkage
+                    if ( reservationLinkage.Reservation == null || !CanEditLinkages( reservationLinkage.Reservation ) )
+                    {
+                        mdLinkagesGridWarning.Show( "You are not authorized to delete this linkage.", ModalAlertType.Information );
+                        return;
+                    }
+
                     reservationLinkageService.Delete( reservationLinkage );
                     rockContext.SaveChanges();
                 }
@@ -327,20 +334,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var reservation = new ReservationService( new RockContext() ).Get( reservationId.Value );
                 if ( reservation != null )
                 {
-                    if ( reservation.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson ) )
-                    {
-                        readOnly = false;
-                    }
-
-                    var canCreateReservations = reservation.IsAuthorized( Authorization.EDIT, CurrentPerson );
-                    if ( canCreateReservations &&
-                        ( reservation.CreatedByPersonAliasId == CurrentPersonAliasId ||
-                        reservation.AdministrativeContactPersonAliasId == CurrentPersonAliasId ||
-                        reservationId == 0 )
-                        )
-                    {
-                        readOnly = false;
-                    }
+                    readOnly = !CanEditLinkages( reservation );
                 }
                 else
                 {
@@ -354,7 +348,36 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             gLinkages.Actions.ShowAdd = !readOnly;
 
+            // The delete column was always shown; offer it only to people who may change the linkages
+            var deleteField = gLinkages.ColumnsOfType<DeleteField>().FirstOrDefault();
+            if ( deleteField != null )
+            {
+                deleteField.Visible = !readOnly;
+            }
+
             BindLinkagesGrid();
+        }
+
+        /// <summary>
+        /// Determines whether the current person may add or delete linkages on the reservation: anyone with Administrate
+        /// on it, or someone with Edit who created it or is its administrative contact. <see cref="ShowDetail" /> uses this
+        /// to show the add button and delete column, and the delete handler checks it again on the server, since hidden
+        /// controls don't stop a crafted postback.
+        /// </summary>
+        /// <param name="reservation">The reservation the linkages belong to.</param>
+        /// <returns><c>true</c> if the current person may change the reservation's linkages; otherwise, <c>false</c>.</returns>
+        private bool CanEditLinkages( Reservation reservation )
+        {
+            if ( reservation.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson ) )
+            {
+                return true;
+            }
+
+            // Editors may change linkages on reservations they own
+            return reservation.IsAuthorized( Authorization.EDIT, CurrentPerson ) &&
+                ( reservation.CreatedByPersonAliasId == CurrentPersonAliasId ||
+                reservation.AdministrativeContactPersonAliasId == CurrentPersonAliasId ||
+                reservation.Id == 0 );
         }
 
         /// <summary>

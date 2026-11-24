@@ -491,9 +491,10 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Gets the next start date time.
+        /// Gets when the reservation next starts, including setup time: the next event start after now, moved earlier by
+        /// the setup time.
         /// </summary>
-        /// <value>The next start date time.</value>
+        /// <value>The next reservation start, or <c>null</c> if there are no more occurrences.</value>
         [LavaVisibleAttribute]
         [NotMapped]
         public virtual DateTime? NextStartDateTime
@@ -507,7 +508,8 @@ namespace com.bemaservices.RoomManagement.Model
                 {
                     if ( startDate.HasValue )
                     {
-                        startDate = startDate.Value.AddMinutes( SetupTime ?? 0 );
+                        // The reservation starts setup time before the event, as everywhere else reservation times are worked out
+                        startDate = this.GetReservationStartDateTime( startDate.Value );
                     }
                 }
                 catch

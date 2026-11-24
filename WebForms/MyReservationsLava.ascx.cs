@@ -43,9 +43,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block to display reservations assigned to the current user.  The display format is controlled by a lava template." )]
 
-    [CustomRadioListField( "Role", "Display the active reservations that the current user Initiated / is a Contact for, or is currently Assigned To for approval.", "0^Assigned To,1^Initiated", true, "0", "", 0 )]
-    [CustomRadioListField( "Status", "Display upcoming reservations, or past reservations.", "0^Upcoming,1^Past", true, "0", "", 1 )]
+    [CustomRadioListField( "Role", "Display the active reservations that the current user Initiated / is a Contact for, or is currently Assigned To for approval.", "0^Assigned To,1^Initiated", true, "0", "", 0, Key = AttributeKey.Role )]
+    [CustomRadioListField( "Status", "Display upcoming reservations, or past reservations.", "0^Upcoming,1^Past", true, "0", "", 1, Key = AttributeKey.Status )]
     [CodeEditorField( "Contents",
+        Key = AttributeKey.Contents,
         Description = "The Lava template to use for displaying reservations assigned to current user.", 
         EditorMode = CodeEditorMode.Lava,
         EditorHeight = 400,
@@ -53,11 +54,27 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         DefaultValue = @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/MyReservationsSortable.lava' %}",
         Category = "",
         Order = 3 )]
-    [TextField( "Set Panel Title", "The title to display in the panel header. Leave empty to have the block name.", required: false, order: 4 )]
-    [TextField( "Set Panel Icon", "The icon to display in the panel header.", required: false, order: 5 )]
+    [TextField( "Set Panel Title", "The title to display in the panel header. Leave empty to have the block name.", required: false, order: 4, Key = AttributeKey.SetPanelTitle )]
+    [TextField( "Set Panel Icon", "The icon to display in the panel header.", required: false, order: 5, Key = AttributeKey.SetPanelIcon )]
     [Rock.SystemGuid.BlockTypeGuid( "0D2E85E7-5881-42C4-9CB1-6F8830BB620B" )]
     public partial class MyReservationsLava : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string Role = "Role";
+            public const string Status = "Status";
+            public const string Contents = "Contents";
+            public const string SetPanelTitle = "SetPanelTitle";
+            public const string SetPanelIcon = "SetPanelIcon";
+        }
+
+        #endregion Keys
+
         #region Base Control Methods
 
         /// <summary>
@@ -112,21 +129,21 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             try
             {
-                string role = GetAttributeValue( "Role" );
+                string role = GetAttributeValue( AttributeKey.Role );
                 if ( string.IsNullOrWhiteSpace( role ) )
                 {
                     role = "0";
                 }
 
-                string status = GetAttributeValue( "Status" );
+                string status = GetAttributeValue( AttributeKey.Status );
                 if ( string.IsNullOrWhiteSpace( status ) )
                 {
                     status = "0";
                 }
 
-                string contents = GetAttributeValue( "Contents" );
-                string panelTitle = GetAttributeValue( "SetPanelTitle" );
-                string panelIcon = GetAttributeValue( "SetPanelIcon" );
+                string contents = GetAttributeValue( AttributeKey.Contents );
+                string panelTitle = GetAttributeValue( AttributeKey.SetPanelTitle );
+                string panelIcon = GetAttributeValue( AttributeKey.SetPanelIcon );
 
                 string appRoot = ResolveRockUrl( "~/" );
                 string themeRoot = ResolveRockUrl( "~~/" );

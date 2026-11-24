@@ -49,6 +49,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
     public partial class ResourceDetail : RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string ResourceId = "ResourceId";
+        }
+
+        #endregion Keys
+
         #region Control Methods
 
         /// <summary>
@@ -89,7 +101,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( !Page.IsPostBack )
             {
-                ShowDetail( PageParameter( "ResourceId" ).AsInteger() );
+                ShowDetail( PageParameter( PageParameterKey.ResourceId ).AsInteger() );
             }
         }
 
@@ -284,11 +296,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnDelete_Click( object sender, EventArgs e )
         {
-            if ( PageParameter( "ResourceId" ).AsIntegerOrNull() != null )
+            if ( PageParameter( PageParameterKey.ResourceId ).AsIntegerOrNull() != null )
             {
                 RockContext rockContext = new RockContext();
                 ResourceService resourceService = new ResourceService( rockContext );
-                var resource = resourceService.Get( PageParameter( "ResourceId" ).AsInteger() );
+                var resource = resourceService.Get( PageParameter( PageParameterKey.ResourceId ).AsInteger() );
                 if ( resource != null )
                 {
                     // Hiding the Delete button isn't enough; a crafted postback can still reach this handler

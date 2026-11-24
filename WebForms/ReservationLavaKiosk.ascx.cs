@@ -46,7 +46,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Renders the approved reservations in Lava for the given locationId." )]
 
-    [CodeEditorField( "Lava Template", 
+    [CodeEditorField( "Lava Template",
+        Key = AttributeKey.LavaTemplate,
         Description = "Lava template to use to display the list of upcoming events.", 
         EditorMode = CodeEditorMode.Lava,
         EditorHeight = 400,
@@ -54,10 +55,31 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         DefaultValue = @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/ReservationKiosk.lava' %}",
         Category = "",
         Order = 1 )]
-    [BooleanField( "Enable Debug", "Display a list of merge fields available for lava.", false, "", 99 )]
+    [BooleanField( "Enable Debug", "Display a list of merge fields available for lava.", false, "", 99, Key = AttributeKey.EnableDebug )]
 
     public partial class ReservationLavaKiosk : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string LavaTemplate = "LavaTemplate";
+            public const string EnableDebug = "EnableDebug";
+        }
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string LocationId = "LocationId";
+        }
+
+        #endregion Keys
+
         #region Fields
 
         #endregion
@@ -107,7 +129,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             base.OnLoad( e );
 
             nbMessage.Visible = false;
-            var locationId = PageParameter( "LocationId" ).AsInteger();
+            var locationId = PageParameter( PageParameterKey.LocationId ).AsInteger();
 
             if ( locationId == 0 )
             {
@@ -153,7 +175,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void Block_BlockUpdated( object sender, EventArgs e )
         {
-            BindData( PageParameter( "LocationId" ).AsInteger() );
+            BindData( PageParameter( PageParameterKey.LocationId ).AsInteger() );
         }
 
         #endregion
@@ -204,10 +226,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             mergeFields.Add( "ReservationSummaries", reservationSummaries );
 
 
-            lOutput.Text = GetAttributeValue( "LavaTemplate" ).ResolveMergeFields( mergeFields );
+            lOutput.Text = GetAttributeValue( AttributeKey.LavaTemplate ).ResolveMergeFields( mergeFields );
 
             // show debug info
-            if ( GetAttributeValue( "EnableDebug" ).AsBoolean() && IsUserAuthorized( Authorization.EDIT ) )
+            if ( GetAttributeValue( AttributeKey.EnableDebug ).AsBoolean() && IsUserAuthorized( Authorization.EDIT ) )
             {
                 lDebug.Visible = true;
                 lDebug.Text = mergeFields.lavaDebugInfo();
@@ -306,7 +328,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnSubmit_Click( object sender, EventArgs e )
         {
-            BindData( PageParameter( "LocationId" ).AsInteger() );
+            BindData( PageParameter( PageParameterKey.LocationId ).AsInteger() );
         }
 
         #endregion

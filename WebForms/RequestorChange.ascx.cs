@@ -40,6 +40,18 @@ namespace RockWeb.Plugins.com_bemadev.RoomReservation
     [Description( "Allows reservations to have their requestors reassigned." )]
     public partial class RequestorChange : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string PersonGuid = "PersonGuid";
+        }
+
+        #endregion Keys
+
         #region Fields
 
         // used for private variables
@@ -79,7 +91,7 @@ namespace RockWeb.Plugins.com_bemadev.RoomReservation
             if ( !Page.IsPostBack )
             {
                 var rockContext = new RockContext();
-                var personGuid = PageParameter( "PersonGuid" ).AsGuidOrNull();
+                var personGuid = PageParameter( PageParameterKey.PersonGuid ).AsGuidOrNull();
                 if ( personGuid.HasValue )
                 {
                     var personAlias = new PersonAliasService( rockContext ).Get( personGuid.Value );

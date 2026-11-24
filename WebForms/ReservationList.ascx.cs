@@ -40,10 +40,23 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block for viewing a list of reservations." )]
 
-    [LinkedPage( "Detail Page" )]
-    [TextField( "Related Entity Query String Parameter", "The query string parameter that holds id to the related entity.", false )]
+    [LinkedPage( "Detail Page", Key = AttributeKey.DetailPage )]
+    [TextField( "Related Entity Query String Parameter", "The query string parameter that holds id to the related entity.", false, Key = AttributeKey.RelatedEntityQueryStringParameter )]
     public partial class ReservationList : Rock.Web.UI.RockBlock, IPostBackEventHandler
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string DetailPage = "DetailPage";
+            public const string RelatedEntityQueryStringParameter = "RelatedEntityQueryStringParameter";
+        }
+
+        #endregion Keys
+
         #region Fields
 
         private RockDropDownList _ddlAction;
@@ -166,7 +179,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var parms = new Dictionary<string, string>();
             parms.Add( "ReservationId", e.RowKeyValue.ToString() );
-            NavigateToLinkedPage( "DetailPage", parms );
+            NavigateToLinkedPage( AttributeKey.DetailPage, parms );
         }
 
         /// <summary>
@@ -571,7 +584,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var qry = reservationService.Queryable( reservationQueryOptions );
 
             // Get the related entity query string parameter if it was configured
-            var relatedEntity = GetAttributeValue( "RelatedEntityQueryStringParameter" );
+            var relatedEntity = GetAttributeValue( AttributeKey.RelatedEntityQueryStringParameter );
             int? entityId = null;
             if ( !string.IsNullOrWhiteSpace( relatedEntity ) )
             {

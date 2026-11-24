@@ -45,6 +45,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Description( "A list of questions tied to a resource or location" )]
     public partial class QuestionList : RockBlock, ISecondaryBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string ResourceId = "ResourceId";
+            public const string LocationId = "LocationId";
+        }
+
+        #endregion Keys
+
         #region Properties
         /// <summary>
         /// Gets the resource identifier.
@@ -54,7 +67,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             get
             {
-                return PageParameter( "ResourceId" ).AsInteger();
+                return PageParameter( PageParameterKey.ResourceId ).AsInteger();
             }
         }
 
@@ -66,7 +79,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             get
             {
-                return PageParameter( "LocationId" ).AsInteger();
+                return PageParameter( PageParameterKey.LocationId ).AsInteger();
             }
         }
 

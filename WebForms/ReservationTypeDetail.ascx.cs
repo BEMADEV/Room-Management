@@ -51,6 +51,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Description( "Displays the details of the given Reservation Type for editing." )]
     public partial class ReservationTypeDetail : RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string ReservationTypeId = "ReservationTypeId";
+        }
+
+        #endregion Keys
+
         #region Attribute Keys and Values
 
         /// <summary>
@@ -191,7 +203,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             if ( !Page.IsPostBack )
             {
-                ShowDetail( PageParameter( "ReservationTypeId" ).AsInteger() );
+                ShowDetail( PageParameter( PageParameterKey.ReservationTypeId ).AsInteger() );
             }
         }
 
@@ -582,7 +594,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             else
             {
-                string reservationTypeId = PageParameter( "ReservationTypeId" );
+                string reservationTypeId = PageParameter( PageParameterKey.ReservationTypeId );
                 if ( !string.IsNullOrWhiteSpace( reservationTypeId ) )
                 {
                     ShowDetail( reservationTypeId.AsInteger() );

@@ -392,7 +392,7 @@ namespace com.bemaservices.RoomManagement.Model
             var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
             var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
 
-            var window = ConflictWindow.ForConflicts( newReservation, RockDateTime.Now );
+            var window = ReservationConflictChecker.ConflictWindow.ForConflicts( newReservation, RockDateTime.Now );
             var newReservationSummaries = newReservationQry.GetReservationSummaries( window.Start, window.End );
             var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( window.Start, window.End );
 
@@ -647,7 +647,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <returns>a quantity of available resources at</returns>
         public int? GetBookedResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
         {
-            var window = ConflictWindow.ForBookedQuantity( reservation, RockDateTime.Now );
+            var window = ReservationConflictChecker.ConflictWindow.ForBookedQuantity( reservation, RockDateTime.Now );
 
             // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
             // now) which have the given resource in them.

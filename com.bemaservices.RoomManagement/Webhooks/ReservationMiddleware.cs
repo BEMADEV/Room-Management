@@ -275,13 +275,7 @@ namespace com.bemaservices.RoomManagement.Webhooks
             var approvalStates = ( query.Get( "approvalstates" ) ?? string.Empty ).SplitDelimitedValues().AsEnumList<ReservationApprovalState>();
             if ( !approvalStates.Any() )
             {
-                approvalStates = new List<ReservationApprovalState> {
-                    ReservationApprovalState.Approved,
-                    ReservationApprovalState.PendingInitialApproval,
-                    ReservationApprovalState.PendingSpecialApproval,
-                    ReservationApprovalState.PendingFinalApproval,
-                    ReservationApprovalState.ChangesNeeded
-                };
+                approvalStates = ReservationApprovalStateSets.GetActiveStates();
             }
             reservationCalendarOptions.ApprovalStates = approvalStates;
 

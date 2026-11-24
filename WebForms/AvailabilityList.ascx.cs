@@ -410,13 +410,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     g => g.Select( r => Server.HtmlEncode( r.Name ) + " (" + r.Quantity + ")" ).ToList().AsDelimited( "</br>" ) );
 
             var reservationQueryOptions = new ReservationQueryOptions();
-            reservationQueryOptions.ApprovalStates = new List<ReservationApprovalState> {
-                ReservationApprovalState.Approved,
-                ReservationApprovalState.PendingInitialApproval,
-                ReservationApprovalState.PendingSpecialApproval,
-                ReservationApprovalState.PendingFinalApproval,
-                ReservationApprovalState.ChangesNeeded
-            };
+            reservationQueryOptions.ApprovalStates = ReservationApprovalStateSets.GetActiveStates();
             reservationQueryOptions.LocationIds = locationIds;
             var reservationQry = reservationService.Queryable( reservationQueryOptions ).AsNoTracking();
 
@@ -511,13 +505,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var resourceIdList = resourceList.Select( r => r.Id ).ToList();
 
             var reservationQryOptions = new ReservationQueryOptions();
-            reservationQryOptions.ApprovalStates = new List<ReservationApprovalState> {
-                ReservationApprovalState.PendingInitialApproval
-                ,ReservationApprovalState.PendingSpecialApproval
-                ,ReservationApprovalState.PendingFinalApproval
-                ,ReservationApprovalState.Approved
-                ,ReservationApprovalState.ChangesNeeded
-                };
+            reservationQryOptions.ApprovalStates = ReservationApprovalStateSets.GetActiveStates();
             reservationQryOptions.ResourceIds = resourceIdList;
 
             var reservationQry = reservationService.Queryable( reservationQryOptions ).AsNoTracking();

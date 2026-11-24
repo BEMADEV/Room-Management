@@ -354,24 +354,26 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             ddlResourceCopySource.Items.Clear();
 
-            var rockContext = new RockContext();
-            var qryResources = new ResourceService( rockContext ).Queryable().AsNoTracking();
-            var itemList = new List<ListItem>();
-            var list = new ResourceService( new RockContext() ).Queryable().AsNoTracking()
-                .Where( r => r.Id != ResourceId )
-                .OrderBy( r => r.Name )
-                .Select( r => new
-                {
-                    r.Id,
-                    r.Name,
-                    CampuName = r.Campus.Name
-                } );
-
-            foreach ( var item in list )
+            // List the other resources to copy from, grouped by campus
+            using ( var rockContext = new RockContext() )
             {
-                var listItem = new ListItem( item.Name, item.Id.ToString() );
-                listItem.Attributes.Add( "OptionGroup", item.CampuName );
-                ddlResourceCopySource.Items.Add( listItem );
+                var resources = new ResourceService( rockContext ).Queryable().AsNoTracking()
+                    .Where( r => r.Id != ResourceId )
+                    .OrderBy( r => r.Name )
+                    .Select( r => new
+                    {
+                        r.Id,
+                        r.Name,
+                        CampusName = r.Campus.Name
+                    } )
+                    .ToList();
+
+                foreach ( var resource in resources )
+                {
+                    var listItem = new ListItem( resource.Name, resource.Id.ToString() );
+                    listItem.Attributes.Add( "OptionGroup", resource.CampusName );
+                    ddlResourceCopySource.Items.Add( listItem );
+                }
             }
 
             // Add an empty item

@@ -354,6 +354,12 @@ namespace com.bemaservices.RoomManagement.Model
             return newItem;
         }
 
+        /// <summary>
+        /// Replaces the people related to a reservation for one purpose, using Rock's related entities.
+        /// </summary>
+        /// <param name="reservationId">The reservation identifier.</param>
+        /// <param name="participants">The people to relate to the reservation.</param>
+        /// <param name="purposeKey">The purpose key that groups these relationships.</param>
         public void SetReservationParticipants( int reservationId, List<PersonAlias> participants, string purposeKey )
         {
             this.RelatedEntities.SetRelatedToSourceEntity( reservationId, participants, purposeKey );

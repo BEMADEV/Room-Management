@@ -1990,6 +1990,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         #region ReservationDoorLockSchedule Events
 
+        /// <summary>
+        /// Saves the door lock schedule from the dialog into the reservation's pending schedules and closes the dialog,
+        /// unless the times are invalid, in which case the dialog stays open showing the problem.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The event data.</param>
         protected void dlgReservationDoorLockSchedule_SaveClick( object sender, EventArgs e )
         {
             var validDoorLock = SaveReservationDoorLockSchedule();
@@ -2000,12 +2006,22 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Saves the door lock schedule from the dialog, then reopens the dialog empty to add another.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The event data.</param>
         protected void dlgReservationDoorLockSchedule_SaveThenAddClick( object sender, EventArgs e )
         {
             SaveReservationDoorLockSchedule();
             gDoorLockSchedules_ShowEdit( Guid.Empty );
         }
 
+        /// <summary>
+        /// Removes a door lock schedule from the reservation's pending schedules. Nothing is deleted until the reservation is saved.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The row event data; its key is the door lock schedule's Guid.</param>
         protected void gDoorLockSchedules_Delete( object sender, RowEventArgs e )
         {
             nbError.Visible = false;
@@ -2014,17 +2030,33 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             RemoveDoorLockSchedule( rowGuid );
         }
 
+        /// <summary>
+        /// Rebinds the door lock schedules grid, for example after sorting.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The event data.</param>
         private void gDoorLockSchedules_GridRebind( object sender, EventArgs e )
         {
             BindReservationDoorLockSchedulesGrid();
         }
 
+        /// <summary>
+        /// Opens the door lock schedule dialog for the selected schedule.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The row event data; its key is the door lock schedule's Guid.</param>
         protected void gDoorLockSchedules_Edit( object sender, RowEventArgs e )
         {
             Guid reservationDoorLockScheduleGuid = ( Guid ) e.RowKeyValue;
             gDoorLockSchedules_ShowEdit( reservationDoorLockScheduleGuid );
         }
 
+        /// <summary>
+        /// Opens the door lock schedule dialog. Offsets are stored in minutes from the reservation's first start, so they're
+        /// shown here as a day offset and a time of day; a new schedule starts at the reservation's start time. Without a
+        /// reservation schedule there's nothing to offset from, so the dialog only asks for one.
+        /// </summary>
+        /// <param name="reservationDoorLockScheduleGuid">The schedule to edit, or <see cref="Guid.Empty" /> to add one.</param>
         protected void gDoorLockSchedules_ShowEdit( Guid reservationDoorLockScheduleGuid )
         {
             var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
@@ -2080,11 +2112,21 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             dlgReservationDoorLockSchedule.Show();
         }
 
+        /// <summary>
+        /// Opens the door lock schedule dialog to add a new schedule.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The event data.</param>
         private void gDoorLockSchedules_Add( object sender, EventArgs e )
         {
             gDoorLockSchedules_ShowEdit( Guid.Empty );
         }
 
+        /// <summary>
+        /// Shows an editable grid row's start and end times, worked out from the schedule currently in the editor.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The row data.</param>
         protected void gDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             var schedule = ReservationService.BuildScheduleFromICalContent( sbSchedule.iCalendarContent );
@@ -2092,6 +2134,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             BindDoorLockSchedulesRow( e.Row, reservationStartDateTime );
         }
 
+        /// <summary>
+        /// Shows a read-only grid row's start and end times, worked out from the saved reservation's schedule.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The row data.</param>
         protected void gViewDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
         {
             using ( var rockContext = new RockContext() )
@@ -2105,6 +2152,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Fills a door lock schedule row's start and end time literals by applying its offsets to the reservation's first
+        /// start, or shows "Schedule Required" when the reservation has no schedule yet.
+        /// </summary>
+        /// <param name="gridViewRow">The grid row being bound.</param>
+        /// <param name="reservationStartDateTime">The reservation's first start, or <c>null</c> without a schedule.</param>
         protected void BindDoorLockSchedulesRow( GridViewRow gridViewRow, DateTime? reservationStartDateTime )
         {
             var doorLockSchedule = gridViewRow.DataItem as ReservationDoorLockSchedule;
@@ -2127,6 +2180,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Binds the reservation's pending door lock schedules to the edit grid, ordered by start offset.
+        /// </summary>
         private void BindReservationDoorLockSchedulesGrid()
         {
             Hydrate( DoorLockSchedulesState, new RockContext() );
@@ -4030,6 +4086,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
         }
 
+        /// <summary>
+        /// Builds the control id for one resource question's edit field, unique per reservation resource and attribute.
+        /// </summary>
+        /// <param name="reservationResourceGuid">The reservation resource's Guid.</param>
+        /// <param name="attribute">The question attribute.</param>
+        /// <returns>The control id.</returns>
         private static string GetResourceAttributeFieldId( Guid reservationResourceGuid, AttributeCache attribute )
         {
             return String.Format( "attribute_field_{0}_resource_{1}", attribute.Id, reservationResourceGuid.ToString().Replace( "-", "_" ) );
@@ -4076,6 +4138,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
         #region Reservation Door Lock Schedule Methods
 
+        /// <summary>
+        /// Validates the door lock dialog and adds or updates the schedule in the reservation's pending schedules, storing
+        /// its start and end as minutes from the reservation's first start. Nothing is saved to the database until the
+        /// reservation is saved.
+        /// </summary>
+        /// <returns><c>true</c> if the schedule was valid and kept; otherwise, <c>false</c>.</returns>
         private bool SaveReservationDoorLockSchedule()
         {
             ReservationDoorLockSchedule reservationDoorLockSchedule = null;
@@ -4133,6 +4201,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             return true;
         }
 
+        /// <summary>
+        /// Removes a schedule from the reservation's pending door lock schedules and rebinds the grid.
+        /// </summary>
+        /// <param name="rowGuid">The door lock schedule's Guid.</param>
         private void RemoveDoorLockSchedule( Guid rowGuid )
         {
             DoorLockSchedulesState.RemoveEntity( rowGuid );
@@ -4140,6 +4212,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             BindReservationDoorLockSchedulesGrid();
         }
 
+        /// <summary>
+        /// Reattaches each pending door lock schedule to its reservation, since schedules restored from view state carry only
+        /// the reservation id.
+        /// </summary>
+        /// <param name="doorLockSchedulesState">The pending door lock schedules.</param>
+        /// <param name="rockContext">The rock context used to load the reservations.</param>
         private void Hydrate( List<ReservationDoorLockSchedule> doorLockSchedulesState, RockContext rockContext )
         {
             var reservationService = new ReservationService( rockContext );

@@ -226,6 +226,15 @@ namespace com.bemaservices.RoomManagement.Model
             return reservationSummaryList;
         }
 
+        /// <summary>
+        /// Determines whether an occurrence overlaps the filter window: it doesn't end before the window starts and doesn't
+        /// start at or after the window ends.
+        /// </summary>
+        /// <param name="startDateTime">The occurrence start.</param>
+        /// <param name="endDateTime">The occurrence end.</param>
+        /// <param name="filterStartDateTime">The window start.</param>
+        /// <param name="filterEndDateTime">The window end.</param>
+        /// <returns><c>true</c> if the occurrence overlaps the window; otherwise, <c>false</c>.</returns>
         private static bool IsWithinFilterWindow( DateTime startDateTime, DateTime endDateTime, DateTime filterStartDateTime, DateTime filterEndDateTime )
         {
             return

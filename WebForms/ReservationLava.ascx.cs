@@ -1222,6 +1222,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             return reservationSummaryList;
         }
 
+        /// <summary>
+        /// Gets the checked values of a filter check box list as integers.
+        /// </summary>
+        /// <param name="checkBoxList">The filter check box list.</param>
+        /// <returns>The checked values.</returns>
         private List<int> GetSelectedIntegerValues( CheckBoxList checkBoxList )
         {
             return checkBoxList.Items
@@ -1231,6 +1236,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 .ToList();
         }
 
+        /// <summary>
+        /// Saves one filter choice as this person's block preference, then shows the view again with the new filter.
+        /// </summary>
+        /// <param name="key">The preference key.</param>
+        /// <param name="value">The preference value.</param>
         private void SavePreferenceAndRebind( string key, string value )
         {
             var preferences = GetBlockPersonPreferences();

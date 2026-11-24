@@ -64,10 +64,8 @@ namespace com.bemaservices.RoomManagement.Jobs
         private int _reservationRecordsFailed = 0;
 
         /// <summary>
-        /// Executes the specified context.
+        /// Fills in missing first and last occurrence dates on reservations. Once none are missing, the job deletes itself.
         /// </summary>
-        /// <exception cref="System.NotImplementedException"></exception>
-
         public override void Execute()
         {
             _commandTimeout = GetAttributeValue( "CommandTimeout" ).AsIntegerOrNull() ?? 3600;

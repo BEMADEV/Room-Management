@@ -66,12 +66,21 @@ namespace com.bemaservices.RoomManagement.Webhooks
             }
         }
 
+        /// <summary>
+        /// Responds 403 Forbidden: the caller may not view the requested reservation data.
+        /// </summary>
+        /// <param name="context">The OWIN request context.</param>
         private void SendNotAuthorized( IOwinContext context )
         {
             context.Response.StatusCode = ( int ) HttpStatusCode.Forbidden;
             context.Response.ReasonPhrase = "Not authorized to view requested reservation data.";
         }
 
+        /// <summary>
+        /// Responds 400 Bad Request, adding any detail about what was wrong to the reason phrase.
+        /// </summary>
+        /// <param name="context">The OWIN request context.</param>
+        /// <param name="addlInfo">Extra detail about what was wrong, if any.</param>
         private void SendBadRequest( IOwinContext context, string addlInfo = "" )
         {
             context.Response.StatusCode = ( int ) HttpStatusCode.BadRequest;

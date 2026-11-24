@@ -94,10 +94,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             //// Set postback timeout and request-timeout to whatever the DatabaseTimeout is plus an extra 5 seconds so that page doesn't timeout before the database does
             int databaseTimeout = GetAttributeValue( AttributeKey.DatabaseTimeoutSeconds ).AsIntegerOrNull() ?? 180;
-            var sm = ScriptManager.GetCurrent( this.Page );
-            if ( sm != null && sm.AsyncPostBackTimeout < databaseTimeout + 5 )
+            var scriptManager = ScriptManager.GetCurrent( this.Page );
+            if ( scriptManager != null && scriptManager.AsyncPostBackTimeout < databaseTimeout + 5 )
             {
-                sm.AsyncPostBackTimeout = databaseTimeout + 5;
+                scriptManager.AsyncPostBackTimeout = databaseTimeout + 5;
                 Server.ScriptTimeout = databaseTimeout + 5;
             }
         }

@@ -363,8 +363,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 ddlCampus.Items.Add( new ListItem( string.Empty, string.Empty ) );
                 foreach ( var campus in CampusCache.All() )
                 {
-                    ListItem li = new ListItem( campus.Name, campus.Id.ToString() );
-                    ddlCampus.Items.Add( li );
+                    ListItem campusItem = new ListItem( campus.Name, campus.Id.ToString() );
+                    ddlCampus.Items.Add( campusItem );
                 }
             }
 

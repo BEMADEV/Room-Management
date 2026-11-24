@@ -1103,9 +1103,10 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 var countRules = calEvent.RecurrenceRules.Where( rule => rule.Count > 0 );
 
-                DateTime dt1 = new DateTime();
+                // A recurrence rule without an end date leaves Until at the default DateTime value
+                DateTime unsetUntilDate = new DateTime();
 
-                if ( !countRules.Any() && calEvent.RecurrenceRules.Count > 0 && calEvent.RecurrenceRules[0].Until.Date == dt1 )
+                if ( !countRules.Any() && calEvent.RecurrenceRules.Count > 0 && calEvent.RecurrenceRules[0].Until.Date == unsetUntilDate )
                 {
                     calEvent.RecurrenceRules[0].Until = maximumReservationDate;
                     Ical.Net.Calendar calendar = new Calendar();

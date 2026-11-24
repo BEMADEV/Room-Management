@@ -80,11 +80,11 @@ namespace com.bemaservices.RoomManagement.Webhooks
         /// Responds 400 Bad Request, adding any detail about what was wrong to the reason phrase.
         /// </summary>
         /// <param name="context">The OWIN request context.</param>
-        /// <param name="addlInfo">Extra detail about what was wrong, if any.</param>
-        private void SendBadRequest( IOwinContext context, string addlInfo = "" )
+        /// <param name="additionalInfo">Extra detail about what was wrong, if any.</param>
+        private void SendBadRequest( IOwinContext context, string additionalInfo = "" )
         {
             context.Response.StatusCode = ( int ) HttpStatusCode.BadRequest;
-            context.Response.ReasonPhrase = "Request is invalid or malformed. " + addlInfo;
+            context.Response.ReasonPhrase = "Request is invalid or malformed. " + additionalInfo;
         }
 
         /// <summary>

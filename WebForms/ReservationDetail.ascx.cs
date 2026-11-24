@@ -1981,15 +1981,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void rbSelected_CheckedChanged( object sender, EventArgs e )
         {
             //Clear the existing selected row 
-            foreach ( GridViewRow oldrow in gLocationLayouts.Rows )
+            foreach ( GridViewRow layoutRow in gLocationLayouts.Rows )
             {
-                ( ( RadioButton ) oldrow.FindControl( "rbSelected" ) ).Checked = false;
+                ( ( RadioButton ) layoutRow.FindControl( "rbSelected" ) ).Checked = false;
             }
 
             //Set the new selected row
-            RadioButton rb = ( RadioButton ) sender;
-            GridViewRow row = ( GridViewRow ) rb.NamingContainer;
-            ( ( RadioButton ) row.FindControl( "rbSelected" ) ).Checked = true;
+            RadioButton selectedRadioButton = ( RadioButton ) sender;
+            GridViewRow selectedRow = ( GridViewRow ) selectedRadioButton.NamingContainer;
+            ( ( RadioButton ) selectedRow.FindControl( "rbSelected" ) ).Checked = true;
         }
 
         #endregion

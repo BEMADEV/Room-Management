@@ -201,9 +201,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             ddlCampus.Items.Add( new ListItem( string.Empty, string.Empty ) );
             foreach ( var campus in CampusCache.All() )
             {
-                ListItem li = new ListItem( campus.Name, campus.Id.ToString() );
-                li.Selected = campus.Id.ToString() == gfSettings.GetFilterPreference( "Campus" );
-                ddlCampus.Items.Add( li );
+                ListItem campusItem = new ListItem( campus.Name, campus.Id.ToString() );
+                campusItem.Selected = campus.Id.ToString() == gfSettings.GetFilterPreference( "Campus" );
+                ddlCampus.Items.Add( campusItem );
             }
         }
 

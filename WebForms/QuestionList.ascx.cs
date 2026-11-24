@@ -316,7 +316,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 return;
             }
 
-            Rock.Model.Attribute savedAttribute = Helper.SaveAttributeEdits( newAttribute, entityTypeId, null, null, rockContext );
+            // Scope the attribute to this question's resource or location. SaveAttributeEdits always overwrites the qualifier,
+            // so it's passed on every save, including edits, or an existing qualifier would be cleared.
+            string qualifierColumn;
+            string qualifierValue;
+            GetQuestionQualifier( question.ResourceId, question.LocationId, out qualifierColumn, out qualifierValue );
+
+            Rock.Model.Attribute savedAttribute = Helper.SaveAttributeEdits( newAttribute, entityTypeId, qualifierColumn, qualifierValue, rockContext );
 
             EntityTypeAttributesCache.Clear();
 
@@ -500,6 +506,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 {
                     cloneQuestion.LocationId = LocationId;
                 }
+
+                // Scope the copy to this resource or location; the clone would otherwise keep the source's qualifier
+                string qualifierColumn;
+                string qualifierValue;
+                GetQuestionQualifier( cloneQuestion.ResourceId, cloneQuestion.LocationId, out qualifierColumn, out qualifierValue );
+                cloneAttribute.EntityTypeQualifierColumn = qualifierColumn;
+                cloneAttribute.EntityTypeQualifierValue = qualifierValue;
 
                 // Key the copy after this owner's existing questions, unique across the entity type
                 cloneAttribute.Order = nextOrder;
@@ -746,6 +759,34 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             return newAttribute;
+        }
+
+        /// <summary>
+        /// Gets the attribute qualifier that scopes a question to its resource or location. Question attributes live on the
+        /// ReservationResource or ReservationLocation entity type; qualifying them by that entity's ResourceId or LocationId
+        /// property makes Rock load each question only for its own resource or location, in Lava and REST as well as here.
+        /// Keys stay unique across the whole entity type (see <see cref="AssignUniqueQuestionKey" />), since older questions
+        /// may still be unqualified.
+        /// </summary>
+        /// <param name="resourceId">The question's resource identifier, if it belongs to a resource.</param>
+        /// <param name="locationId">The question's location identifier, if it belongs to a location.</param>
+        /// <param name="qualifierColumn">The qualifier column, or <c>null</c> if the question has no owner.</param>
+        /// <param name="qualifierValue">The qualifier value, or <c>null</c> if the question has no owner.</param>
+        private static void GetQuestionQualifier( int? resourceId, int? locationId, out string qualifierColumn, out string qualifierValue )
+        {
+            qualifierColumn = null;
+            qualifierValue = null;
+
+            if ( resourceId.HasValue )
+            {
+                qualifierColumn = "ResourceId";
+                qualifierValue = resourceId.Value.ToString();
+            }
+            else if ( locationId.HasValue )
+            {
+                qualifierColumn = "LocationId";
+                qualifierValue = locationId.Value.ToString();
+            }
         }
 
         /// <summary>

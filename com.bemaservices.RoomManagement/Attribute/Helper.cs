@@ -30,51 +30,72 @@ namespace com.bemaservices.RoomManagement.Attribute
     public static class Helper
     {
         /// <summary>
-        /// Loads the reservation location attributes.
+        /// Loads the questions for a reservation location: only the attributes that are questions for that location,
+        /// with their answers. See <see cref="LoadQuestionAttributes" /> for how questions are recognized.
         /// </summary>
         /// <param name="reservationLocation">The reservation location.</param>
         public static void LoadReservationLocationAttributes( this ReservationLocation reservationLocation )
         {
-            var rockContext = new RockContext();
-            var questionService = new ReservationQuestionService( rockContext );
-            var questionAttributeIds = questionService.Queryable().Where( q => q.LocationId == reservationLocation.LocationId ).Select( q => q.AttributeId ).ToList();
+            List<int> linkedAttributeIds;
+            using ( var rockContext = new RockContext() )
+            {
+                linkedAttributeIds = new ReservationQuestionService( rockContext ).Queryable()
+                    .Where( q => q.LocationId == reservationLocation.LocationId )
+                    .Select( q => q.AttributeId )
+                    .ToList();
+            }
 
             var starterReservationLocation = new ReservationLocation();
             starterReservationLocation.CopyPropertiesFrom( reservationLocation );
 
-            Rock.Attribute.Helper.LoadAttributes( starterReservationLocation );
-
-            var attributeList = starterReservationLocation.Attributes.Where( kvp => questionAttributeIds.Contains( kvp.Value.Id ) ).ToList();
-            reservationLocation.Attributes = new Dictionary<string, Rock.Web.Cache.AttributeCache>();
-            attributeList.ForEach( a => reservationLocation.Attributes.AddOrReplace( a.Key, a.Value ) );
-
-            var attributeValueList = starterReservationLocation.AttributeValues.Where( kvp => questionAttributeIds.Contains( kvp.Value.AttributeId ) ).ToList();
-            reservationLocation.AttributeValues = new Dictionary<string, Rock.Web.Cache.AttributeValueCache>();
-            attributeValueList.ForEach( a => reservationLocation.AttributeValues.AddOrReplace( a.Key, a.Value ) );
+            LoadQuestionAttributes( reservationLocation, starterReservationLocation, "LocationId", linkedAttributeIds );
         }
 
         /// <summary>
-        /// Loads the reservation resource attributes.
+        /// Loads the questions for a reservation resource: only the attributes that are questions for that resource,
+        /// with their answers. See <see cref="LoadQuestionAttributes" /> for how questions are recognized.
         /// </summary>
         /// <param name="reservationResource">The reservation resource.</param>
         public static void LoadReservationResourceAttributes( this ReservationResource reservationResource )
         {
-            var rockContext = new RockContext();
-            var questionService = new ReservationQuestionService( rockContext );
-            var questionAttributeIds = questionService.Queryable().Where( q => q.ResourceId == reservationResource.ResourceId ).Select( q => q.AttributeId ).ToList();
+            List<int> linkedAttributeIds;
+            using ( var rockContext = new RockContext() )
+            {
+                linkedAttributeIds = new ReservationQuestionService( rockContext ).Queryable()
+                    .Where( q => q.ResourceId == reservationResource.ResourceId )
+                    .Select( q => q.AttributeId )
+                    .ToList();
+            }
 
             var starterReservationResource = new ReservationResource();
             starterReservationResource.CopyPropertiesFrom( reservationResource );
 
-            Rock.Attribute.Helper.LoadAttributes( starterReservationResource );
+            LoadQuestionAttributes( reservationResource, starterReservationResource, "ResourceId", linkedAttributeIds );
+        }
 
-            var attributeList = starterReservationResource.Attributes.Where( kvp => questionAttributeIds.Contains( kvp.Value.Id ) ).ToList();
-            reservationResource.Attributes = new Dictionary<string, Rock.Web.Cache.AttributeCache>();
-            attributeList.ForEach( a => reservationResource.Attributes.AddOrReplace( a.Key, a.Value ) );
+        /// <summary>
+        /// Loads a reservation location's or resource's attributes onto a copy, then keeps only its questions. Rock already
+        /// drops questions scoped to a different resource or location (their qualifier doesn't match), so an attribute is
+        /// kept when it's scoped by <paramref name="qualifierColumn" /> or, for questions not scoped yet (before the
+        /// modernization migration runs, or rows it skipped), when the ReservationQuestion table links it here. Other
+        /// unqualified attributes added to these entity types stay hidden, as before.
+        /// </summary>
+        /// <param name="entity">The reservation location or resource to load the questions onto.</param>
+        /// <param name="starterEntity">A copy of the entity used for loading every attribute.</param>
+        /// <param name="qualifierColumn">The qualifier column that scopes questions to an owner: ResourceId or LocationId.</param>
+        /// <param name="linkedAttributeIds">The attribute ids the ReservationQuestion table links to this owner.</param>
+        private static void LoadQuestionAttributes( Rock.Attribute.IHasAttributes entity, Rock.Attribute.IHasAttributes starterEntity, string qualifierColumn, List<int> linkedAttributeIds )
+        {
+            Rock.Attribute.Helper.LoadAttributes( starterEntity );
 
-            var attributeValueList = starterReservationResource.AttributeValues.Where( kvp => questionAttributeIds.Contains( kvp.Value.AttributeId ) ).ToList();
-            reservationResource.AttributeValues = new Dictionary<string, Rock.Web.Cache.AttributeValueCache>();
-            attributeValueList.ForEach( a => reservationResource.AttributeValues.AddOrReplace( a.Key, a.Value ) );
+            var linkedIds = new HashSet<int>( linkedAttributeIds );
+            entity.Attributes = starterEntity.Attributes
+                .Where( kvp => kvp.Value.EntityTypeQualifierColumn == qualifierColumn || linkedIds.Contains( kvp.Value.Id ) )
+                .ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
+
+            entity.AttributeValues = starterEntity.AttributeValues
+                .Where( kvp => entity.Attributes.ContainsKey( kvp.Key ) )
+                .ToDictionary( kvp => kvp.Key, kvp => kvp.Value );
         }
     }
 

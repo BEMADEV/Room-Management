@@ -244,15 +244,10 @@ namespace Rock.Rest.Controllers
                     Resource resource;
                     if ( resourcesById.TryGetValue( categorizedItem.ResourceId, out resource ) && resource.IsAuthorized( Authorization.VIEW, currentPerson ) )
                     {
-                        var color = "Green";
-                        if ( categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0 )
-                        {
-                            color = "Red";
-                        }
-                        else if ( categorizedItem.UnconflictedQuantity.HasValue && categorizedItem.UnconflictedQuantity <= 0 )
-                        {
-                            color = "Orange";
-                        }
+                        // None left unreserved means reserved; none left once requests are counted means conflicted
+                        var color = TreeAvailabilityColor.Get(
+                            categorizedItem.UnreservedQuantity.HasValue && categorizedItem.UnreservedQuantity <= 0,
+                            categorizedItem.UnconflictedQuantity.HasValue && categorizedItem.UnconflictedQuantity <= 0 );
 
                         var availableQuantity = string.Empty;
                         if ( categorizedItem.UnreservedQuantity.HasValue )

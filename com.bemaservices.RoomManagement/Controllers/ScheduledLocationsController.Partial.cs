@@ -128,32 +128,13 @@ namespace Rock.Rest.Controllers
                     var treeViewItem = new TreeViewItem();
                     treeViewItem.Id = location.Id.ToString();
 
-                    var color = "Green";
-                    if ( location.LocationTypeValueId.HasValue && !reservationLocationTypeList.Contains( location.LocationTypeValueId.Value ) )
-                    {
-                        color = "Black";
-                    }
-                    else
-                    {
-                        if ( reservedLocationIds.Contains( location.Id ) )
-                        {
-                            color = "Red";
-                        }
-                        else
-                        {
-                            if ( conflictedLocationIds.Contains( location.Id ) )
-                            {
-                                color = "Orange";
-                            }
-                            else
-                            {
-                                if ( attendeeCount != null && location.FirmRoomThreshold != null && attendeeCount.Value > location.FirmRoomThreshold.Value )
-                                {
-                                    color = "Orange";
-                                }
-                            }
-                        }
-                    }
+                    // A location type the reservation type can't use is shown as unusable; otherwise reserved wins, and
+                    // being only requested elsewhere or too small for the attendees both count as conflicted
+                    var isUsableLocationType = !location.LocationTypeValueId.HasValue || reservationLocationTypeList.Contains( location.LocationTypeValueId.Value );
+                    var isTooSmall = attendeeCount != null && location.FirmRoomThreshold != null && attendeeCount.Value > location.FirmRoomThreshold.Value;
+                    var color = isUsableLocationType
+                        ? TreeAvailabilityColor.Get( reservedLocationIds.Contains( location.Id ), conflictedLocationIds.Contains( location.Id ) || isTooSmall )
+                        : TreeAvailabilityColor.Unusable;
 
                     treeViewItem.Name = string.Format( "<span style='color:{0};'>{1}</span><small style='color:grey;'>{2}</small>",
                         color,

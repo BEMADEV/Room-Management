@@ -150,6 +150,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Fields
 
         /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string ReservationId = "ReservationId";
+        }
+
+        /// <summary>
         /// Class AttributeKey.
         /// </summary>
         protected static class AttributeKey
@@ -285,7 +293,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             base.OnLoad( e );
             if ( !Page.IsPostBack )
             {
-                hfReservationId.Value = PageParameter( "ReservationId" );
+                hfReservationId.Value = PageParameter( PageParameterKey.ReservationId );
                 using ( var rockContext = new RockContext() )
                 {
                     Init_SetValuesFromReservation();
@@ -391,7 +399,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         private void ExitWizard()
         {
             Dictionary<string, string> qryParams = new Dictionary<string, string>();
-            qryParams.Add( "ReservationId", PageParameter( "ReservationId" ) );
+            qryParams.Add( "ReservationId", PageParameter( PageParameterKey.ReservationId ) );
             NavigateToParentPage( qryParams );
         }
 

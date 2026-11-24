@@ -37,9 +37,25 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [DisplayName( "Reservation Type List" )]
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block to display the reservation types." )]
-    [LinkedPage( "Detail Page", "Page used to view details of a reservation type." )]
+    [LinkedPage( "Detail Page",
+        Key = AttributeKey.DetailPage,
+        Description = "Page used to view details of a reservation type.",
+        IsRequired = true,
+        Order = 0 )]
     public partial class ReservationTypeList : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string DetailPage = "DetailPage";
+        }
+
+        #endregion Keys
+
         #region Base Control Methods
 
         /// <summary>
@@ -91,7 +107,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             int? reservationTypeId = e.CommandArgument.ToString().AsIntegerOrNull();
             if ( reservationTypeId.HasValue )
             {
-                NavigateToLinkedPage( "DetailPage", "ReservationTypeId", reservationTypeId.Value );
+                NavigateToLinkedPage( AttributeKey.DetailPage, "ReservationTypeId", reservationTypeId.Value );
             }
 
             GetData();
@@ -104,7 +120,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbAddReservationType_Click( object sender, EventArgs e )
         {
-            NavigateToLinkedPage( "DetailPage", "ReservationTypeId", 0 );
+            NavigateToLinkedPage( AttributeKey.DetailPage, "ReservationTypeId", 0 );
         }
         #endregion
 

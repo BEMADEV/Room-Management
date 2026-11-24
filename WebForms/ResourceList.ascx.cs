@@ -39,9 +39,24 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block for viewing a list of resources." )]
 
-    [LinkedPage( "Detail Page" )]
+    [LinkedPage( "Detail Page",
+        Key = AttributeKey.DetailPage,
+        IsRequired = true,
+        Order = 0 )]
     public partial class ResourceList : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string DetailPage = "DetailPage";
+        }
+
+        #endregion Keys
+
         #region Fields
 
 
@@ -94,7 +109,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var parms = new Dictionary<string, string>();
             parms.Add( "ResourceId", "0" );
-            NavigateToLinkedPage( "DetailPage", parms );
+            NavigateToLinkedPage( AttributeKey.DetailPage, parms );
         }
 
         /// <summary>
@@ -106,7 +121,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             var parms = new Dictionary<string, string>();
             parms.Add( "ResourceId", e.RowKeyValue.ToString() );
-            NavigateToLinkedPage( "DetailPage", parms );
+            NavigateToLinkedPage( AttributeKey.DetailPage, parms );
         }
 
         /// <summary>

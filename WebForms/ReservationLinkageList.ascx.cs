@@ -72,6 +72,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Keys
 
         /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string ReservationId = "ReservationId";
+        }
+
+        /// <summary>
         /// Keys for block attributes
         /// </summary>
         private static class AttributeKey
@@ -176,7 +184,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void gLinkages_GridRebind( object sender, EventArgs e )
         {
-            var reservationId = PageParameter( "ReservationId" ).AsIntegerOrNull();
+            var reservationId = PageParameter( PageParameterKey.ReservationId ).AsIntegerOrNull();
             if ( reservationId.HasValue )
             {
                 var reservation = new ReservationService( new RockContext() ).Get( reservationId.Value );
@@ -283,7 +291,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void gLinkages_AddClick( object sender, EventArgs e )
         {
-            NavigateToLinkedPage( AttributeKey.LinkageDetailPage, "LinkageId", 0, "ReservationId", PageParameter( "ReservationId" ).AsInteger() );
+            NavigateToLinkedPage( AttributeKey.LinkageDetailPage, "LinkageId", 0, "ReservationId", PageParameter( PageParameterKey.ReservationId ).AsInteger() );
         }
 
         /// <summary>
@@ -327,7 +335,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             bool readOnly = true;
 
-            int? reservationId = PageParameter( "ReservationId" ).AsIntegerOrNull();
+            int? reservationId = PageParameter( PageParameterKey.ReservationId ).AsIntegerOrNull();
 
             if ( reservationId.HasValue )
             {
@@ -385,7 +393,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// </summary>
         private void BindLinkagesGrid()
         {
-            int? reservationId = PageParameter( "ReservationId" ).AsIntegerOrNull();
+            int? reservationId = PageParameter( PageParameterKey.ReservationId ).AsIntegerOrNull();
 
             if ( !reservationId.HasValue )
             {

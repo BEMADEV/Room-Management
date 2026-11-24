@@ -55,13 +55,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         "Workflow Entry Page",
         Description = "Page used to launch a new workflow of the selected type.",
         Order = 0,
-        Key = "WorkflowEntryPage",
+        Key = AttributeKey.WorkflowEntryPage,
         DefaultValue = Rock.SystemGuid.Page.WORKFLOW_ENTRY )]
     [LavaField(
         "Location Detail Template",
         Description = "A customizable template to dictate what details are displayed when selecting a location",
         Order = 1,
-        Key = "LocationDetailTemplate",
+        Key = AttributeKey.LocationDetailTemplate,
         DefaultValue = @"<div class='row'>
     {% if Location.ImageId != null %}
         {% capture imgUrl %}/GetFile.ashx?guid={{Location.Image.Guid}}{% endcapture %}
@@ -82,13 +82,55 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 </div>" )]
 
     [BooleanField(
-        "Is Additional Info Expanded By Default"
-        , Key = "IsAdditionalInfoExpanded"
-        , DefaultBooleanValue = false
-        , Order = 2 )]
+        "Is Additional Info Expanded By Default",
+        Key = AttributeKey.IsAdditionalInfoExpanded,
+        DefaultBooleanValue = false,
+        Order = 2 )]
 
     public partial class ReservationDetail : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string WorkflowEntryPage = "WorkflowEntryPage";
+            public const string LocationDetailTemplate = "LocationDetailTemplate";
+            public const string IsAdditionalInfoExpanded = "IsAdditionalInfoExpanded";
+        }
+
+        /// <summary>
+        /// The page parameter keys. Besides ReservationId, these prefill a new reservation from the URL.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string AdministrativeContactPersonAliasId = "AdministrativeContactPersonAliasId";
+            public const string CalendarDate = "CalendarDate";
+            public const string CampusId = "CampusId";
+            public const string CleanupTime = "CleanupTime";
+            public const string EventContactPersonAliasId = "EventContactPersonAliasId";
+            public const string ForeignGuid = "ForeignGuid";
+            public const string ForeignId = "ForeignId";
+            public const string ForeignKey = "ForeignKey";
+            public const string LocationId = "LocationId";
+            public const string LocationIds = "LocationIds";
+            public const string MinistryId = "MinistryId";
+            public const string Name = "Name";
+            public const string Note = "Note";
+            public const string NumberAttending = "NumberAttending";
+            public const string PhotoId = "PhotoId";
+            public const string ReservationId = "ReservationId";
+            public const string ReservationTypeId = "ReservationTypeId";
+            public const string ResourceId = "ResourceId";
+            public const string ResourceIds = "ResourceIds";
+            public const string ScheduleId = "ScheduleId";
+            public const string SetupTime = "SetupTime";
+        }
+
+        #endregion Keys
+
         #region Fields
 
         /// <summary>
@@ -303,7 +345,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             base.OnLoad( e );
             if ( !Page.IsPostBack )
             {
-                ShowDetail( PageParameter( "ReservationId" ).AsInteger() );
+                ShowDetail( PageParameter( PageParameterKey.ReservationId ).AsInteger() );
             }
             else
             {
@@ -420,19 +462,19 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                     reservation.ApprovalState = ReservationApprovalState.Draft;
                     reservation.RequesterAliasId = CurrentPersonAliasId;
 
-                    if ( PageParameter( "ForeignKey" ).IsNotNullOrWhiteSpace() )
+                    if ( PageParameter( PageParameterKey.ForeignKey ).IsNotNullOrWhiteSpace() )
                     {
-                        reservation.ForeignKey = PageParameter( "ForeignKey" );
+                        reservation.ForeignKey = PageParameter( PageParameterKey.ForeignKey );
                     }
 
-                    if ( PageParameter( "ForeignId" ).AsInteger() != 0 )
+                    if ( PageParameter( PageParameterKey.ForeignId ).AsInteger() != 0 )
                     {
-                        reservation.ForeignId = PageParameter( "ForeignId" ).AsInteger();
+                        reservation.ForeignId = PageParameter( PageParameterKey.ForeignId ).AsInteger();
                     }
 
-                    if ( PageParameter( "ForeignGuid" ).AsGuidOrNull() != null )
+                    if ( PageParameter( PageParameterKey.ForeignGuid ).AsGuidOrNull() != null )
                     {
-                        reservation.ForeignGuid = PageParameter( "ForeignGuid" ).AsGuid();
+                        reservation.ForeignGuid = PageParameter( PageParameterKey.ForeignGuid ).AsGuid();
                     }
 
                 }
@@ -818,7 +860,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void btnDelete_OnClick( object sender, EventArgs e )
         {
-            if ( PageParameter( "ReservationId" ).AsIntegerOrNull() != null )
+            if ( PageParameter( PageParameterKey.ReservationId ).AsIntegerOrNull() != null )
             {
                 RockContext rockContext = new RockContext();
                 ReservationService reservationService = new ReservationService( rockContext );
@@ -1142,7 +1184,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void hfApprovalState_ValueChanged( object sender, EventArgs e )
         {
-            if ( PageParameter( "ReservationId" ).AsIntegerOrNull() != null )
+            if ( PageParameter( PageParameterKey.ReservationId ).AsIntegerOrNull() != null )
             {
                 var reservation = new ReservationService( new RockContext() ).Get( hfReservationId.ValueAsInt() );
                 if ( reservation != null )
@@ -2489,7 +2531,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
 
                 LoadAdditionalInfo( true, true, true, true );
-                wpAdditionalInfo.Expanded = GetAttributeValue( "IsAdditionalInfoExpanded" ).AsBoolean();
+                wpAdditionalInfo.Expanded = GetAttributeValue( AttributeKey.IsAdditionalInfoExpanded ).AsBoolean();
 
 
                 ddlCampus.Items.Clear();
@@ -2671,7 +2713,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         private void BuildReservationQuestions( bool isEditMode, bool resetControls )
         {
             Reservation reservation = null;
-            int? reservationId = PageParameter( "ReservationId" ).AsIntegerOrNull();
+            int? reservationId = PageParameter( PageParameterKey.ReservationId ).AsIntegerOrNull();
             if ( reservationId.HasValue )
             {
                 reservation = new ReservationService( new RockContext() ).Get( reservationId.Value );
@@ -2826,7 +2868,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         protected void ReturnToParentPage()
         {
             Dictionary<string, string> dictionaryInfo = new Dictionary<string, string>();
-            dictionaryInfo.Add( "CalendarDate", PageParameter( "CalendarDate" ) );
+            dictionaryInfo.Add( "CalendarDate", PageParameter( PageParameterKey.CalendarDate ) );
             NavigateToParentPage( dictionaryInfo );
         }
 
@@ -2885,9 +2927,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             reservation = new Reservation { Id = 0 };
 
             var reservationTypeService = new ReservationTypeService( rockContext );
-            if ( PageParameter( "ReservationTypeId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.ReservationTypeId ).AsInteger() != 0 )
             {
-                ReservationType = reservationTypeService.Get( PageParameter( "ReservationTypeId" ).AsInteger() );
+                ReservationType = reservationTypeService.Get( PageParameter( PageParameterKey.ReservationTypeId ).AsInteger() );
             }
 
             if ( ReservationType == null )
@@ -2906,33 +2948,33 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             reservation.ReservationType = ReservationType;
 
-            if ( PageParameter( "Name" ).IsNotNullOrWhiteSpace() )
+            if ( PageParameter( PageParameterKey.Name ).IsNotNullOrWhiteSpace() )
             {
-                reservation.Name = PageParameter( "Name" );
+                reservation.Name = PageParameter( PageParameterKey.Name );
             }
 
-            if ( PageParameter( "ScheduleId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.ScheduleId ).AsInteger() != 0 )
             {
-                var schedule = new ScheduleService( rockContext ).Get( PageParameter( "ScheduleId" ).AsInteger() );
+                var schedule = new ScheduleService( rockContext ).Get( PageParameter( PageParameterKey.ScheduleId ).AsInteger() );
                 if ( schedule != null )
                 {
                     reservation.Schedule = new Schedule { iCalendarContent = schedule.iCalendarContent };
                 }
             }
 
-            if ( PageParameter( "SetupTime" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.SetupTime ).AsInteger() != 0 )
             {
-                reservation.SetupTime = PageParameter( "SetupTime" ).AsInteger();
+                reservation.SetupTime = PageParameter( PageParameterKey.SetupTime ).AsInteger();
             }
 
-            if ( PageParameter( "CleanupTime" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.CleanupTime ).AsInteger() != 0 )
             {
-                reservation.CleanupTime = PageParameter( "CleanupTime" ).AsInteger();
+                reservation.CleanupTime = PageParameter( PageParameterKey.CleanupTime ).AsInteger();
             }
 
-            if ( PageParameter( "CampusId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.CampusId ).AsInteger() != 0 )
             {
-                var campus = new CampusService( rockContext ).Get( PageParameter( "CampusId" ).AsInteger() );
+                var campus = new CampusService( rockContext ).Get( PageParameter( PageParameterKey.CampusId ).AsInteger() );
                 if ( campus != null )
                 {
                     reservation.Campus = campus;
@@ -2940,9 +2982,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            if ( PageParameter( "MinistryId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.MinistryId ).AsInteger() != 0 )
             {
-                var ministry = new ReservationMinistryService( rockContext ).Get( PageParameter( "MinistryId" ).AsInteger() );
+                var ministry = new ReservationMinistryService( rockContext ).Get( PageParameter( PageParameterKey.MinistryId ).AsInteger() );
                 if ( ministry != null && ReservationType != null && ReservationType.ReservationMinistries.Select( m => m.Id ).Contains( ministry.Id ) )
                 {
                     reservation.ReservationMinistry = ministry;
@@ -2950,14 +2992,14 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            if ( PageParameter( "NumberAttending" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.NumberAttending ).AsInteger() != 0 )
             {
-                reservation.NumberAttending = PageParameter( "NumberAttending" ).AsInteger();
+                reservation.NumberAttending = PageParameter( PageParameterKey.NumberAttending ).AsInteger();
             }
 
-            if ( PageParameter( "PhotoId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.PhotoId ).AsInteger() != 0 )
             {
-                var photo = new BinaryFileService( rockContext ).Get( PageParameter( "PhotoId" ).AsInteger() );
+                var photo = new BinaryFileService( rockContext ).Get( PageParameter( PageParameterKey.PhotoId ).AsInteger() );
                 if ( photo != null )
                 {
                     reservation.SetupPhoto = photo;
@@ -2966,9 +3008,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             var configuredPhoneTypeId = reservation.ReservationType.ContactPhoneTypeValueId;
-            if ( PageParameter( "EventContactPersonAliasId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.EventContactPersonAliasId ).AsInteger() != 0 )
             {
-                var eventContactPersonAlias = new PersonAliasService( rockContext ).Get( PageParameter( "EventContactPersonAliasId" ).AsInteger() );
+                var eventContactPersonAlias = new PersonAliasService( rockContext ).Get( PageParameter( PageParameterKey.EventContactPersonAliasId ).AsInteger() );
                 if ( eventContactPersonAlias != null )
                 {
                     reservation.EventContactPersonAlias = eventContactPersonAlias;
@@ -2982,9 +3024,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             var adminContactPersonAlias = CurrentPersonAlias;
-            if ( PageParameter( "AdministrativeContactPersonAliasId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.AdministrativeContactPersonAliasId ).AsInteger() != 0 )
             {
-                adminContactPersonAlias = new PersonAliasService( rockContext ).Get( PageParameter( "AdministrativeContactPersonAliasId" ).AsInteger() );
+                adminContactPersonAlias = new PersonAliasService( rockContext ).Get( PageParameter( PageParameterKey.AdministrativeContactPersonAliasId ).AsInteger() );
             }
 
             if ( adminContactPersonAlias != null )
@@ -2998,15 +3040,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                                 .FirstOrDefault();
             }
 
-            if ( PageParameter( "Note" ).IsNotNullOrWhiteSpace() )
+            if ( PageParameter( PageParameterKey.Note ).IsNotNullOrWhiteSpace() )
             {
-                reservation.Note = PageParameter( "Note" );
+                reservation.Note = PageParameter( PageParameterKey.Note );
             }
 
-            if ( PageParameter( "LocationId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.LocationId ).AsInteger() != 0 )
             {
                 // set the campus based on the location that was passed in:
-                var location = new LocationService( new RockContext() ).Get( PageParameter( "LocationId" ).AsInteger() );
+                var location = new LocationService( new RockContext() ).Get( PageParameter( PageParameterKey.LocationId ).AsInteger() );
                 if ( location != null )
                 {
                     ReservationLocation reservationLocation = new ReservationLocation();
@@ -3020,7 +3062,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            var locationIds = PageParameter( "LocationIds" ).SplitDelimitedValues().AsIntegerList();
+            var locationIds = PageParameter( PageParameterKey.LocationIds ).SplitDelimitedValues().AsIntegerList();
             foreach ( var locationId in locationIds )
             {
                 // set the campus based on the location that was passed in:
@@ -3038,10 +3080,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            if ( PageParameter( "ResourceId" ).AsInteger() != 0 )
+            if ( PageParameter( PageParameterKey.ResourceId ).AsInteger() != 0 )
             {
                 // set the campus based on the resource that was passed in:
-                var resource = new ResourceService( new RockContext() ).Get( PageParameter( "ResourceId" ).AsInteger() );
+                var resource = new ResourceService( new RockContext() ).Get( PageParameter( PageParameterKey.ResourceId ).AsInteger() );
                 if ( resource != null )
                 {
                     ReservationResource reservationResource = new ReservationResource();
@@ -3056,7 +3098,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 }
             }
 
-            var resourceIds = PageParameter( "ResourceIds" ).SplitDelimitedValues().AsIntegerList();
+            var resourceIds = PageParameter( PageParameterKey.ResourceIds ).SplitDelimitedValues().AsIntegerList();
             foreach ( var resourceId in resourceIds )
             {
                 // set the campus based on the resource that was passed in:
@@ -3117,7 +3159,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                                     var qryParam = new Dictionary<string, string>();
                                     qryParam.Add( "WorkflowTypeId", workflowType.Id.ToString() );
                                     qryParam.Add( "WorkflowId", workflow.Id.ToString() );
-                                    NavigateToLinkedPage( "WorkflowEntryPage", qryParam );
+                                    NavigateToLinkedPage( AttributeKey.WorkflowEntryPage, qryParam );
                                 }
                                 else
                                 {
@@ -3282,7 +3324,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 var location = new LocationService( new RockContext() ).Get( slpLocation.SelectedValueAsId().Value );
                 if ( location != null )
                 {
-                    var lavaTemplate = GetAttributeValue( "LocationDetailTemplate" );
+                    var lavaTemplate = GetAttributeValue( AttributeKey.LocationDetailTemplate );
 
                     var mergeFields = Rock.Lava.LavaHelper.GetCommonMergeFields( null );
                     mergeFields.Add( "Location", location );

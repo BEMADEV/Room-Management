@@ -43,19 +43,39 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block to display reservations assigned to the current user.  The display format is controlled by a lava template." )]
 
-    [CustomRadioListField( "Role", "Display the active reservations that the current user Initiated / is a Contact for, or is currently Assigned To for approval.", "0^Assigned To,1^Initiated", true, "0", "", 0, Key = AttributeKey.Role )]
-    [CustomRadioListField( "Status", "Display upcoming reservations, or past reservations.", "0^Upcoming,1^Past", true, "0", "", 1, Key = AttributeKey.Status )]
+    [CustomRadioListField( "Role",
+        Key = AttributeKey.Role,
+        Description = "Display the active reservations that the current user Initiated / is a Contact for, or is currently Assigned To for approval.",
+        ListSource = "0^Assigned To,1^Initiated",
+        IsRequired = true,
+        DefaultValue = "0",
+        Order = 0 )]
+    [CustomRadioListField( "Status",
+        Key = AttributeKey.Status,
+        Description = "Display upcoming reservations, or past reservations.",
+        ListSource = "0^Upcoming,1^Past",
+        IsRequired = true,
+        DefaultValue = "0",
+        Order = 1 )]
     [CodeEditorField( "Contents",
         Key = AttributeKey.Contents,
-        Description = "The Lava template to use for displaying reservations assigned to current user.", 
+        Description = "The Lava template to use for displaying reservations assigned to current user.",
         EditorMode = CodeEditorMode.Lava,
         EditorHeight = 400,
         IsRequired = true,
         DefaultValue = @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/MyReservationsSortable.lava' %}",
         Category = "",
         Order = 3 )]
-    [TextField( "Set Panel Title", "The title to display in the panel header. Leave empty to have the block name.", required: false, order: 4, Key = AttributeKey.SetPanelTitle )]
-    [TextField( "Set Panel Icon", "The icon to display in the panel header.", required: false, order: 5, Key = AttributeKey.SetPanelIcon )]
+    [TextField( "Set Panel Title",
+        Key = AttributeKey.SetPanelTitle,
+        Description = "The title to display in the panel header. Leave empty to have the block name.",
+        IsRequired = false,
+        Order = 4 )]
+    [TextField( "Set Panel Icon",
+        Key = AttributeKey.SetPanelIcon,
+        Description = "The icon to display in the panel header.",
+        IsRequired = false,
+        Order = 5 )]
     [Rock.SystemGuid.BlockTypeGuid( "0D2E85E7-5881-42C4-9CB1-6F8830BB620B" )]
     public partial class MyReservationsLava : Rock.Web.UI.RockBlock
     {

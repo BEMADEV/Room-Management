@@ -40,8 +40,16 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Block for viewing a list of reservations." )]
 
-    [LinkedPage( "Detail Page", Key = AttributeKey.DetailPage )]
-    [TextField( "Related Entity Query String Parameter", "The query string parameter that holds id to the related entity.", false, Key = AttributeKey.RelatedEntityQueryStringParameter )]
+    [LinkedPage( "Detail Page",
+        Key = AttributeKey.DetailPage,
+        IsRequired = true,
+        Order = 0 )]
+
+    [TextField( "Related Entity Query String Parameter",
+        Key = AttributeKey.RelatedEntityQueryStringParameter,
+        Description = "The query string parameter that holds id to the related entity.",
+        IsRequired = false,
+        Order = 0 )]
     public partial class ReservationList : Rock.Web.UI.RockBlock, IPostBackEventHandler
     {
         #region Keys

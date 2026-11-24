@@ -48,14 +48,18 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
     [CodeEditorField( "Lava Template",
         Key = AttributeKey.LavaTemplate,
-        Description = "Lava template to use to display the list of upcoming events.", 
+        Description = "Lava template to use to display the list of upcoming events.",
         EditorMode = CodeEditorMode.Lava,
         EditorHeight = 400,
         IsRequired = true,
         DefaultValue = @"{% include '~/Plugins/com_bemaservices/RoomManagement/Assets/Lava/ReservationKiosk.lava' %}",
         Category = "",
         Order = 1 )]
-    [BooleanField( "Enable Debug", "Display a list of merge fields available for lava.", false, "", 99, Key = AttributeKey.EnableDebug )]
+    [BooleanField( "Enable Debug",
+        Key = AttributeKey.EnableDebug,
+        Description = "Display a list of merge fields available for lava.",
+        DefaultBooleanValue = false,
+        Order = 99 )]
 
     public partial class ReservationLavaKiosk : Rock.Web.UI.RockBlock
     {

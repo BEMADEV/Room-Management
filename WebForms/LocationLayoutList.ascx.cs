@@ -38,14 +38,39 @@ using com.bemaservices.RoomManagement.Web.UI.Controls;
 namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 {
     /// <summary>
-    /// User control for managing note types
+    /// Lists, adds, edits and deletes the layouts of a location, shown on the location's page.
     /// </summary>
     [DisplayName( "Location Layout List" )]
     [Category( "BEMA Services > Room Management" )]
     [Description( "A list of layouts tied to a location" )]
-    [IntegerField( "Layout Image Height", "", true, 150 )]
+
+    [IntegerField( "Layout Image Height",
+        Key = AttributeKey.LayoutImageHeight,
+        IsRequired = true,
+        DefaultIntegerValue = 150,
+        Order = 0 )]
     public partial class LocationLayoutList : RockBlock, ISecondaryBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string LayoutImageHeight = "LayoutImageHeight";
+        }
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string LocationId = "LocationId";
+        }
+
+        #endregion Keys
+
         #region Properties
 
         /// <summary>
@@ -56,7 +81,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             get
             {
-                return PageParameter( "LocationId" ).AsInteger();
+                return PageParameter( PageParameterKey.LocationId ).AsInteger();
             }
         }
 
@@ -311,7 +336,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 Id = l.Id,
                 Name = l.Name,
                 Description = l.Description,
-                LayoutPhoto = l.LayoutPhotoId != null ? string.Format( photoFormat, l.LayoutPhotoId, GetAttributeValue( "LayoutImageHeight" ) ) : "",
+                LayoutPhoto = l.LayoutPhotoId != null ? string.Format( photoFormat, l.LayoutPhotoId, GetAttributeValue( AttributeKey.LayoutImageHeight ) ) : "",
                 IsActive = l.IsActive,
                 IsDefault = l.IsDefault
             } )

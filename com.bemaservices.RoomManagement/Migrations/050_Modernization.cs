@@ -34,6 +34,7 @@ namespace com.bemaservices.RoomManagement.Migrations
         {
             AddReservationLavaCampusContextSetting();
             QualifyQuestionAttributes();
+            ReconcileReservationQuestionEntityType();
         }
 
         /// <summary>
@@ -41,6 +42,7 @@ namespace com.bemaservices.RoomManagement.Migrations
         /// </summary>
         public override void Down()
         {
+            RestoreReservationQuestionEntityTypeName();
             UnqualifyQuestionAttributes();
             RemoveReservationLavaCampusContextSetting();
         }
@@ -164,6 +166,125 @@ WHERE ( [q].[ResourceId] IS NOT NULL AND [a].[EntityTypeQualifierColumn] = 'Reso
    OR ( [q].[LocationId] IS NOT NULL AND [a].[EntityTypeQualifierColumn] = 'LocationId' AND [a].[EntityTypeQualifierValue] = CAST( [q].[LocationId] AS NVARCHAR(200) ) );
 " );
         }
+
+        /// <summary>
+        /// Gives the ReservationQuestion entity type a single row with a stable Guid, so the model can later declare
+        /// [EntityTypeGuid]. Migration 013 registered it as "com.bemaservices.RoomManagement.Model.Question" with Guid
+        /// F42FB8A5…, but the class is now ReservationQuestion, so Rock may also have registered a second row under the
+        /// current name with a random Guid. EntityType names and Guids must stay unique, so:
+        /// - only the 013 row: rename it to the current class name;
+        /// - only the newer row: give it the 013 Guid;
+        /// - both rows: keep whichever is referenced and delete the other, but only if nothing references it through a
+        ///   foreign key. If both are referenced, nothing changes and the reference counts are logged for manual cleanup.
+        /// Running this again changes nothing once there is one row with the current name and the 013 Guid.
+        /// </summary>
+        private void ReconcileReservationQuestionEntityType()
+        {
+            var conflictSummary = SqlScalar( $@"
+SET NOCOUNT ON;
+
+DECLARE @QuestionGuid UNIQUEIDENTIFIER = '{RESERVATION_QUESTION_ENTITY_TYPE_GUID}';
+DECLARE @CurrentName NVARCHAR(100) = '{RESERVATION_QUESTION_ENTITY_TYPE_NAME}';
+DECLARE @GuidRowId INT = ( SELECT [Id] FROM [EntityType] WHERE [Guid] = @QuestionGuid );
+DECLARE @NameRowId INT = ( SELECT TOP 1 [Id] FROM [EntityType] WHERE [Name] = @CurrentName AND [Guid] <> @QuestionGuid );
+DECLARE @Summary NVARCHAR(MAX) = NULL;
+
+IF @GuidRowId IS NOT NULL AND @NameRowId IS NULL
+BEGIN
+    -- Only the migration 013 row: give it the current class name
+    UPDATE [EntityType] SET [Name] = @CurrentName WHERE [Id] = @GuidRowId AND [Name] <> @CurrentName;
+END
+ELSE IF @GuidRowId IS NULL AND @NameRowId IS NOT NULL
+BEGIN
+    -- Only the newer row: give it the stable Guid
+    UPDATE [EntityType] SET [Guid] = @QuestionGuid WHERE [Id] = @NameRowId;
+END
+ELSE IF @GuidRowId IS NOT NULL AND @NameRowId IS NOT NULL
+BEGIN
+    -- Both rows: count the foreign-key references to each, across every table that references EntityType
+    CREATE TABLE #EntityTypeReferences ( [EntityTypeId] INT, [ReferencedFrom] NVARCHAR(400), [ReferenceCount] INT );
+
+    DECLARE @CountSql NVARCHAR(MAX) = N'';
+    SELECT @CountSql = @CountSql
+        + N'INSERT INTO #EntityTypeReferences SELECT ' + QUOTENAME( [c].[name] ) + N', N'''
+        + [s].[name] + N'.' + [t].[name] + N'.' + [c].[name] + N''', COUNT(*) FROM '
+        + QUOTENAME( [s].[name] ) + N'.' + QUOTENAME( [t].[name] )
+        + N' WHERE ' + QUOTENAME( [c].[name] ) + N' IN ( @GuidRowId, @NameRowId ) GROUP BY ' + QUOTENAME( [c].[name] ) + N';'
+    FROM [sys].[foreign_key_columns] [fkc]
+    INNER JOIN [sys].[tables] [t] ON [t].[object_id] = [fkc].[parent_object_id]
+    INNER JOIN [sys].[schemas] [s] ON [s].[schema_id] = [t].[schema_id]
+    INNER JOIN [sys].[columns] [c] ON [c].[object_id] = [fkc].[parent_object_id] AND [c].[column_id] = [fkc].[parent_column_id]
+    WHERE [fkc].[referenced_object_id] = OBJECT_ID( N'[dbo].[EntityType]' );
+
+    EXEC sp_executesql @CountSql, N'@GuidRowId INT, @NameRowId INT', @GuidRowId = @GuidRowId, @NameRowId = @NameRowId;
+
+    DECLARE @GuidRowReferences INT = ISNULL( ( SELECT SUM( [ReferenceCount] ) FROM #EntityTypeReferences WHERE [EntityTypeId] = @GuidRowId ), 0 );
+    DECLARE @NameRowReferences INT = ISNULL( ( SELECT SUM( [ReferenceCount] ) FROM #EntityTypeReferences WHERE [EntityTypeId] = @NameRowId ), 0 );
+
+    IF @NameRowReferences = 0
+    BEGIN
+        -- Keep the 013 row: remove the unreferenced newer row first, since names must be unique
+        DELETE FROM [EntityType] WHERE [Id] = @NameRowId;
+        UPDATE [EntityType] SET [Name] = @CurrentName WHERE [Id] = @GuidRowId;
+    END
+    ELSE IF @GuidRowReferences = 0
+    BEGIN
+        -- Keep the newer row: remove the unreferenced 013 row first, since Guids must be unique
+        DELETE FROM [EntityType] WHERE [Id] = @GuidRowId;
+        UPDATE [EntityType] SET [Guid] = @QuestionGuid WHERE [Id] = @NameRowId;
+    END
+    ELSE
+    BEGIN
+        SET @Summary = 'EntityType ' + CAST( @GuidRowId AS VARCHAR(10) ) + ' (013 Guid) and ' + CAST( @NameRowId AS VARCHAR(10) )
+            + ' (current name) are both referenced: ' + STUFF( (
+                SELECT '; ' + CAST( [EntityTypeId] AS VARCHAR(10) ) + ' in ' + [ReferencedFrom] + ' (' + CAST( [ReferenceCount] AS VARCHAR(10) ) + ')'
+                FROM #EntityTypeReferences
+                ORDER BY [EntityTypeId], [ReferencedFrom]
+                FOR XML PATH( '' ) ), 1, 2, '' );
+    END
+
+    DROP TABLE #EntityTypeReferences;
+END
+
+SELECT @Summary;
+" ) as string;
+
+            // Leave a record when the rows couldn't be reconciled automatically
+            if ( !string.IsNullOrWhiteSpace( conflictSummary ) )
+            {
+                ExceptionLogService.LogException( new Exception( "Room Management: the ReservationQuestion entity type has two rows that both have references and was left unchanged. " + conflictSummary ) );
+            }
+        }
+
+        /// <summary>
+        /// Restores the name migration 013 gave the ReservationQuestion entity type row. A row deleted by
+        /// <see cref="ReconcileReservationQuestionEntityType" /> isn't recreated; Rock registers the class again by name on startup.
+        /// </summary>
+        private void RestoreReservationQuestionEntityTypeName()
+        {
+            Sql( $@"
+UPDATE [EntityType]
+SET [Name] = '{RESERVATION_QUESTION_ENTITY_TYPE_OLD_NAME}'
+WHERE [Guid] = '{RESERVATION_QUESTION_ENTITY_TYPE_GUID}'
+    AND [Name] = '{RESERVATION_QUESTION_ENTITY_TYPE_NAME}'
+    AND NOT EXISTS ( SELECT 1 FROM [EntityType] WHERE [Name] = '{RESERVATION_QUESTION_ENTITY_TYPE_OLD_NAME}' );
+" );
+        }
+
+        /// <summary>
+        /// The Guid migration 013 gave the question entity type.
+        /// </summary>
+        private const string RESERVATION_QUESTION_ENTITY_TYPE_GUID = "F42FB8A5-D646-4FA8-AABE-D47B53A9CE35";
+
+        /// <summary>
+        /// The question entity type's current name, matching the ReservationQuestion class.
+        /// </summary>
+        private const string RESERVATION_QUESTION_ENTITY_TYPE_NAME = "com.bemaservices.RoomManagement.Model.ReservationQuestion";
+
+        /// <summary>
+        /// The name migration 013 registered for the question entity type.
+        /// </summary>
+        private const string RESERVATION_QUESTION_ENTITY_TYPE_OLD_NAME = "com.bemaservices.RoomManagement.Model.Question";
 
         /// <summary>
         /// The ReservationResource entity type (SystemGuid.EntityType.RESERVATION_RESOURCE).

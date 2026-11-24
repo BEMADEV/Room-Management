@@ -44,31 +44,204 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
     [Category( "BEMA Services > Room Management" )]
     [Description( "Renders a list of reservations in lava." )]
 
-    [CustomRadioListField( "Location Filter Display Mode", "", "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed", true, "1", order: 1, category: "Filter Settings" )]
-    [CustomRadioListField( "Resource Filter Display Mode", "", "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed", true, "1", order: 2, category: "Filter Settings" )]
-    [CustomRadioListField( "Campus Filter Display Mode", "", "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed", true, "1", order: 3, category: "Filter Settings" )]
-    [CustomRadioListField( "Ministry Filter Display Mode", "", "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed", true, "1", key: "MinistryFilterDisplayMode", order: 4, category: "Filter Settings" )]
-    [CustomRadioListField( "Approval Filter Display Mode", "", "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed", true, "1", key: "ApprovalFilterDisplayMode", order: 5, category: "Filter Settings" )]
-    [CustomRadioListField( "Reservation Type Filter Display Mode", "", "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed", true, "1", key: "ReservationTypeFilterDisplayMode", order: 6, category: "Filter Settings" )]
-    [BooleanField( "Show Date Range Filter", "Determines whether the date range filters are shown", false, order: 7, category: "Filter Settings" )]
-    [BooleanField( "Enable Campus Context", "When enabled, select the current campus as the default campus filter when no campus preference is saved.", false, order: 8, category: "Filter Settings" )]
+    [CustomRadioListField( "Location Filter Display Mode",
+        Key = AttributeKey.LocationFilterDisplayMode,
+        ListSource = "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed",
+        IsRequired = true,
+        DefaultValue = "1",
+        Category = "Filter Settings",
+        Order = 1 )]
+    [CustomRadioListField( "Resource Filter Display Mode",
+        Key = AttributeKey.ResourceFilterDisplayMode,
+        ListSource = "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed",
+        IsRequired = true,
+        DefaultValue = "1",
+        Category = "Filter Settings",
+        Order = 2 )]
+    [CustomRadioListField( "Campus Filter Display Mode",
+        Key = AttributeKey.CampusFilterDisplayMode,
+        ListSource = "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed",
+        IsRequired = true,
+        DefaultValue = "1",
+        Category = "Filter Settings",
+        Order = 3 )]
+    [CustomRadioListField( "Ministry Filter Display Mode",
+        Key = AttributeKey.MinistryFilterDisplayMode,
+        ListSource = "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed",
+        IsRequired = true,
+        DefaultValue = "1",
+        Category = "Filter Settings",
+        Order = 4 )]
+    [CustomRadioListField( "Approval Filter Display Mode",
+        Key = AttributeKey.ApprovalFilterDisplayMode,
+        ListSource = "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed",
+        IsRequired = true,
+        DefaultValue = "1",
+        Category = "Filter Settings",
+        Order = 5 )]
+    [CustomRadioListField( "Reservation Type Filter Display Mode",
+        Key = AttributeKey.ReservationTypeFilterDisplayMode,
+        ListSource = "1^Hidden, 2^Plain, 3^Panel Open, 4^Panel Closed",
+        IsRequired = true,
+        DefaultValue = "1",
+        Category = "Filter Settings",
+        Order = 6 )]
+    [BooleanField( "Show Date Range Filter",
+        Key = AttributeKey.ShowDateRangeFilter,
+        Description = "Determines whether the date range filters are shown",
+        DefaultBooleanValue = false,
+        Category = "Filter Settings",
+        Order = 7 )]
+    [BooleanField( "Enable Campus Context",
+        Key = AttributeKey.EnableCampusContext,
+        Description = "When enabled, select the current campus as the default campus filter when no campus preference is saved.",
+        DefaultBooleanValue = false,
+        Category = "Filter Settings",
+        Order = 8 )]
 
-    [LinkedPage( "Details Page", "Detail page for events", order: 8, category: "Lava Settings" )]
-    [DefinedValueField( "13B169EA-A090-45FF-8B11-A9E02776E35E", "Visible Printable Report Options", "The Printable Reports that the user is able to select", true, true, "5D53E2F0-BA82-4154-B996-085C979FACB0,46C855B0-E50E-49E7-8B99-74561AFB3DD2", "Lava Settings", 9 )]
-    [DefinedValueField( "32EC3B34-01CF-4513-BC2E-58ECFA91D010", "Visible Reservation View Options", "The Reservation Views that the user is able to select", true, true, "67EA36B0-D861-4399-998E-3B69F7700DC0", "Lava Settings", 10 )]
-    [BooleanField( "Enable Debug", "Display a list of merge fields available for lava.", false, "Lava Settings", 11 )]
+    [LinkedPage( "Details Page",
+        Key = AttributeKey.DetailsPage,
+        Description = "Detail page for events",
+        IsRequired = true,
+        Category = "Lava Settings",
+        Order = 8 )]
+    [DefinedValueField( "Visible Printable Report Options",
+        Key = AttributeKey.VisiblePrintableReportOptions,
+        Description = "The Printable Reports that the user is able to select",
+        DefinedTypeGuid = "13B169EA-A090-45FF-8B11-A9E02776E35E",
+        AllowMultiple = true,
+        IsRequired = true,
+        DefaultValue = "5D53E2F0-BA82-4154-B996-085C979FACB0,46C855B0-E50E-49E7-8B99-74561AFB3DD2",
+        Category = "Lava Settings",
+        Order = 9 )]
+    [DefinedValueField( "Visible Reservation View Options",
+        Key = AttributeKey.VisibleReservationViewOptions,
+        Description = "The Reservation Views that the user is able to select",
+        DefinedTypeGuid = "32EC3B34-01CF-4513-BC2E-58ECFA91D010",
+        AllowMultiple = true,
+        IsRequired = true,
+        DefaultValue = "67EA36B0-D861-4399-998E-3B69F7700DC0",
+        Category = "Lava Settings",
+        Order = 10 )]
+    [BooleanField( "Enable Debug",
+        Key = AttributeKey.EnableDebug,
+        Description = "Display a list of merge fields available for lava.",
+        DefaultBooleanValue = false,
+        Category = "Lava Settings",
+        Order = 11 )]
 
-    [CustomDropdownListField( "Default View Option", "Determines the default view option", "Day,Week,Month,Year", true, "Week", order: 12, category: "View Settings" )]
-    [DayOfWeekField( "Start of Week Day", "Determines what day is the start of a week.", true, DayOfWeek.Sunday, order: 13, category: "View Settings" )]
-    [BooleanField( "Show Small Calendar", "Determines whether the calendar widget is shown", true, order: 14, category: "View Settings" )]
-    [BooleanField( "Show Day View", "Determines whether the day view option is shown", false, order: 15, category: "View Settings" )]
-    [BooleanField( "Show Week View", "Determines whether the week view option is shown", true, order: 16, category: "View Settings" )]
-    [BooleanField( "Show Month View", "Determines whether the month view option is shown", true, order: 17, category: "View Settings" )]
-    [BooleanField( "Show Year View", "Determines whether the year view option is shown", false, order: 18, category: "View Settings" )]
-    [BooleanField( "Download Reports", "When printing a report should it default to an attachment to download or inline response to the browser display?", true, order: 19, category: "View Settings" )]
+    [CustomDropdownListField( "Default View Option",
+        Key = AttributeKey.DefaultViewOption,
+        Description = "Determines the default view option",
+        ListSource = "Day,Week,Month,Year",
+        IsRequired = true,
+        DefaultValue = "Week",
+        Category = "View Settings",
+        Order = 12 )]
+    [DayOfWeekField( "Start of Week Day",
+        Key = AttributeKey.StartofWeekDay,
+        Description = "Determines what day is the start of a week.",
+        IsRequired = true,
+        Category = "View Settings",
+        Order = 13 )]
+    [BooleanField( "Show Small Calendar",
+        Key = AttributeKey.ShowSmallCalendar,
+        Description = "Determines whether the calendar widget is shown",
+        DefaultBooleanValue = true,
+        Category = "View Settings",
+        Order = 14 )]
+    [BooleanField( "Show Day View",
+        Key = AttributeKey.ShowDayView,
+        Description = "Determines whether the day view option is shown",
+        DefaultBooleanValue = false,
+        Category = "View Settings",
+        Order = 15 )]
+    [BooleanField( "Show Week View",
+        Key = AttributeKey.ShowWeekView,
+        Description = "Determines whether the week view option is shown",
+        DefaultBooleanValue = true,
+        Category = "View Settings",
+        Order = 16 )]
+    [BooleanField( "Show Month View",
+        Key = AttributeKey.ShowMonthView,
+        Description = "Determines whether the month view option is shown",
+        DefaultBooleanValue = true,
+        Category = "View Settings",
+        Order = 17 )]
+    [BooleanField( "Show Year View",
+        Key = AttributeKey.ShowYearView,
+        Description = "Determines whether the year view option is shown",
+        DefaultBooleanValue = false,
+        Category = "View Settings",
+        Order = 18 )]
+    [BooleanField( "Download Reports",
+        Key = AttributeKey.DownloadReports,
+        Description = "When printing a report should it default to an attachment to download or inline response to the browser display?",
+        DefaultBooleanValue = true,
+        Category = "View Settings",
+        Order = 19 )]
 
     public partial class ReservationLava : Rock.Web.UI.RockBlock
     {
+        #region Keys
+
+        /// <summary>
+        /// The block setting keys. The Show{ViewMode}View keys are also built at runtime from the view mode.
+        /// </summary>
+        private static class AttributeKey
+        {
+            public const string LocationFilterDisplayMode = "LocationFilterDisplayMode";
+            public const string ResourceFilterDisplayMode = "ResourceFilterDisplayMode";
+            public const string CampusFilterDisplayMode = "CampusFilterDisplayMode";
+            public const string MinistryFilterDisplayMode = "MinistryFilterDisplayMode";
+            public const string ApprovalFilterDisplayMode = "ApprovalFilterDisplayMode";
+            public const string ReservationTypeFilterDisplayMode = "ReservationTypeFilterDisplayMode";
+            public const string ShowDateRangeFilter = "ShowDateRangeFilter";
+            public const string EnableCampusContext = "EnableCampusContext";
+            public const string DetailsPage = "DetailsPage";
+            public const string VisiblePrintableReportOptions = "VisiblePrintableReportOptions";
+            public const string VisibleReservationViewOptions = "VisibleReservationViewOptions";
+            public const string EnableDebug = "EnableDebug";
+            public const string DefaultViewOption = "DefaultViewOption";
+            public const string StartofWeekDay = "StartofWeekDay";
+            public const string ShowSmallCalendar = "ShowSmallCalendar";
+            public const string ShowDayView = "ShowDayView";
+            public const string ShowWeekView = "ShowWeekView";
+            public const string ShowMonthView = "ShowMonthView";
+            public const string ShowYearView = "ShowYearView";
+            public const string DownloadReports = "DownloadReports";
+        }
+
+        /// <summary>
+        /// The page parameter keys.
+        /// </summary>
+        private static class PageParameterKey
+        {
+            public const string SelectedDate = "SelectedDate";
+        }
+
+        /// <summary>
+        /// The attribute keys of a Reservation View defined value (the selected view).
+        /// </summary>
+        private static class ReservationViewAttributeKey
+        {
+            public const string Lava = "Lava";
+            public const string LavaCommands = "LavaCommands";
+        }
+
+        /// <summary>
+        /// The attribute keys of a Printable Report defined value.
+        /// </summary>
+        private static class PrintableReportAttributeKey
+        {
+            public const string Lava = "Lava";
+            public const string ReportLogo = "ReportLogo";
+            public const string ReportTemplate = "ReportTemplate";
+            public const string ReportFont = "ReportFont";
+        }
+
+        #endregion Keys
+
         #region Fields
 
         /// <summary>
@@ -213,27 +386,27 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         {
             base.OnInit( e );
 
-            _firstDayOfWeek = GetAttributeValue( "StartofWeekDay" ).ConvertToEnum<DayOfWeek>();
+            _firstDayOfWeek = GetAttributeValue( AttributeKey.StartofWeekDay ).ConvertToEnum<DayOfWeek>();
 
             lVersionText.Text = com.bemaservices.RoomManagement.VersionInfo.GetPluginProductVersionNumber();
 
-            LocationPanelOpen = GetAttributeValue( "LocationFilterDisplayMode" ) == "3";
-            LocationPanelClosed = GetAttributeValue( "LocationFilterDisplayMode" ) == "4";
+            LocationPanelOpen = GetAttributeValue( AttributeKey.LocationFilterDisplayMode ) == "3";
+            LocationPanelClosed = GetAttributeValue( AttributeKey.LocationFilterDisplayMode ) == "4";
 
-            ResourcePanelOpen = GetAttributeValue( "ResourceFilterDisplayMode" ) == "3";
-            ResourcePanelClosed = GetAttributeValue( "ResourceFilterDisplayMode" ) == "4";
+            ResourcePanelOpen = GetAttributeValue( AttributeKey.ResourceFilterDisplayMode ) == "3";
+            ResourcePanelClosed = GetAttributeValue( AttributeKey.ResourceFilterDisplayMode ) == "4";
 
-            CampusPanelOpen = GetAttributeValue( "CampusFilterDisplayMode" ) == "3";
-            CampusPanelClosed = GetAttributeValue( "CampusFilterDisplayMode" ) == "4";
+            CampusPanelOpen = GetAttributeValue( AttributeKey.CampusFilterDisplayMode ) == "3";
+            CampusPanelClosed = GetAttributeValue( AttributeKey.CampusFilterDisplayMode ) == "4";
 
-            MinistryPanelOpen = GetAttributeValue( "MinistryFilterDisplayMode" ) == "3";
-            MinistryPanelClosed = GetAttributeValue( "MinistryFilterDisplayMode" ) == "4";
+            MinistryPanelOpen = GetAttributeValue( AttributeKey.MinistryFilterDisplayMode ) == "3";
+            MinistryPanelClosed = GetAttributeValue( AttributeKey.MinistryFilterDisplayMode ) == "4";
 
-            ApprovalPanelOpen = GetAttributeValue( "ApprovalFilterDisplayMode" ) == "3";
-            ApprovalPanelClosed = GetAttributeValue( "ApprovalFilterDisplayMode" ) == "4";
+            ApprovalPanelOpen = GetAttributeValue( AttributeKey.ApprovalFilterDisplayMode ) == "3";
+            ApprovalPanelClosed = GetAttributeValue( AttributeKey.ApprovalFilterDisplayMode ) == "4";
 
-            ReservationTypePanelOpen = GetAttributeValue( "ReservationTypeFilterDisplayMode" ) == "3";
-            ReservationTypePanelClosed = GetAttributeValue( "ReservationTypeFilterDisplayMode" ) == "4";
+            ReservationTypePanelOpen = GetAttributeValue( AttributeKey.ReservationTypeFilterDisplayMode ) == "3";
+            ReservationTypePanelClosed = GetAttributeValue( AttributeKey.ReservationTypeFilterDisplayMode ) == "4";
 
             // this event gets fired after block settings are updated. it's nice to repaint the screen if these settings would alter it
             this.BlockUpdated += Block_BlockUpdated;
@@ -260,12 +433,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             nbMessage.Visible = false;
 
             var reportCache = DefinedTypeCache.Get( "13B169EA-A090-45FF-8B11-A9E02776E35E" );
-            var selectedReports = GetAttributeValue( "VisiblePrintableReportOptions" ).SplitDelimitedValues().AsGuidList();
+            var selectedReports = GetAttributeValue( AttributeKey.VisiblePrintableReportOptions ).SplitDelimitedValues().AsGuidList();
             rptReports.DataSource = reportCache.DefinedValues.Where( dv => selectedReports.Contains( dv.Guid ) ).ToList();
             rptReports.DataBind();
 
             var viewCache = DefinedTypeCache.Get( "32EC3B34-01CF-4513-BC2E-58ECFA91D010" );
-            var selectedViews = GetAttributeValue( "VisibleReservationViewOptions" ).SplitDelimitedValues().AsGuidList();
+            var selectedViews = GetAttributeValue( AttributeKey.VisibleReservationViewOptions ).SplitDelimitedValues().AsGuidList();
             var definedValueList = viewCache.DefinedValues.Where( dv => selectedViews.Contains( dv.Guid ) ).ToList();
             rptViews.DataSource = definedValueList;
             rptViews.DataBind();
@@ -713,15 +886,15 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <returns><c>true</c> if the resolved template contains a script tag; otherwise, <c>false</c>.</returns>
         private bool ViewEmitsScript( DefinedValueCache selectedView )
         {
-            var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
-            var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
+            var lavaTemplate = selectedView.GetAttributeValue( ReservationViewAttributeKey.Lava );
+            var lavaCommands = selectedView.GetAttributeValue( ReservationViewAttributeKey.LavaCommands );
 
             var mergeFields = new Dictionary<string, object>
             {
                 { "TimeFrame", ViewMode },
                 { "FilterStartDate", FilterStartDate },
                 { "FilterEndDate", FilterEndDate },
-                { "DetailsPage", LinkedPageUrl( "DetailsPage", null ) },
+                { "DetailsPage", LinkedPageUrl( AttributeKey.DetailsPage, null ) },
                 { "CurrentPerson", CurrentPerson }
             };
 
@@ -849,13 +1022,13 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             mergeFields.Add( "TimeFrame", ViewMode );
             mergeFields.Add( "FilterStartDate", FilterStartDate );
             mergeFields.Add( "FilterEndDate", FilterEndDate );
-            mergeFields.Add( "DetailsPage", LinkedPageUrl( "DetailsPage", null ) );
+            mergeFields.Add( "DetailsPage", LinkedPageUrl( AttributeKey.DetailsPage, null ) );
             mergeFields.Add( "ReservationSummaries", lavaReservationSummaries );
             mergeFields.Add( "ReservationDates", lavaReservationDates );
             mergeFields.Add( "CurrentPerson", CurrentPerson );
 
-            var lavaTemplate = selectedView.GetAttributeValue( "Lava" );
-            var lavaCommands = selectedView.GetAttributeValue( "LavaCommands" );
+            var lavaTemplate = selectedView.GetAttributeValue( ReservationViewAttributeKey.Lava );
+            var lavaCommands = selectedView.GetAttributeValue( ReservationViewAttributeKey.LavaCommands );
 
             lOutput.Text = lavaTemplate.ResolveMergeFields( mergeFields, lavaCommands );
 
@@ -864,7 +1037,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             RenderedViewHasScript = lOutput.Text.Contains( "<script" );
 
             // show debug info
-            if ( GetAttributeValue( "EnableDebug" ).AsBoolean() && IsUserAuthorized( Authorization.EDIT ) )
+            if ( GetAttributeValue( AttributeKey.EnableDebug ).AsBoolean() && IsUserAuthorized( Authorization.EDIT ) )
             {
                 lDebug.Visible = true;
                 lDebug.Text = mergeFields.lavaDebugInfo();
@@ -886,10 +1059,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var definedValue = new DefinedValueService( new RockContext() ).Get( definedValueId );
             definedValue.LoadAttributes();
 
-            var logoFileUrl = definedValue.GetAttributeValue( "ReportLogo" );
-            var reportTemplateGuid = definedValue.GetAttributeValue( "ReportTemplate" ).AsGuidOrNull();
-            var reportFont = definedValue.GetAttributeValue( "ReportFont" );
-            var reportLava = definedValue.GetAttributeValue( "Lava" );
+            var logoFileUrl = definedValue.GetAttributeValue( PrintableReportAttributeKey.ReportLogo );
+            var reportTemplateGuid = definedValue.GetAttributeValue( PrintableReportAttributeKey.ReportTemplate ).AsGuidOrNull();
+            var reportFont = definedValue.GetAttributeValue( PrintableReportAttributeKey.ReportFont );
+            var reportLava = definedValue.GetAttributeValue( PrintableReportAttributeKey.Lava );
 
             var showBy = ( ShowBy ) hfShowBy.ValueAsInt();
             List<ReservationSummary> reservationSummaryList = GetReservationSummaries( showBy );
@@ -909,7 +1082,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 Response.ClearContent();
                 Response.Clear();
                 Response.ContentType = "application/pdf";
-                var download = GetAttributeValue( "DownloadReports" ).AsBoolean();
+                var download = GetAttributeValue( AttributeKey.DownloadReports ).AsBoolean();
                 if ( !download )
                 {
                     Response.AddHeader( "Content-Disposition", string.Format( "inline;filename=Reservation Schedule for {0} - {1}.pdf", FilterStartDate.Value.ToString( "MMMM d" ), FilterEndDate.Value.ToString( "MMMM d" ) ) );
@@ -1079,25 +1252,25 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             ViewMode = preferences.GetValue( "ViewMode" );
             if ( string.IsNullOrWhiteSpace( ViewMode ) )
             {
-                ViewMode = GetAttributeValue( "DefaultViewOption" );
+                ViewMode = GetAttributeValue( AttributeKey.DefaultViewOption );
             }
 
             if ( !GetAttributeValue( string.Format( "Show{0}View", ViewMode ) ).AsBoolean() )
             {
-                ViewMode = GetAttributeValue( "DefaultViewOption" );
+                ViewMode = GetAttributeValue( AttributeKey.DefaultViewOption );
                 //ShowError( "Configuration Error", string.Format( "The Default View Option setting has been set to '{0}', but the Show {0} View setting has not been enabled.", ViewMode ) );
                 //return false;
             }
 
             // Show/Hide calendar control
-            pnlCalendar.Visible = GetAttributeValue( "ShowSmallCalendar" ).AsBoolean();
+            pnlCalendar.Visible = GetAttributeValue( AttributeKey.ShowSmallCalendar ).AsBoolean();
 
             // Get the first/last dates based on today's date and the viewmode setting
             var today = RockDateTime.Today;
 
-            if ( PageParameter( "SelectedDate" ).AsDateTime() != null )
+            if ( PageParameter( PageParameterKey.SelectedDate ).AsDateTime() != null )
             {
-                today = PageParameter( "SelectedDate" ).AsDateTime().Value;
+                today = PageParameter( PageParameterKey.SelectedDate ).AsDateTime().Value;
                 calReservationCalendar.VisibleDate = today;
             }
 
@@ -1132,7 +1305,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             calReservationCalendar.SelectedDates.SelectRange( FilterStartDate.Value, FilterEndDate.Value );
 
             // Setup Location Filter
-            lipLocation.Visible = GetAttributeValue( "LocationFilterDisplayMode" ).AsInteger() > 1;
+            lipLocation.Visible = GetAttributeValue( AttributeKey.LocationFilterDisplayMode ).AsInteger() > 1;
             var locationIds = preferences.GetValue( "Locations" ).Split( ',' ).AsIntegerList();
             if ( locationIds.Any() )
             {
@@ -1144,7 +1317,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Setup Resource Filter
-            rpResource.Visible = GetAttributeValue( "ResourceFilterDisplayMode" ).AsInteger() > 1;
+            rpResource.Visible = GetAttributeValue( AttributeKey.ResourceFilterDisplayMode ).AsInteger() > 1;
             var resourceIds = preferences.GetValue( "Resources" ).Split( ',' ).AsIntegerList();
             if ( resourceIds.Any() )
             {
@@ -1156,7 +1329,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Setup Campus Filter
-            rcwCampus.Visible = GetAttributeValue( "CampusFilterDisplayMode" ).AsInteger() > 1;
+            rcwCampus.Visible = GetAttributeValue( AttributeKey.CampusFilterDisplayMode ).AsInteger() > 1;
             cblCampus.DataSource = CampusCache.All( false );
             cblCampus.DataBind();
 
@@ -1167,7 +1340,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
             else
             {
-                if ( GetAttributeValue( "EnableCampusContext" ).AsBoolean() )
+                if ( GetAttributeValue( AttributeKey.EnableCampusContext ).AsBoolean() )
                 {
                     var contextCampus = RockPage.GetCurrentContext( EntityTypeCache.Get( "Rock.Model.Campus" ) ) as Campus;
                     if ( contextCampus != null )
@@ -1178,7 +1351,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Setup Ministry Filter
-            rcwMinistry.Visible = GetAttributeValue( "MinistryFilterDisplayMode" ).AsInteger() > 1;
+            rcwMinistry.Visible = GetAttributeValue( AttributeKey.MinistryFilterDisplayMode ).AsInteger() > 1;
             cblMinistry.DataSource = new ReservationMinistryService( rockContext ).Queryable().DistinctBy( rmc => rmc.Name ).OrderBy( m => m.Name );
             cblMinistry.DataBind();
 
@@ -1189,7 +1362,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Setup Approval Filter
-            rcwApproval.Visible = GetAttributeValue( "ApprovalFilterDisplayMode" ).AsInteger() > 1;
+            rcwApproval.Visible = GetAttributeValue( AttributeKey.ApprovalFilterDisplayMode ).AsInteger() > 1;
             cblApproval.BindToEnum<ReservationApprovalState>();
 
             var approvalStateIntValues = preferences.GetValue( "ApprovalState" ).Split( ',' ).AsIntegerList();
@@ -1199,7 +1372,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Setup Reservation Type Filter
-            rcwReservationType.Visible = GetAttributeValue( "ReservationTypeFilterDisplayMode" ).AsInteger() > 1;
+            rcwReservationType.Visible = GetAttributeValue( AttributeKey.ReservationTypeFilterDisplayMode ).AsInteger() > 1;
             cblReservationType.DataSource = new ReservationTypeService( rockContext ).Queryable().AsNoTracking().Where( rt => rt.IsActive ).ToList();
             cblReservationType.DataBind();
 
@@ -1210,7 +1383,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             }
 
             // Date Range Filter
-            dpStartDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
+            dpStartDate.Visible = GetAttributeValue( AttributeKey.ShowDateRangeFilter ).AsBoolean();
             var startDate = preferences.GetValue( "StartDate" ).AsDateTime();
             var legacyStartDatePreference = preferences.GetValue( "Start Date" );
             if ( !startDate.HasValue && !string.IsNullOrWhiteSpace( legacyStartDatePreference ) )
@@ -1249,7 +1422,7 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
                 dpStartDate.SelectedDate = null;
             }
 
-            dpEndDate.Visible = GetAttributeValue( "ShowDateRangeFilter" ).AsBoolean();
+            dpEndDate.Visible = GetAttributeValue( AttributeKey.ShowDateRangeFilter ).AsBoolean();
             if ( dpEndDate.Visible && endDate.HasValue )
             {
                 FilterEndDate = dpEndDate.SelectedDate = endDate.Value;
@@ -1261,10 +1434,10 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             // Get the View Modes, and only show them if more than one is visible
             var viewsVisible = new List<bool> {
-                GetAttributeValue( "ShowDayView" ).AsBoolean(),
-                GetAttributeValue( "ShowWeekView" ).AsBoolean(),
-                GetAttributeValue( "ShowMonthView" ).AsBoolean(),
-                GetAttributeValue( "ShowYearView" ).AsBoolean()
+                GetAttributeValue( AttributeKey.ShowDayView ).AsBoolean(),
+                GetAttributeValue( AttributeKey.ShowWeekView ).AsBoolean(),
+                GetAttributeValue( AttributeKey.ShowMonthView ).AsBoolean(),
+                GetAttributeValue( AttributeKey.ShowYearView ).AsBoolean()
             };
 
             var howManyVisible = viewsVisible.Where( v => v ).Count();

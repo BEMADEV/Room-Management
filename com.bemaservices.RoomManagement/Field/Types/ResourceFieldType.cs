@@ -46,11 +46,23 @@ namespace com.bemaservices.RoomManagement.Field.Types
         
         protected override bool IsMultipleSelection => false;
 
+        /// <summary>
+        /// Gets the endpoint the picker loads the resource tree from (ResourcesController.PostTreeItems), which only returns
+        /// resources and categories the person may view.
+        /// </summary>
+        /// <param name="privateConfigurationValues">The field's private configuration values.</param>
+        /// <returns>The resource tree endpoint.</returns>
         protected override string GetRootRestUrl( Dictionary<string, string> privateConfigurationValues )
         {
             return "/api/v2/plugins/com.bemaservices/roommanagement/models/resource/tree";
         }
 
+        /// <summary>
+        /// Gets the picker items for the stored values, which are resource Guids.
+        /// </summary>
+        /// <param name="values">The resource Guids.</param>
+        /// <param name="privateConfigurationValues">The field's private configuration values.</param>
+        /// <returns>An item for each resource that still exists.</returns>
         protected override List<ListItemBag> GetItemBags( IEnumerable<string> values, Dictionary<string, string> privateConfigurationValues )
         {
             return new ResourceService( new RockContext() ).Queryable()

@@ -40,6 +40,11 @@ namespace com.bemaservices.RoomManagement.Field.Types
 
         protected override bool IsMultipleSelection => false;
 
+        /// <summary>
+        /// Shows the report templates as a list.
+        /// </summary>
+        /// <param name="privateConfigurationValues">The field's private configuration values.</param>
+        /// <returns>The list display style.</returns>
         protected override UniversalItemValuePickerDisplayStyle GetDisplayStyle( Dictionary<string, string> privateConfigurationValues )
         {
             return UniversalItemValuePickerDisplayStyle.List;

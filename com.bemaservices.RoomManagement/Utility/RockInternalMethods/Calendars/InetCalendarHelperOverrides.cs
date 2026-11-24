@@ -24,6 +24,15 @@ namespace com.bemaservices.RoomManagement.Utility.RockInternalMethods
     /// </remarks>
     public static class InetCalendarHelperOverrides
     {
+        /// <summary>
+        /// Gets a schedule's occurrences in a date range without the extra occurrence iCal.NET wrongly adds on the event's
+        /// start date, and without that extra occurrence using up one of a counted rule's occurrences. The reasons and
+        /// workarounds are explained in the comment inside.
+        /// </summary>
+        /// <param name="iCalendarContent">The schedule's iCalendar content.</param>
+        /// <param name="startDateTime">The start of the range.</param>
+        /// <param name="endDateTime">The end of the range, or <c>null</c> for no end.</param>
+        /// <returns>The occurrences in the range.</returns>
         internal static Occurrence[] GetOccurrencesExcludingStartDate( string iCalendarContent, DateTime startDateTime, DateTime? endDateTime )
         {
             var iCalEvent = InetCalendarHelper.CreateCalendarEvent( iCalendarContent );

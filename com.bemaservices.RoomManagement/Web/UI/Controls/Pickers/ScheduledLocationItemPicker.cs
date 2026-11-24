@@ -239,6 +239,11 @@ namespace com.bemaservices.RoomManagement.Web.UI.Controls
             get { return "~/api/com_bemaservices/ScheduledLocations/GetChildren/"; }
         }
 
+        /// <summary>
+        /// Builds the query string the picker sends to the scheduled locations endpoint: the reservation type's allowed
+        /// location types, plus temporary entity sets of the locations already reserved and those only requested for the
+        /// reservation's schedule, so the tree can mark them. Also passes the attendee count when one is set.
+        /// </summary>
         public void SetExtraRestParams()
         {
             StringBuilder additionalParams = new StringBuilder();

@@ -68,11 +68,21 @@ namespace com.bemaservices.RoomManagement.Field.Types
 
         #endregion
 
+        /// <summary>
+        /// Shows the reservation types as a list.
+        /// </summary>
+        /// <param name="privateConfigurationValues">The field's private configuration values.</param>
+        /// <returns>The list display style.</returns>
         protected override UniversalItemValuePickerDisplayStyle GetDisplayStyle( Dictionary<string, string> privateConfigurationValues )
         {
             return UniversalItemValuePickerDisplayStyle.List;
         }
 
+        /// <summary>
+        /// Gets how many columns the list uses, from the field's repeat columns setting.
+        /// </summary>
+        /// <param name="privateConfigurationValues">The field's private configuration values.</param>
+        /// <returns>The column count, or <c>null</c> for the default.</returns>
         protected override int? GetColumnCount( Dictionary<string, string> privateConfigurationValues )
         {
             var columnCount = privateConfigurationValues.GetValueOrDefault( REPEAT_COLUMNS, string.Empty ).AsIntegerOrNull();

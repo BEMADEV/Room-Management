@@ -33,6 +33,13 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="context">The context.</param>
         public ReservationDoorLockScheduleService( RockContext context ) : base( context ) { }
 
+        /// <summary>
+        /// Formats a door lock time for display: the time of day, plus how many days before or after the reservation's
+        /// first day it falls when that isn't the same day (for example "6:00 PM (+1 day)").
+        /// </summary>
+        /// <param name="reservationStartDateTime">The reservation's first start.</param>
+        /// <param name="doorLockStartTime">The door lock time to format.</param>
+        /// <returns>The formatted time, or an empty string without a reservation start.</returns>
         public static string GetFriendlyDoorLockTime( DateTime? reservationStartDateTime, DateTime doorLockStartTime )
         {
             StringBuilder sb = new StringBuilder();

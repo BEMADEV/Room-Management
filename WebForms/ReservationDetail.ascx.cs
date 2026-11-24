@@ -134,6 +134,12 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         #region Fields
 
         /// <summary>
+        /// The saved reservation's first start, set just before the read-only door lock schedules grid is bound, so each
+        /// row's offsets can be shown as times without loading the reservation again. <c>null</c> when it has no schedule.
+        /// </summary>
+        private DateTime? _viewReservationFirstStartDateTime;
+
+        /// <summary>
         /// The pending CSS
         /// </summary>
         protected string PendingCss = "btn-default";
@@ -2141,15 +2147,8 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
         /// <param name="e">The row data.</param>
         protected void gViewDoorLockSchedules_RowDataBound( object sender, GridViewRowEventArgs e )
         {
-            using ( var rockContext = new RockContext() )
-            {
-                var reservation = new ReservationService( rockContext ).Get( hfReservationId.Value.AsInteger() );
-                var reservationStartDateTime = reservation.Schedule.FirstStartDateTime;
-                Literal lPhoto = e.Row.FindControl( "lPhoto" ) as Literal;
-                Literal lStartTime = e.Row.FindControl( "lStartTime" ) as Literal;
-                Literal lEndTime = e.Row.FindControl( "lEndTime" ) as Literal;
-                BindDoorLockSchedulesRow( e.Row, reservationStartDateTime );
-            }
+            // Uses the start worked out once in ShowReadonlyDetails rather than loading the reservation for every row
+            BindDoorLockSchedulesRow( e.Row, _viewReservationFirstStartDateTime );
         }
 
         /// <summary>
@@ -2490,6 +2489,9 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
 
             Hydrate( DoorLockSchedulesState, new RockContext() );
             divViewDoorLockSchedules.Visible = ReservationType.DisplayReservationDoorLockSchedules && DoorLockSchedulesState.Any();
+
+            // Every row's times are offsets from the reservation's first start, so work it out once for the whole grid
+            _viewReservationFirstStartDateTime = reservation.Schedule?.FirstStartDateTime;
             gViewDoorLockSchedules.EntityTypeId = EntityTypeCache.Get<com.bemaservices.RoomManagement.Model.ReservationDoorLockSchedule>().Id;
             gViewDoorLockSchedules.SetLinqDataSource( DoorLockSchedulesState.AsQueryable().OrderBy( r => r.StartTimeOffset ).ThenBy( r => r.EndTimeOffset ) );
             gViewDoorLockSchedules.DataBind();

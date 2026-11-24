@@ -1126,8 +1126,8 @@ namespace com.bemaservices.RoomManagement.Model
                     var firstReservationOccurrence = occurrences.First();
                     var lastReservationOccurrence = occurrences.Last();
 
-                    reservation.FirstOccurrenceStartDateTime = firstReservationOccurrence.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
-                    reservation.LastOccurrenceEndDateTime = lastReservationOccurrence.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
+                    reservation.FirstOccurrenceStartDateTime = reservation.GetReservationStartDateTime( firstReservationOccurrence.StartDateTime );
+                    reservation.LastOccurrenceEndDateTime = reservation.GetReservationEndDateTime( lastReservationOccurrence.EndDateTime );
                 }
             }
 

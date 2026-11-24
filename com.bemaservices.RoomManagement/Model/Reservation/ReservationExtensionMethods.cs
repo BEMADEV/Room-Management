@@ -126,8 +126,8 @@ namespace com.bemaservices.RoomManagement.Model
 
                 foreach ( var reservationDateTime in reservationWithDates.ReservationDateTimes )
                 {
-                    var reservationStartDateTime = reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 );
-                    var reservationEndDateTime = reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
+                    var reservationStartDateTime = reservation.GetReservationStartDateTime( reservationDateTime.StartDateTime );
+                    var reservationEndDateTime = reservation.GetReservationEndDateTime( reservationDateTime.EndDateTime );
 
                     var validReservationTime =
                         ( filterTimeBy == FilterTimeBy.Reservation || filterTimeBy == FilterTimeBy.Both ) &&
@@ -178,8 +178,8 @@ namespace com.bemaservices.RoomManagement.Model
                             ReservationEndDateTime = reservationEndDateTime,
                             EventDateTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime, reservationDateTime.EndDateTime ),
                             EventTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime, reservationDateTime.EndDateTime, false ),
-                            ReservationDateTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 ), reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 ) ),
-                            ReservationTimeDescription = GetFriendlyScheduleDescription( reservationDateTime.StartDateTime.AddMinutes( -reservation.SetupTime ?? 0 ), reservationDateTime.EndDateTime.AddMinutes( reservation.CleanupTime ?? 0 ), false ),
+                            ReservationDateTimeDescription = GetFriendlyScheduleDescription( reservationStartDateTime, reservationEndDateTime ),
+                            ReservationTimeDescription = GetFriendlyScheduleDescription( reservationStartDateTime, reservationEndDateTime, false ),
                             ReservationMinistry = reservation.ReservationMinistry,
                             EventContactPersonAlias = reservation.EventContactPersonAlias,
                             EventContactEmail = reservation.EventContactEmail,
@@ -224,6 +224,28 @@ namespace com.bemaservices.RoomManagement.Model
             }
 
             return reservationSummaryList;
+        }
+
+        /// <summary>
+        /// Gets when an occurrence's reservation starts: the event's start, moved earlier by the reservation's setup time.
+        /// </summary>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="eventStartDateTime">The occurrence's event start.</param>
+        /// <returns>The reservation start, including setup time.</returns>
+        public static DateTime GetReservationStartDateTime( this Reservation reservation, DateTime eventStartDateTime )
+        {
+            return eventStartDateTime.AddMinutes( -( reservation.SetupTime ?? 0 ) );
+        }
+
+        /// <summary>
+        /// Gets when an occurrence's reservation ends: the event's end, moved later by the reservation's cleanup time.
+        /// </summary>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="eventEndDateTime">The occurrence's event end.</param>
+        /// <returns>The reservation end, including cleanup time.</returns>
+        public static DateTime GetReservationEndDateTime( this Reservation reservation, DateTime eventEndDateTime )
+        {
+            return eventEndDateTime.AddMinutes( reservation.CleanupTime ?? 0 );
         }
 
         /// <summary>

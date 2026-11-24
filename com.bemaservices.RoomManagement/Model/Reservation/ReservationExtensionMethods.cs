@@ -250,7 +250,8 @@ namespace com.bemaservices.RoomManagement.Model
 
         /// <summary>
         /// Determines whether an occurrence overlaps the filter window: it doesn't end before the window starts and doesn't
-        /// start at or after the window ends.
+        /// start at or after the window ends. Unlike <see cref="TimesOverlap" />, an occurrence that ends exactly when the
+        /// window starts still counts, so listings include it.
         /// </summary>
         /// <param name="startDateTime">The occurrence start.</param>
         /// <param name="endDateTime">The occurrence end.</param>
@@ -304,18 +305,49 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Matchings the summaries.
+        /// Gets the summaries whose reservation times (setup and cleanup included) overlap this one's.
+        /// See <see cref="TimesOverlap" /> for how overlap is decided.
         /// </summary>
-        /// <param name="sourceReservationSummary">The source reservation summary.</param>
-        /// <param name="potentialSummaryMatches">The potential summary matches.</param>
-        /// <returns>List&lt;ReservationSummary&gt;.</returns>
+        /// <param name="sourceReservationSummary">The occurrence to compare.</param>
+        /// <param name="potentialSummaryMatches">The occurrences to compare it with.</param>
+        /// <returns>The overlapping occurrences.</returns>
         public static List<ReservationSummary> MatchingSummaries( this ReservationSummary sourceReservationSummary, List<ReservationSummary> potentialSummaryMatches )
         {
-            var matchingSummaries = potentialSummaryMatches.Where( potentialSummaryMatch =>
-                 ( sourceReservationSummary.ReservationStartDateTime >= potentialSummaryMatch.ReservationStartDateTime || sourceReservationSummary.ReservationEndDateTime > potentialSummaryMatch.ReservationStartDateTime ) &&
-                 ( sourceReservationSummary.ReservationStartDateTime < potentialSummaryMatch.ReservationEndDateTime || sourceReservationSummary.ReservationEndDateTime < potentialSummaryMatch.ReservationEndDateTime )
-                 ).ToList();
-            return matchingSummaries;
+            return potentialSummaryMatches
+                .Where( potentialSummaryMatch => sourceReservationSummary.Overlaps( potentialSummaryMatch ) )
+                .ToList();
+        }
+
+        /// <summary>
+        /// Determines whether two occurrences' reservation times (setup and cleanup included) overlap.
+        /// </summary>
+        /// <param name="reservationSummary">The first occurrence.</param>
+        /// <param name="otherReservationSummary">The second occurrence.</param>
+        /// <returns><c>true</c> if they overlap; otherwise, <c>false</c>.</returns>
+        public static bool Overlaps( this ReservationSummary reservationSummary, ReservationSummary otherReservationSummary )
+        {
+            return TimesOverlap(
+                reservationSummary.ReservationStartDateTime,
+                reservationSummary.ReservationEndDateTime,
+                otherReservationSummary.ReservationStartDateTime,
+                otherReservationSummary.ReservationEndDateTime );
+        }
+
+        /// <summary>
+        /// Determines whether a time range overlaps another: for normal ranges, it starts before the other ends and ends after
+        /// the other starts, so two bookings that only touch (one ends exactly when the other starts) don't overlap. A
+        /// zero-length range at exactly the other's start does count as overlapping. This is the rule conflict checks and
+        /// availability use; <see cref="IsWithinFilterWindow" /> is the looser rule for choosing which occurrences to list.
+        /// </summary>
+        /// <param name="startDateTime">The range start.</param>
+        /// <param name="endDateTime">The range end.</param>
+        /// <param name="otherStartDateTime">The other range's start.</param>
+        /// <param name="otherEndDateTime">The other range's end.</param>
+        /// <returns><c>true</c> if the ranges overlap; otherwise, <c>false</c>.</returns>
+        public static bool TimesOverlap( DateTime startDateTime, DateTime endDateTime, DateTime otherStartDateTime, DateTime otherEndDateTime )
+        {
+            return ( startDateTime >= otherStartDateTime || endDateTime > otherStartDateTime )
+                && ( startDateTime < otherEndDateTime || endDateTime < otherEndDateTime );
         }
 
         /// <summary>

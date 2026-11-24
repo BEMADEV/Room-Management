@@ -517,9 +517,11 @@ namespace RockWeb.Plugins.com_bemaservices.RoomManagement
             var reservationSummaryList = reservationQry.GetReservationSummaries( filterStartDateTime, filterEndDateTime, false );
 
             var reservationSummariesInWindow = reservationSummaryList
-                .Where( reservationSummary =>
-                    ( reservationSummary.ReservationStartDateTime > filterStartDateTime || reservationSummary.ReservationEndDateTime > filterStartDateTime ) &&
-                    ( reservationSummary.ReservationStartDateTime < filterEndDateTime || reservationSummary.ReservationEndDateTime < filterEndDateTime ) )
+                .Where( reservationSummary => ReservationExtensionMethods.TimesOverlap(
+                    reservationSummary.ReservationStartDateTime,
+                    reservationSummary.ReservationEndDateTime,
+                    filterStartDateTime,
+                    filterEndDateTime ) )
                 .ToList();
 
             // Each occurrence books its quantity from its start to its end (setup and cleanup included); availability

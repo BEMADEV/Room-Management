@@ -370,83 +370,33 @@ namespace com.bemaservices.RoomManagement.Model
         #region Reservation Conflict Methods
 
         /// <summary>
-        /// Gets the conflicting reservation summaries.
-        /// </summary>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private IEnumerable<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, bool arePotentialConflictsReturned = false )
-        {
-            return GetConflictingReservationSummaries( newReservation, Queryable(), arePotentialConflictsReturned );
-        }
-
-        /// <summary>
-        /// Gets the conflicting reservation summaries.
-        /// </summary>
-        /// <param name="newReservation">The new reservation.</param>
-        /// <param name="existingReservationQry">The existing reservation qry.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>IEnumerable&lt;ReservationSummary&gt;.</returns>
-        private List<Model.ReservationSummary> GetConflictingReservationSummaries( Reservation newReservation, IQueryable<Reservation> existingReservationQry, bool arePotentialConflictsReturned = false )
-        {
-            var newReservationQry = new List<Reservation>() { newReservation }.AsQueryable();
-            var filteredExistingReservationQry = existingReservationQry.AsNoTracking().ValidExistingReservations( newReservation.Id, arePotentialConflictsReturned );
-
-            var window = ReservationConflictChecker.ConflictWindow.ForConflicts( newReservation, RockDateTime.Now );
-            var newReservationSummaries = newReservationQry.GetReservationSummaries( window.Start, window.End );
-            var existingReservationSummaries = filteredExistingReservationQry.GetReservationSummaries( window.Start, window.End );
-
-            return existingReservationSummaries.WhereConflictsExist( newReservationSummaries );
-        }
-
-        /// <summary>
-        /// Generates the conflict information.
+        /// Generates the conflict message for a reservation: each of its locations that's already reserved, then each of its
+        /// resources that would be over-booked, with the existing reservations causing each conflict.
         /// </summary>
         /// <param name="reservation">The reservation.</param>
-        /// <param name="detailPageRoute">The detail page route.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>System.String.</returns>
+        /// <param name="detailPageRoute">The reservation detail page route, used to link to conflicting reservations.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <returns>The conflict HTML, or an empty string if there are no conflicts.</returns>
         public string GenerateConflictInfo( Reservation reservation, string detailPageRoute, bool arePotentialConflictsReturned = false )
         {
-            // Check to make sure that nothing has a scheduling conflict.
-            bool hasConflict = false;
-            StringBuilder sb = new StringBuilder();
-            sb.Append( FormatConflictInfoHeader( arePotentialConflictsReturned ) );
+            var reservationCheck = CheckReservation( reservation, arePotentialConflictsReturned );
+            return BuildConflictInfo( reservation, reservationCheck, detailPageRoute, arePotentialConflictsReturned );
+        }
 
-            var reservedLocationIds = GetReservedLocationIds( reservation, true, arePotentialConflictsReturned );
-
-            // Check self
-            string message = string.Empty;
-            foreach ( var location in reservation.ReservationLocations.Where( l => reservedLocationIds.Contains( l.LocationId ) ) )
-            {
-                message = BuildLocationConflictHtmlList( reservation, location.Location.Id, detailPageRoute, arePotentialConflictsReturned );
-                sb.Append( FormatLocationConflictItem( location.Location.Name, message ) );
-                hasConflict = true;
-            }
-
-            // Check resources...
-            var resources = reservation.ReservationResources.Select( rr => rr.Resource ).Distinct().ToList();
-            foreach ( var resource in resources )
-            {
-                var reservationQuantity = reservation.ReservationResources.Where( rr => rr.ResourceId == resource.Id ).Sum( rr => rr.Quantity );
-                var availableQuantity = GetAvailableResourceQuantity( resource, reservation, arePotentialConflictsReturned );
-                if ( availableQuantity.HasValue && availableQuantity - reservationQuantity < 0 )
-                {
-                    message = BuildResourceConflictHtmlList( reservation, resource.Id, detailPageRoute, arePotentialConflictsReturned );
-                    sb.Append( FormatResourceConflictItem( resource.Name, availableQuantity, message ) );
-                    hasConflict = true;
-                }
-            }
-
-            if ( hasConflict )
-            {
-                sb.Append( FormatConflictInfoFooter() );
-                return sb.ToString();
-            }
-            else
-            {
-                return string.Empty;
-            }
+        /// <summary>
+        /// Starts the conflict checks for one reservation.
+        /// </summary>
+        /// <param name="reservation">The reservation.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <param name="extraLocationId">A location to check that isn't on the reservation yet, or <c>null</c>.</param>
+        /// <param name="extraResourceId">A resource to check that isn't on the reservation yet, or <c>null</c>.</param>
+        /// <returns>The reservation's conflict checks.</returns>
+        private ReservationConflictChecker.ReservationCheck CheckReservation( Reservation reservation, bool arePotentialConflictsReturned, int? extraLocationId = null, int? extraResourceId = null )
+        {
+            var extraLocationIds = extraLocationId.HasValue ? new List<int> { extraLocationId.Value } : null;
+            var extraResourceIds = extraResourceId.HasValue ? new List<int> { extraResourceId.Value } : null;
+            var conflictChecker = new ReservationConflictChecker( this, new List<Reservation> { reservation }, arePotentialConflictsReturned, extraLocationIds, extraResourceIds );
+            return conflictChecker.Check( reservation );
         }
 
         #endregion
@@ -454,97 +404,36 @@ namespace com.bemaservices.RoomManagement.Model
         #region Location Conflict Methods
 
         /// <summary>
-        /// Gets locations occupied by reservations that conflict with the new reservation.
+        /// Gets the locations the reservation can't use because an overlapping existing reservation has booked them, or one of
+        /// their ancestors or descendants.
         /// </summary>
         /// <param name="newReservation">The new reservation.</param>
-        /// <param name="filterByLocations">if set to <c>true</c> [filter by locations].</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <param name="areAncestorsReturned">if set to <c>true</c> [are ancestors returned].</param>
-        /// <returns>List&lt;System.Int32&gt;.</returns>
+        /// <param name="filterByLocations">if set to <c>true</c>, only existing reservations sharing a location (or one of that location's ancestors or descendants) with the new reservation count.</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <param name="areAncestorsReturned">if set to <c>true</c>, the booked locations' ancestors are returned too.</param>
+        /// <returns>The reserved location identifiers.</returns>
         public List<int> GetReservedLocationIds( Reservation newReservation, bool filterByLocations = true, bool arePotentialConflictsReturned = false, bool areAncestorsReturned = true )
         {
-            using ( var locationRockContext = new RockContext() )
+            // The location picker's options still use the per-query checks until they move to the checker
+            if ( !filterByLocations || !areAncestorsReturned )
             {
-                var locationService = new LocationService( locationRockContext );
-
-                // Get any Locations related to those reserved by the new Reservation
-                var newReservationLocationIds = newReservation.ReservationLocations.Select( rl => rl.LocationId ).ToList();
-                var relevantLocationIds = new List<int>();
-                relevantLocationIds.AddRange( newReservationLocationIds );
-                relevantLocationIds.AddRange( newReservationLocationIds.SelectMany( l => locationService.GetAllAncestorIds( l ) ) );
-                relevantLocationIds.AddRange( newReservationLocationIds.SelectMany( l => locationService.GetAllDescendentIds( l ) ) );
-
-                // Get any Reservations containing related Locations
-                var existingReservationQry = Queryable();
-                if ( filterByLocations )
-                {
-                    existingReservationQry = existingReservationQry.Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
-                }
-
-                // Check existing Reservations for conflicts
-                IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
-
-                // Grab any locations booked by conflicting Reservations
-                var reservedLocationIds = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
-                        currentReservationSummary.ReservationLocations.Where( rl =>
-                            rl.ApprovalState != ReservationLocationApprovalState.Denied )
-                            .Select( rl => rl.LocationId )
-                            )
-                      .Distinct();
-
-                var reservedLocationAndChildIds = new List<int>();
-                reservedLocationAndChildIds.AddRange( reservedLocationIds );
-                reservedLocationAndChildIds.AddRange( reservedLocationIds.SelectMany( l => locationService.GetAllDescendentIds( l ) ) );
-
-                if ( areAncestorsReturned )
-                {
-                    reservedLocationAndChildIds.AddRange( reservedLocationIds.SelectMany( l => locationService.GetAllAncestorIds( l ) ) );
-                }
-
-                return reservedLocationAndChildIds;
+                return LegacyGetReservedLocationIds( newReservation, filterByLocations, arePotentialConflictsReturned, areAncestorsReturned );
             }
+
+            return CheckReservation( newReservation, arePotentialConflictsReturned ).GetReservedLocationIds().ToList();
         }
 
         /// <summary>
-        /// Gets non-denied reservation conflicts for a location and its related locations.
+        /// Gets the non-denied bookings of a location, its ancestors and its descendants by existing reservations that overlap
+        /// the new reservation. The location doesn't have to be on the new reservation.
         /// </summary>
         /// <param name="locationId">The location identifier.</param>
         /// <param name="newReservation">The new reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>List&lt;ReservationConflict&gt;.</returns>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <returns>The distinct location conflicts.</returns>
         public List<ReservationConflict> GetConflictsForLocationId( int locationId, Reservation newReservation, bool arePotentialConflictsReturned = false )
         {
-            using ( var locationRockContext = new RockContext() )
-            {
-                var locationService = new LocationService( locationRockContext );
-
-                var relevantLocationIds = new List<int>();
-                relevantLocationIds.Add( locationId );
-                relevantLocationIds.AddRange( locationService.GetAllAncestorIds( locationId ) );
-                relevantLocationIds.AddRange( locationService.GetAllDescendentIds( locationId ) );
-
-                // Get any Reservations containing related Locations
-                var existingReservationQry = Queryable().Where( r => r.ReservationLocations.Any( rl => relevantLocationIds.Contains( rl.LocationId ) ) );
-
-                // Check existing Reservations for conflicts
-                IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
-                var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
-                        currentReservationSummary.ReservationLocations.Where( rl =>
-                            rl.ApprovalState != ReservationLocationApprovalState.Denied &&
-                            relevantLocationIds.Contains( rl.LocationId ) )
-                         .Select( rl => new ReservationConflict
-                         {
-                             LocationId = rl.LocationId,
-                             LocationName = rl.Location.Name,
-                             ReservationId = rl.ReservationId,
-                             ReservationName = rl.Reservation.Name,
-                             ReservationSchedule = rl.Reservation.Schedule.ToFriendlyScheduleText()
-                         } ) )
-                     .Distinct()
-                     .ToList();
-
-                return locationConflicts;
-            }
+            return CheckReservation( newReservation, arePotentialConflictsReturned, extraLocationId: locationId ).GetLocationConflicts( locationId );
         }
 
         /// <summary>
@@ -553,7 +442,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="newReservation">The new reservation.</param>
         /// <param name="locationId">The location identifier.</param>
         /// <param name="detailPageRoute">The detail page route.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
         /// <returns>an HTML List if conflicts exists; null otherwise.</returns>
         public string BuildLocationConflictHtmlList( Reservation newReservation, int locationId, string detailPageRoute, bool arePotentialConflictsReturned = false )
         {
@@ -614,89 +503,47 @@ namespace com.bemaservices.RoomManagement.Model
         }
 
         /// <summary>
-        /// Gets the available resource quantity for the given resource, during the time (schedule)
-        /// of the given resource -- but excluding the ones used by the given resource.
+        /// Gets how many of a resource are left for the reservation once the most booked at once by overlapping existing
+        /// reservations is taken out. The reservation's own bookings aren't counted, and the resource doesn't have to be on it.
         /// </summary>
         /// <param name="resource">The resource.</param>
         /// <param name="reservation">The reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>a quantity of available resources at</returns>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <returns>The available quantity, or <c>null</c> if the resource's quantity isn't limited.</returns>
         public int? GetAvailableResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
         {
-            // For each new reservation summary, make sure that the quantities of existing summaries that come into contact with it
-            // do not exceed the resource's quantity
-
             if ( !resource.Quantity.HasValue )
             {
                 return null;
             }
-            else
-            {
-                var maxReservedQuantity = GetBookedResourceQuantity( resource, reservation, arePotentialConflictsReturned );
-                return resource.Quantity - maxReservedQuantity;
-            }
+
+            return CheckReservation( reservation, arePotentialConflictsReturned, extraResourceId: resource.Id ).GetAvailableResourceQuantity( resource );
         }
 
         /// <summary>
-        /// Gets the available resource quantity for the given resource, during the time (schedule)
-        /// of the given resource -- but excluding the ones used by the given resource.
+        /// Gets the most of a resource booked at once by existing reservations overlapping any one of the reservation's
+        /// occurrences. The reservation's own bookings aren't counted, and the resource doesn't have to be on it.
         /// </summary>
         /// <param name="resource">The resource.</param>
         /// <param name="reservation">The reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>a quantity of available resources at</returns>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <returns>The peak booked quantity, or 0 if the reservation has no occurrences in the window.</returns>
         public int? GetBookedResourceQuantity( Resource resource, Reservation reservation, bool arePotentialConflictsReturned = false )
         {
-            var window = ReservationConflictChecker.ConflictWindow.ForBookedQuantity( reservation, RockDateTime.Now );
-
-            // Get all existing non-denied reservations (for a huge time period; a month before now and a year after
-            // now) which have the given resource in them.
-            var existingValidReservations = Queryable().AsNoTracking().ValidExistingReservations( reservation.Id, arePotentialConflictsReturned ).Where( r => r.ReservationResources.Any( rr => resource.Id == rr.ResourceId ) );
-            var existingReservationSummaries = existingValidReservations.GetReservationSummaries( window.Start, window.End );
-
-            // Now narrow the reservations down to only the ones in the matching/overlapping time frame
-            var newReservationList = new List<Reservation>() { reservation }.AsQueryable();
-            var newReservationSummaries = newReservationList.GetReservationSummaries( window.Start, window.End );
-            var reservedQuantities = newReservationSummaries
-                .Select( newReservationSummary =>
-                    newReservationSummary.MatchingSummaries( existingReservationSummaries ).ReservedResourceQuantity( resource.Id )
-               );
-
-            var maxReservedQuantity = reservedQuantities.Count() > 0 ? reservedQuantities.Max() : 0;
-            return maxReservedQuantity;
+            return CheckReservation( reservation, arePotentialConflictsReturned, extraResourceId: resource.Id ).GetBookedResourceQuantity( resource.Id );
         }
 
         /// <summary>
-        /// Gets the conflicts for resource identifier.
+        /// Gets the non-denied, quantified bookings of a resource by existing reservations that overlap the new reservation.
+        /// The resource doesn't have to be on the new reservation.
         /// </summary>
         /// <param name="resourceId">The resource identifier.</param>
         /// <param name="newReservation">The new reservation.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
-        /// <returns>List&lt;ReservationConflict&gt;.</returns>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
+        /// <returns>The distinct resource conflicts.</returns>
         public List<ReservationConflict> GetConflictsForResourceId( int resourceId, Reservation newReservation, bool arePotentialConflictsReturned = false )
         {
-            // Get any Reservations containing related Locations
-            var existingReservationQry = Queryable().Where( r => r.ReservationResources.Any( rl => rl.ResourceId == resourceId ) );
-
-            // Check existing Reservations for conflicts
-            IEnumerable<Model.ReservationSummary> conflictingReservationSummaries = GetConflictingReservationSummaries( newReservation, existingReservationQry, arePotentialConflictsReturned );
-            var locationConflicts = conflictingReservationSummaries.SelectMany( currentReservationSummary =>
-                    currentReservationSummary.ReservationResources.Where( rr =>
-                        rr.ApprovalState != ReservationResourceApprovalState.Denied &&
-                        rr.ResourceId == resourceId &&
-                        rr.Quantity.HasValue )
-                     .Select( rr => new ReservationConflict
-                     {
-                         ResourceId = rr.ResourceId,
-                         ResourceName = rr.Resource.Name,
-                         ResourceQuantity = rr.Quantity.Value,
-                         ReservationId = rr.ReservationId,
-                         ReservationName = rr.Reservation.Name,
-                         ReservationSchedule = rr.Reservation.Schedule.ToFriendlyScheduleText()
-                     } ) )
-                 .Distinct()
-                 .ToList();
-            return locationConflicts;
+            return CheckReservation( newReservation, arePotentialConflictsReturned, extraResourceId: resourceId ).GetResourceConflicts( resourceId );
         }
 
         /// <summary>
@@ -705,7 +552,7 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="newReservation">The new reservation.</param>
         /// <param name="resourceId">The resource identifier.</param>
         /// <param name="detailPageRoute">The detail page route.</param>
-        /// <param name="arePotentialConflictsReturned">if set to <c>true</c> [are potential conflicts returned].</param>
+        /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
         /// <returns>an HTML List if conflicts exists; null otherwise.</returns>
         public string BuildResourceConflictHtmlList( Reservation newReservation, int resourceId, string detailPageRoute, bool arePotentialConflictsReturned = false )
         {

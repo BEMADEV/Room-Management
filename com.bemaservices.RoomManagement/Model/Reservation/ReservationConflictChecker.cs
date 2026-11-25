@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using Rock;
 using Rock.Data;
@@ -28,6 +29,8 @@ namespace com.bemaservices.RoomManagement.Model
     /// existing reservation that could conflict with any of the checked reservations is loaded in one query, each location's
     /// ancestors and descendants are looked up once, and each reservation's occurrences are worked out once and reused for all
     /// of its location and resource checks. Call <see cref="Check" /> for each reservation, then ask the result what it needs.
+    /// Locations and resources that aren't on the reservations yet, like one being added in the reservation editor, can be
+    /// checked too if they're passed to the constructor.
     /// </summary>
     internal class ReservationConflictChecker
     {
@@ -35,6 +38,8 @@ namespace com.bemaservices.RoomManagement.Model
 
         private readonly DateTime _now;
         private readonly LocationFamilyCache _locationFamilies;
+        private readonly HashSet<int> _extraLocationFamilyIds;
+        private readonly HashSet<int> _extraResourceIds;
         private readonly List<Reservation> _candidateReservations;
 
         #endregion
@@ -48,10 +53,14 @@ namespace com.bemaservices.RoomManagement.Model
         /// <param name="reservationService">The reservation service used to load the existing reservations.</param>
         /// <param name="reservations">The reservations that will be checked.</param>
         /// <param name="arePotentialConflictsReturned">if set to <c>true</c>, check against requested but not yet booked reservations instead.</param>
-        public ReservationConflictChecker( ReservationService reservationService, List<Reservation> reservations, bool arePotentialConflictsReturned )
+        /// <param name="extraLocationIds">Locations that will be checked but aren't on the reservations, or <c>null</c>.</param>
+        /// <param name="extraResourceIds">Resources that will be checked but aren't on the reservations, or <c>null</c>.</param>
+        public ReservationConflictChecker( ReservationService reservationService, List<Reservation> reservations, bool arePotentialConflictsReturned, IEnumerable<int> extraLocationIds = null, IEnumerable<int> extraResourceIds = null )
         {
             _now = RockDateTime.Now;
             _locationFamilies = new LocationFamilyCache( new LocationService( ( RockContext ) reservationService.Context ) );
+            _extraLocationFamilyIds = new HashSet<int>( ( extraLocationIds ?? Enumerable.Empty<int>() ).SelectMany( locationId => _locationFamilies.GetFamilyIds( locationId ) ) );
+            _extraResourceIds = new HashSet<int>( extraResourceIds ?? Enumerable.Empty<int>() );
             _candidateReservations = GetCandidateReservations( reservationService, reservations, arePotentialConflictsReturned );
         }
 
@@ -67,13 +76,13 @@ namespace com.bemaservices.RoomManagement.Model
         /// <returns>The reservation's conflict checks.</returns>
         public ReservationCheck Check( Reservation reservation )
         {
-            return new ReservationCheck( reservation, _candidateReservations, _locationFamilies, _now );
+            return new ReservationCheck( this, reservation );
         }
 
         /// <summary>
         /// Loads, in one query, every existing reservation that could conflict with any of the given reservations: it must pass
         /// <see cref="ReservationExtensionMethods.ValidExistingReservations" />, share a location (or one of that location's
-        /// ancestors or descendants) or a resource with one of them, and pass the date prefilter
+        /// ancestors or descendants) or a resource with one of them or with the extra locations and resources, and pass the date prefilter
         /// <see cref="ReservationExtensionMethods.GetReservationSummaries" /> applies, widened to cover every reservation's
         /// windows. This is a superset; each reservation's checks narrow it down further.
         /// </summary>
@@ -87,12 +96,12 @@ namespace com.bemaservices.RoomManagement.Model
                 .SelectMany( r => r.ReservationLocations.Select( rl => rl.LocationId ) )
                 .Distinct()
                 .SelectMany( locationId => _locationFamilies.GetFamilyIds( locationId ) )
-                .Distinct()
+                .Union( _extraLocationFamilyIds )
                 .ToList();
 
             var resourceIds = reservations
                 .SelectMany( r => r.ReservationResources.Select( rr => rr.ResourceId ) )
-                .Distinct()
+                .Union( _extraResourceIds )
                 .ToList();
 
             if ( !locationIds.Any() && !resourceIds.Any() )
@@ -107,7 +116,9 @@ namespace com.bemaservices.RoomManagement.Model
             var earliestStart = windows.Min( w => w.Start );
             var latestEnd = windows.Max( w => w.End );
 
+            // Not tracked, so callers that save their context afterward (like the workflow actions) don't also carry every candidate
             return reservationService.Queryable( "Schedule,ReservationLocations.Location,ReservationResources.Resource,ReservationResources.ReservationLocation,ReservationDoorLockSchedules" )
+                .AsNoTracking()
                 .ValidExistingReservations( null, arePotentialConflictsReturned )
                 .Where( r =>
                     r.ReservationLocations.Any( rl => locationIds.Contains( rl.LocationId ) ) ||
@@ -123,19 +134,18 @@ namespace com.bemaservices.RoomManagement.Model
         #region Helper Classes
 
         /// <summary>
-        /// The conflict checks for one reservation. Its occurrences in the conflict window are worked out once when it's created;
-        /// the booked-quantity window's occurrences are worked out the first time a resource with a limited quantity is checked.
+        /// The conflict checks for one reservation. Each window's occurrences are worked out the first time a check needs them
+        /// and reused for every later check.
         /// </summary>
         internal class ReservationCheck
         {
+            private readonly ReservationConflictChecker _checker;
             private readonly Reservation _reservation;
-            private readonly LocationFamilyCache _locationFamilies;
-            private readonly DateTime _now;
             private readonly HashSet<int> _relatedLocationIds;
-            private readonly HashSet<int> _resourceIds;
+            private readonly HashSet<int> _checkedResourceIds;
             private readonly List<Reservation> _relatedReservations;
-            private readonly List<ReservationSummary> _newSummaries;
-            private readonly List<ReservationSummary> _existingSummaries;
+            private List<ReservationSummary> _newSummaries;
+            private List<ReservationSummary> _existingSummaries;
             private List<ReservationSummary> _bookedNewSummaries;
             private List<ReservationSummary> _bookedExistingSummaries;
             private HashSet<int> _reservedLocationIds;
@@ -143,30 +153,47 @@ namespace com.bemaservices.RoomManagement.Model
             /// <summary>
             /// Initializes a new instance of the <see cref="ReservationCheck" /> class.
             /// </summary>
+            /// <param name="checker">The checker that loaded the existing reservations.</param>
             /// <param name="reservation">The reservation being checked.</param>
-            /// <param name="candidateReservations">The existing reservations loaded by the checker.</param>
-            /// <param name="locationFamilies">The location family cache for this check.</param>
-            /// <param name="now">The time the check started.</param>
-            public ReservationCheck( Reservation reservation, List<Reservation> candidateReservations, LocationFamilyCache locationFamilies, DateTime now )
+            public ReservationCheck( ReservationConflictChecker checker, Reservation reservation )
             {
+                _checker = checker;
                 _reservation = reservation;
-                _locationFamilies = locationFamilies;
-                _now = now;
 
-                // Narrow the candidates to those sharing a related location or a resource with this reservation; a reservation never conflicts with itself
-                _relatedLocationIds = new HashSet<int>( reservation.ReservationLocations.SelectMany( rl => locationFamilies.GetFamilyIds( rl.LocationId ) ) );
-                _resourceIds = new HashSet<int>( reservation.ReservationResources.Select( rr => rr.ResourceId ) );
-                _relatedReservations = candidateReservations
+                // Narrow the candidates to those sharing a location or resource being checked; a reservation never conflicts with itself
+                _relatedLocationIds = new HashSet<int>( reservation.ReservationLocations.SelectMany( rl => checker._locationFamilies.GetFamilyIds( rl.LocationId ) ) );
+                _checkedResourceIds = new HashSet<int>( reservation.ReservationResources.Select( rr => rr.ResourceId ).Union( checker._extraResourceIds ) );
+                var checkedLocationIds = new HashSet<int>( _relatedLocationIds.Union( checker._extraLocationFamilyIds ) );
+                _relatedReservations = checker._candidateReservations
                     .Where( r => r.Id != reservation.Id )
                     .Where( r =>
-                        r.ReservationLocations.Any( rl => _relatedLocationIds.Contains( rl.LocationId ) ) ||
-                        r.ReservationResources.Any( rr => _resourceIds.Contains( rr.ResourceId ) ) )
+                        r.ReservationLocations.Any( rl => checkedLocationIds.Contains( rl.LocationId ) ) ||
+                        r.ReservationResources.Any( rr => _checkedResourceIds.Contains( rr.ResourceId ) ) )
                     .ToList();
+            }
 
-                // Work out occurrences once for the conflict window and reuse them for every location and resource check
-                var conflictWindow = ConflictWindow.ForConflicts( reservation, now );
-                _newSummaries = conflictWindow.GetSummaries( new List<Reservation> { reservation } );
-                _existingSummaries = conflictWindow.GetSummaries( _relatedReservations );
+            /// <summary>
+            /// Gets the reservation's own occurrences in the conflict window.
+            /// </summary>
+            private List<ReservationSummary> NewSummaries
+            {
+                get
+                {
+                    LoadConflictWindowSummaries();
+                    return _newSummaries;
+                }
+            }
+
+            /// <summary>
+            /// Gets the related existing reservations' occurrences in the conflict window.
+            /// </summary>
+            private List<ReservationSummary> ExistingSummaries
+            {
+                get
+                {
+                    LoadConflictWindowSummaries();
+                    return _existingSummaries;
+                }
             }
 
             /// <summary>
@@ -178,16 +205,16 @@ namespace com.bemaservices.RoomManagement.Model
             {
                 if ( _reservedLocationIds == null )
                 {
-                    var reservedLocationIds = _existingSummaries
+                    var reservedLocationIds = ExistingSummaries
                         .Where( s => s.ReservationLocations.Any( rl => _relatedLocationIds.Contains( rl.LocationId ) ) )
                         .ToList()
-                        .WhereConflictsExist( _newSummaries )
+                        .WhereConflictsExist( NewSummaries )
                         .SelectMany( s => s.ReservationLocations
                             .Where( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied )
                             .Select( rl => rl.LocationId ) )
                         .Distinct();
 
-                    _reservedLocationIds = new HashSet<int>( reservedLocationIds.SelectMany( locationId => _locationFamilies.GetFamilyIds( locationId ) ) );
+                    _reservedLocationIds = new HashSet<int>( reservedLocationIds.SelectMany( locationId => _checker._locationFamilies.GetFamilyIds( locationId ) ) );
                 }
 
                 return _reservedLocationIds;
@@ -201,11 +228,11 @@ namespace com.bemaservices.RoomManagement.Model
             /// <returns>The distinct location conflicts.</returns>
             public List<ReservationConflict> GetLocationConflicts( int locationId )
             {
-                var familyIds = new HashSet<int>( _locationFamilies.GetFamilyIds( locationId ) );
-                return _existingSummaries
+                var familyIds = new HashSet<int>( _checker._locationFamilies.GetFamilyIds( locationId ) );
+                return ExistingSummaries
                     .Where( s => s.ReservationLocations.Any( rl => familyIds.Contains( rl.LocationId ) ) )
                     .ToList()
-                    .WhereConflictsExist( _newSummaries )
+                    .WhereConflictsExist( NewSummaries )
                     .SelectMany( s => s.ReservationLocations
                         .Where( rl => rl.ApprovalState != ReservationLocationApprovalState.Denied && familyIds.Contains( rl.LocationId ) )
                         .Select( rl => new ReservationConflict
@@ -246,9 +273,9 @@ namespace com.bemaservices.RoomManagement.Model
                 // The booked-quantity window is wider than the conflict window, so its occurrences are worked out separately
                 if ( _bookedNewSummaries == null )
                 {
-                    var bookedQuantityWindow = ConflictWindow.ForBookedQuantity( _reservation, _now );
+                    var bookedQuantityWindow = ConflictWindow.ForBookedQuantity( _reservation, _checker._now );
                     _bookedNewSummaries = bookedQuantityWindow.GetSummaries( new List<Reservation> { _reservation } );
-                    _bookedExistingSummaries = bookedQuantityWindow.GetSummaries( _relatedReservations.Where( r => r.ReservationResources.Any( rr => _resourceIds.Contains( rr.ResourceId ) ) ) );
+                    _bookedExistingSummaries = bookedQuantityWindow.GetSummaries( _relatedReservations.Where( r => r.ReservationResources.Any( rr => _checkedResourceIds.Contains( rr.ResourceId ) ) ) );
                 }
 
                 var existingSummariesWithResource = _bookedExistingSummaries
@@ -269,10 +296,10 @@ namespace com.bemaservices.RoomManagement.Model
             /// <returns>The distinct resource conflicts.</returns>
             public List<ReservationConflict> GetResourceConflicts( int resourceId )
             {
-                return _existingSummaries
+                return ExistingSummaries
                     .Where( s => s.ReservationResources.Any( rr => rr.ResourceId == resourceId ) )
                     .ToList()
-                    .WhereConflictsExist( _newSummaries )
+                    .WhereConflictsExist( NewSummaries )
                     .SelectMany( s => s.ReservationResources
                         .Where( rr => rr.ApprovalState != ReservationResourceApprovalState.Denied && rr.ResourceId == resourceId && rr.Quantity.HasValue )
                         .Select( rr => new ReservationConflict
@@ -286,6 +313,20 @@ namespace com.bemaservices.RoomManagement.Model
                         } ) )
                     .Distinct()
                     .ToList();
+            }
+
+            /// <summary>
+            /// Works out the reservation's and the related existing reservations' occurrences in the conflict window, if that
+            /// hasn't been done yet.
+            /// </summary>
+            private void LoadConflictWindowSummaries()
+            {
+                if ( _newSummaries == null )
+                {
+                    var conflictWindow = ConflictWindow.ForConflicts( _reservation, _checker._now );
+                    _newSummaries = conflictWindow.GetSummaries( new List<Reservation> { _reservation } );
+                    _existingSummaries = conflictWindow.GetSummaries( _relatedReservations );
+                }
             }
         }
 
